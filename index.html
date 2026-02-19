@@ -13,7 +13,7 @@
     h1{font-size:18px;margin:0 0 10px;}
     .muted{color:var(--muted);font-size:13px;line-height:1.35}
     .row{display:flex;gap:10px;flex-wrap:wrap;}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;flex:1;min-width:280px;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;flex:1;min-width:280px;position:relative;}
     label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px;}
     input,select,button,textarea{width:100%;border-radius:12px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);padding:10px;font-size:14px;}
     textarea{min-height:92px;resize:vertical;}
@@ -90,13 +90,26 @@
     .searchRow{display:flex;gap:8px;align-items:center;}
     .searchRow input{flex:1;}
     .foodListScroller{max-height:48vh; overflow:auto; -webkit-overflow-scrolling:touch; padding-right:2px;}
+  
+    /* Popover buscador global */
+    .pop{display:none;position:absolute;top:58px;right:18px;z-index:50;min-width:320px;max-width:520px;}
+    .pop[aria-hidden="false"]{display:block;}
+    .popInner{background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(8px);}
+    @media (max-width:520px){ .pop{left:12px;right:12px;min-width:auto;} }
+
+  
+    /* Chips histórico */
+    .pill.good{border-color:rgba(38,208,124,.35); background:rgba(38,208,124,.08);}
+    .pill.bad{border-color:rgba(255,77,77,.35); background:rgba(255,77,77,.08);}
+    .pill.mid{border-color:rgba(255,193,7,.28); background:rgba(255,193,7,.07);}
+
   </style>
 </head>
 
 <body>
   <h1>MacroControlAPP</h1>
   <div class="muted" style="margin-bottom:12px;">
-    v1.5.4 · Registro diario con rollover 00:00.
+    v1.5.6 · Registro diario con rollover 00:00.
   </div>
 
   <!-- Drawer ALIMENTOS (full-screen) -->
@@ -198,11 +211,17 @@
           <div class="pill">Peso: <b id="weightChip">—</b></div>
           <div class="pill" id="stageChipPill" style="cursor:pointer;">Etapa: <b id="stageChip">—</b></div>
           <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
+          <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
         </div>
 
-        <div class="two" style="margin-top:8px;">
-          <input id="globalFoodSearch" placeholder="Buscar alimento (id o nombre)…" />
-          <button class="iconBtn" id="globalFoodSearchBtn" type="button">Buscar</button>
+        <div id="globalSearchPop" class="pop" aria-hidden="true">
+          <div class="popInner">
+            <div class="row" style="gap:8px;">
+              <input id="globalFoodSearch" placeholder="Buscar alimento (id o nombre)…" />
+              <button class="iconBtn" id="globalFoodSearchBtn" type="button">Buscar</button>
+            </div>
+            <div class="muted" style="margin-top:6px;font-size:12px;">Enter para buscar · Esc para cerrar</div>
+          </div>
         </div>
 
         <!-- ETAPA -->
@@ -320,6 +339,15 @@
         <div class="status" id="dayStatusBox">
           <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
           <div class="muted" id="dayStatusDetail" style="margin-top:6px;">—</div>
+          <div class="chipRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+            <div class="pill" id="def7Chip">Déficit 7d: <b id="def7Val">—</b></div>
+            <div class="pill" id="def15Chip">15d: <b id="def15Val">—</b></div>
+            <div class="pill" id="def30Chip">30d: <b id="def30Val">—</b></div>
+            <div class="pill" id="adh7Chip">Adherencia 7d: <b id="adh7Val">—</b></div>
+            <div class="pill" id="adh15Chip">15d: <b id="adh15Val">—</b></div>
+            <div class="pill" id="adh30Chip">30d: <b id="adh30Val">—</b></div>
+          </div>
+
         </div>
 
         <div class="hr"></div>
@@ -1277,6 +1305,37 @@ pan_cristal 2u"></textarea>
     if(e.key==='Enter'){ e.preventDefault(); openDrawerWithSearch($('globalFoodSearch').value); }
   });
 
+  // Popover buscador (lupa)
+  const setSearchPop=(open)=>{
+    const pop=$('globalSearchPop');
+    if(!pop) return;
+    pop.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if(open){
+      setTimeout(()=>{ $('globalFoodSearch')?.focus(); }, 20);
+    }
+  };
+
+  $('toggleGlobalSearch').onclick=(e)=>{
+    e.preventDefault();
+    const pop=$('globalSearchPop');
+    const isOpen = pop?.getAttribute('aria-hidden')==='false';
+    setSearchPop(!isOpen);
+  };
+
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape') setSearchPop(false);
+  });
+
+  document.addEventListener('click',(e)=>{
+    const pop=$('globalSearchPop');
+    const btn=$('toggleGlobalSearch');
+    if(!pop || pop.getAttribute('aria-hidden')!=='false') return;
+    const t=e.target;
+    if(pop.contains(t) || btn.contains(t)) return;
+    setSearchPop(false);
+  });
+
+
   // Tags UI
   const getTagSetFromInput = ()=>{
     return new Set(String($('f_tags').value||'')
@@ -1467,6 +1526,115 @@ pan_cristal 2u"></textarea>
     const dotClass = st.state==='good'?'good':(st.state==='ok'?'ok':'bad');
     badge.innerHTML = `<span class="dot ${dotClass}"></span> Estado del día: ${st.label}`;
     $('dayStatusDetail').textContent = st.detail;
+  };
+
+
+  const dateKeyFromDate=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const pastKeys=(n)=>{
+    const out=[];
+    const now=new Date();
+    for(let i=0;i<n;i++){
+      const d=new Date(now);
+      d.setDate(now.getDate()-i);
+      out.push(dateKeyFromDate(d));
+    }
+    return out;
+  };
+
+  const normalizeDayForKey=(allSettings, key, modeKey)=>{
+    const base = {
+      trainTime:'',
+      wod:0,
+      cardioKcal:'',
+      steps:'',
+      neatLevel: defaultNeatByMode(modeKey),
+      panicOn:false
+    };
+    const d = allSettings[key] ? {...base, ...allSettings[key]} : base;
+    if(d.neatLevel===undefined) d.neatLevel = defaultNeatByMode(modeKey);
+    return d;
+  };
+
+  const fmtKcalSigned=(x)=>{
+    const r=Math.round(x);
+    const s = (r>0?'+':'') + r;
+    return `${s} kcal`;
+  };
+
+  const setChipClass=(el, cls)=>{
+    el.classList.remove('good','bad','mid');
+    el.classList.add(cls);
+  };
+
+  const renderHistoryChips=(profile, storedMode)=>{
+    const logsAll = loadJSON(LS.logs,{});
+    const settingsAll = loadJSON(LS.settings,{});
+    const modeKey = storedMode.modeKey;
+
+    const windows=[7,15,30];
+
+    const calcWindow=(days)=>{
+      const keys=pastKeys(days);
+      let deficitSum=0;
+      let dataDays=0;
+      let adherent=0;
+
+      for(const k of keys){
+        const items = logsAll[k] || [];
+        const eaten = sumMacros(items);
+        const day = normalizeDayForKey(settingsAll, k, modeKey);
+
+        const tdee = computeTDEE(profile, day);
+        deficitSum += (tdee - eaten.kcal);
+
+        if(items.length>0){
+          dataDays += 1;
+          const goal = computeGoal(profile, day, storedMode);
+          const kcalOk = goal.goalKcal>0 ? (Math.abs(eaten.kcal-goal.goalKcal)/goal.goalKcal)<=0.05 : false;
+          const pOk = goal.p>0 ? eaten.p >= (goal.p*0.95) : false;
+          if(kcalOk && pOk) adherent += 1;
+        }
+      }
+
+      const adhPct = dataDays>0 ? Math.round((adherent/dataDays)*100) : null;
+      return {deficitSum, adhPct, adherent, dataDays};
+    };
+
+    const w7=calcWindow(7), w15=calcWindow(15), w30=calcWindow(30);
+
+    const setDef=(chipId,valId,w)=>{
+      const chip=$(chipId), val=$(valId);
+      val.textContent = fmtKcalSigned(w.deficitSum);
+      // Color según etapa
+      const mk = storedMode.modeKey;
+      let good = true;
+      if(mk==='surplus') good = w.deficitSum<0;
+      else if(mk==='maint') good = Math.abs(w.deficitSum) <= 1500;
+      else good = w.deficitSum>0; // deficit
+      setChipClass(chip, good ? 'good' : 'bad');
+    };
+
+    const setAdh=(chipId,valId,w)=>{
+      const chip=$(chipId), val=$(valId);
+      if(w.adhPct===null){
+        val.textContent='—';
+        setChipClass(chip,'mid');
+        chip.title='Sin días con registro en esa ventana';
+        return;
+      }
+      val.textContent = `${w.adhPct}% (${w.adherent}/${w.dataDays})`;
+      if(w.adhPct>=80) setChipClass(chip,'good');
+      else if(w.adhPct>=60) setChipClass(chip,'mid');
+      else setChipClass(chip,'bad');
+    };
+
+    setDef('def7Chip','def7Val',w7);
+    setDef('def15Chip','def15Val',w15);
+    setDef('def30Chip','def30Val',w30);
+
+    setAdh('adh7Chip','adh7Val',w7);
+    setAdh('adh15Chip','adh15Val',w15);
+    setAdh('adh30Chip','adh30Val',w30);
   };
 
   const renderRec=(rec)=>{
@@ -1760,6 +1928,7 @@ pan_cristal 2u"></textarea>
 
     renderTotals(goal,eaten);
     renderDayStatus(goal,eaten);
+    renderHistoryChips(profile, storedMode);
     renderMacroStatuses(goal, eaten, storedMode);
     renderLog(foods,logs);
 

@@ -1,7 +1,7 @@
 /* sw.js - MacroControlAPP
    Estrategia: network-first para index, cache-first para estáticos.
 */
-const CACHE = 'mcapp-cache-v1.5.5';
+const CACHE = 'mcapp-cache-v1.5.6';
 const ASSETS = [
   './',
   './index.html',
