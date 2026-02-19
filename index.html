@@ -16,7 +16,11 @@
     body{ overscroll-behavior-y:none; }
     input,select,textarea,button{ font-size:16px; }
 
-    :root{--bg:#0f1115;--card:#161a22;--muted:#9aa4b2;--text:#e6e9ef;--acc:#4da3ff;--line:#242a36;}
+    
+    /* iOS: alinear input time y select (altura similar) */
+    input[type="time"], select{ min-height:44px; }
+    #weekChips .miniBtn.activeDay{background:linear-gradient(180deg,#23c26b,#128a49);border:none;color:#fff;}
+:root{--bg:#0f1115;--card:#161a22;--muted:#9aa4b2;--text:#e6e9ef;--acc:#4da3ff;--line:#242a36;}
     *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;}
     body{margin:0;background:var(--bg);color:var(--text);padding:16px;padding-bottom:92px;}
     h1{font-size:18px;margin:0 0 10px;}
@@ -33,6 +37,9 @@
     .seg{display:flex;gap:8px;flex-wrap:wrap;}
     .seg button{flex:1;min-width:120px}
     .seg button.active{outline:2px solid var(--acc);border-color:transparent;}
+    /* Week chips */
+    #weekChips button[disabled]{opacity:.55;cursor:default;}
+
     .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#0c0f14;border:1px solid #2a3242;color:var(--muted);font-size:12px;}
     .kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
     .box{background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
@@ -41,7 +48,7 @@
     .hr{height:1px;background:var(--line);margin:10px 0;}
     .list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
     .item{display:flex;justify-content:space-between;gap:10px;background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
-    .item b{font-size:14px;}
+    .item b{font-size:16px;}
     .item small{color:var(--muted);}
     .right{text-align:right;}
     .tabs{position:fixed;left:0;right:0;bottom:0;background:#0b0d12;border-top:1px solid var(--line);display:flex;gap:8px;padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
@@ -112,48 +119,21 @@
     .pill.bad{border-color:rgba(255,77,77,.35); background:rgba(255,77,77,.08);}
     .pill.mid{border-color:rgba(255,193,7,.28); background:rgba(255,193,7,.07);}
 
-    /* Chips días (ventana móvil) */
-    .dayChips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px;}
-    .dayChip{display:flex;flex-direction:column;align-items:center;justify-content:center;
-      min-width:44px; padding:8px 10px;border-radius:999px;border:1px solid var(--line);
-      background:#0f1115;color:var(--muted);cursor:pointer;user-select:none;
-    }
-    .dayChip b{font-size:13px;line-height:1;}
-    .dayChip small{font-size:11px;line-height:1.1;color:var(--muted);margin-top:2px;}
-    .dayChip.active{background:rgba(38,208,124,.10);border-color:rgba(38,208,124,.55);color:var(--text);outline:2px solid rgba(38,208,124,.25);}
-    .dayChip.past{opacity:.65}
-    .dayChip.today small{color:var(--text)}
-
-    /* Igualar altura/estética de hora y selects en iOS */
-    input[type="time"], select{min-height:44px;}
-
-
-  
-    /* iOS: alinear altura de hora + select */
-    input[type="time"], select{
-      min-height:44px;
-      height:44px;
-      line-height:44px;
-      padding-top:0;
-      padding-bottom:0;
-    }
-
   </style>
 </head>
 
 <body>
   <h1>MacroControlAPP</h1>
-  <div id="fatalErr" class="card" style="display:none;border-color:rgba(255,77,77,.55);background:rgba(255,77,77,.08);">
-    <b style="color:#ff6b6b;">Error</b>
-    <div class="muted" id="fatalErrMsg" style="margin-top:6px;word-break:break-word;"></div>
-  </div>
-  <div id="weekChips" class="dayChips" aria-label="Planificación (7 días)"></div>
+  <div id="weekChips" class="seg" style="margin:10px 0 14px;"></div>
+  <div class="muted" style="margin-bottom:12px;">
+    </div>
+
   <!-- Drawer ALIMENTOS (full-screen) -->
   <div class="drawerBack" id="drawerBack">
     <div class="drawer">
       <div class="drawerTop">
         <b>Alimentos</b>
-        <button class="iconBtn" id="closeDrawer" type="button" data-nolock="1">Cerrar</button>
+        <button class="iconBtn" id="closeDrawer" type="button">Cerrar</button>
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
@@ -236,26 +216,153 @@
         </div>
       </details>
     </div>
+  </div>
 
-  <!-- Drawer ESTADÍSTICAS (full-screen) -->
-  <div class="drawerBack" id="statsBack">
-    <div class="drawer">
-      <div class="drawerTop">
-        <b>Estadísticas</b>
-        <button class="iconBtn" id="closeStats" type="button" data-nolock="1">Cerrar</button>
+  <!-- DÍA -->
+  <section id="screen-day">
+    <div class="row">
+      <div class="card">
+        <div class="topPills">
+          <div class="pill">Fecha: <b id="dateChip">—</b></div>
+          <div class="pill">Peso: <b id="weightChip">—</b></div>
+          <div class="pill" id="stageChipPill" style="cursor:pointer;">Objetivo: <b id="stageChip">—</b></div>
+          <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
+          <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
+        </div>
+
+        <div id="globalSearchPop" class="pop" aria-hidden="true">
+          <div class="popInner">
+            <div class="row" style="gap:8px;">
+              <input id="globalFoodSearch" placeholder="Buscar alimento (id o nombre)…" />
+              <button class="iconBtn" id="globalFoodSearchBtn" type="button">Buscar</button>
+            </div>
+            <div class="muted" style="margin-top:6px;font-size:12px;">Enter para buscar · Esc para cerrar</div>
+          </div>
+        </div>
+
+        <!-- ETAPA -->
+        <details id="stageBox" open>
+          <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <span>ETAPA</span>
+            <span class="pill"><b id="stageChipRight">—</b></span>
+          </summary>
+
+          <label style="margin-top:10px;">Objetivo (cambia cada 30 días)</label>
+          <div class="seg" id="modeSeg"></div>
+
+          <label>Nivel diario (cambiable a diario)</label>
+          <div class="seg" id="levelSeg"></div>
+
+          <div class="seg" style="margin-top:10px;">
+            <button id="overrideStage" type="button">Override etapa</button>
+            <button class="primary" id="saveStage" type="button">Guardar etapa</button>
+          </div>
+          <div class="hint" id="stageLockHint">—</div>
+          <div class="hint">Tip: toca el chip “Objetivo” arriba para alternar Suave/Medio/Agresivo.</div>
+        </details>
+
+        <div class="hr"></div>
+
+        <!-- PERFIL -->
+        <details id="profileBox">
+          <summary>PERFIL DE COMPOSICIÓN CORPORAL</summary>
+          <div class="two" style="margin-top:10px;">
+            <div>
+              <label>Sexo</label>
+              <select id="sex">
+                <option value="m" selected>Hombre</option>
+                <option value="f">Mujer</option>
+              </select>
+            </div>
+            <div>
+              <label>Edad</label>
+              <input id="age" type="number" inputmode="numeric" placeholder="35" />
+            </div>
+          </div>
+
+          <div class="two">
+            <div>
+              <label>Altura (cm)</label>
+              <input id="heightCm" type="number" inputmode="numeric" placeholder="175" />
+            </div>
+            <div>
+              <label>Peso (kg) <span id="weightLockHint" class="muted"></span></label>
+              <input id="weightKg" type="number" inputmode="decimal" placeholder="69" />
+              <div class="seg" style="margin-top:8px;">
+                <button id="overrideWeight" type="button">Override peso</button>
+                <button class="primary" id="saveProfile" type="button">Guardar perfil</button>
+              </div>
+              <div class="hint">El peso se bloquea 10 días tras actualizarlo (salvo override).</div>
+            </div>
+          </div>
+        </details>
+
+        <div class="hr"></div>
+
+        <!-- NEAT -->
+        <label>NEAT diario</label>
+        <div class="two">
+          <div>
+            <label>Pasos (opcional)</label>
+            <input id="steps" type="number" inputmode="numeric" placeholder="Ej: 10500" />
+          </div>
+          <div>
+            <label>Actividad (NEAT)</label>
+            <select id="neatLevel">
+              <option value="low">Baja</option>
+              <option value="med">Media</option>
+              <option value="high" selected>Alta</option>
+            </select>
+          </div>
+        </div>
+        <div class="muted" id="neatInfo" style="margin-top:6px;">—</div>
+
+        <div class="hr"></div>
+
+        <div class="two">
+          <div>
+            <label>Hora entreno</label>
+            <input id="trainTime" type="time" />
+          </div>
+          <div>
+            <label>WOD</label>
+            <select id="wod">
+              <option value="0">Sin WOD</option>
+              <option value="300">Ligero (+300)</option>
+              <option value="350" selected>Normal (+350)</option>
+              <option value="450">Alto (+450)</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Calorías activas (dispositivo) *</label>
+        <input id="cardioKcal" type="number" inputmode="numeric" placeholder="Ej: 421" />
+        <div class="muted" style="margin-top:6px;">
+          * Se descuenta automáticamente un <b>8%</b> por seguridad (sobreestimación típica).
+        </div>
+
+        <div class="hr"></div>
+
+        <!-- BOTONES FIJOS (como pediste): Guardar + Pánico al lado -->
+        <div class="seg" style="margin-top:0;">
+          <button class="primary" id="saveDay" type="button">Guardar ajustes del día</button>
+          <button class="danger" id="panicBtn" type="button" title="Aplica déficit fijo de emergencia">Pánico</button>
+        </div>
+        <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).</div>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
-        <div class="muted">Solo cuenta días con registro. No incluye días futuros planificados.</div>
-      </div>
-
-      <div class="card" style="margin-bottom:12px;">
-        <label>Déficit acumulado</label>
-        <div class="chipRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+      <div class="card">
+        <div class="status" id="dayStatusBox">
+          <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
+          <div class="muted" id="dayStatusDetail" style="margin-top:6px;">—</div>
+          <div class="chipRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
             <div class="pill" id="def7Chip">Déficit 7d: <b id="def7Val">—</b></div>
+            <div class="pill" id="def15Chip">15d: <b id="def15Val">—</b></div>
+            <div class="pill" id="def30Chip">30d: <b id="def30Val">—</b></div>
             <div class="pill" id="adh7Chip">Adherencia 7d: <b id="adh7Val">—</b></div>
-            <div class="pill mid" style="cursor:pointer;" id="openStatsPill">Ver detalle 📊</div>
-</div>
+            <div class="pill" id="adh15Chip">15d: <b id="adh15Val">—</b></div>
+            <div class="pill" id="adh30Chip">30d: <b id="adh30Val">—</b></div>
+          </div>
 
         </div>
 
@@ -378,11 +485,25 @@ pan_cristal 2u"></textarea>
   </section>
 
   <div class="tabs">
-    <button id="tabDay" class="active" type="button" data-nolock="1">Día</button>
-    <button id="tabAdd" type="button" data-nolock="1">Añadir</button>
+    <button id="tabDay" class="active" type="button">Día</button>
+    <button id="tabAdd" type="button">Añadir</button>
   </div>
 
 <script>
+// Debug visible en iOS si algo rompe el render
+window.addEventListener('error', function(e){
+  try{
+    var box=document.getElementById('jsErrorBox');
+    if(!box){
+      box=document.createElement('div');
+      box.id='jsErrorBox';
+      box.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:9999;background:#2b1111;border:1px solid #ff4d4d;color:#fff;padding:10px;border-radius:12px;font-size:12px;white-space:pre-wrap;';
+      document.body.appendChild(box);
+    }
+    box.textContent='Error JS: '+(e.message||'')+'\n'+(e.filename||'')+':'+(e.lineno||0)+':'+(e.colno||0);
+  }catch(_){ }
+});
+
 (()=> {
   // =========================
   // STORAGE KEYS (estables)
@@ -404,7 +525,7 @@ pan_cristal 2u"></textarea>
   let weightOverride = false;
   let stageOverride = false;
 
-  // Objetivo
+  // Objetivos
   const MODES=[
     {key:'deficit',label:'Déficit'},
     {key:'maint',label:'Mantenimiento'},
@@ -449,51 +570,66 @@ pan_cristal 2u"></textarea>
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
-
-  // Ventana móvil: hoy + próximos 6 días
-  const dateKeyFromDate=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const addDays=(d,n)=>{const x=new Date(d); x.setDate(x.getDate()+n); return x;};
-  const weekdayLetter=(d)=>['D','L','M','X','J','V','S'][d.getDay()];
-
+  // =========================
+  // ACTIVE DAY + ROLLING 7-DAY WINDOW (hoy + 6)
+  // =========================
   let activeDayKey = todayKey();
 
-  const getWindowDays=()=>{
-    const t=new Date();
+  const addDays = (dateObj, n)=>{
+    const d=new Date(dateObj);
+    d.setDate(d.getDate()+n);
+    return d;
+  };
+
+  const dayLetterES = (dateObj)=>{
+    // getDay(): 0=Dom..6=Sáb
+    const map = ['D','L','M','X','J','V','S'];
+    return map[dateObj.getDay()];
+  };
+
+  const dateKeyFromDateObj=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const getRollingWindowKeys = ()=>{
+    const base = new Date();
     const out=[];
     for(let i=0;i<7;i++){
-      const d=addDays(t,i);
-      const k=dateKeyFromDate(d);
+      const d = addDays(base, i);
       out.push({
-        key:k,
-        letter: weekdayLetter(d),
-        day: String(d.getDate()).padStart(2,'0'),
-        mon: String(d.getMonth()+1).padStart(2,'0'),
-        isToday: i===0
+        key: dateKeyFromDateObj(d),
+        label: dayLetterES(d),
+        offset: i
       });
     }
     return out;
   };
 
-  const ensureActiveInWindow=()=>{
-    const w=getWindowDays().map(x=>x.key);
-    if(!w.includes(activeDayKey)) activeDayKey = todayKey();
-  };
-
-  const renderWeekChips=()=>{
-    const wrap=$('weekChips');
+  const renderWeekChips = ()=>{
+    const wrap = $('weekChips');
     if(!wrap) return;
-    ensureActiveInWindow();
     wrap.innerHTML='';
-    getWindowDays().forEach(d=>{
+    const win = getRollingWindowKeys();
+
+    // Siempre arrancamos en hoy si el activo ya quedó atrás
+    if(activeDayKey < todayKey()) activeDayKey = todayKey();
+
+    win.forEach((d)=>{
+      // Pre-crea settings/log del día futuro para que sea editable sin errores
+      const storedMode = loadMode();
+      ensureDaySettings(d.key, storedMode.modeKey);
+      const logsAll = loadJSON(LS.logs, {});
+      if(!logsAll[d.key]){ logsAll[d.key]=[]; saveJSON(LS.logs, logsAll); }
+
       const b=document.createElement('button');
       b.type='button';
-      b.className='dayChip' + (d.key===activeDayKey?' active':'') + (d.isToday?' today':'');
-      b.dataset.nolock='1';
-      b.innerHTML=`<b>${d.letter}</b><small>${d.day}/${d.mon}</small>`;
+      b.textContent=d.label;
+      b.className='miniBtn';
+      if(d.key===activeDayKey){ b.style.outline='2px solid var(--acc)'; }
+      b.title = d.key;
       b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
     });
   };
+
   const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}}; 
   const saveJSON=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
   const getLevel=(mk,lk)=>(LEVELS[mk]||[]).find(x=>x.key===lk) || (LEVELS[mk]||[])[0];
@@ -663,30 +799,30 @@ pan_cristal 2u"></textarea>
     return all[dateKey];
   };
 
-  const loadDaySettings=(modeKey)=>{
-    ensureActiveInWindow();
-    const k=activeDayKey;
+  const loadDaySettings=(dateKey, modeKey)=>{
+    const k=dateKey || todayKey();
     const day=ensureDaySettings(k, modeKey);
     return {k,day};
   };
 
-  const saveDaySettings=(day)=>{
+  const saveDaySettings=(dateKey, day)=>{
+    const k=dateKey || todayKey();
     const all=loadJSON(LS.settings,{});
-    all[activeDayKey]=day;
+    all[k]=day;
     saveJSON(LS.settings,all);
   };
 
-  const loadLogs=()=>{
+  const loadLogs=(dateKey)=>{
+    const k=dateKey || todayKey();
     const logs=loadJSON(LS.logs,{});
-    ensureActiveInWindow();
-    const k=activeDayKey;
-    if(!logs[k]){logs[k]=[]; saveJSON(LS.logs,logs);}
+    if(!logs[k]){ logs[k]=[]; saveJSON(LS.logs,logs); }
     return {k,items:logs[k]};
   };
 
-  const saveLogs=(items)=>{
+  const saveLogs=(dateKey, items)=>{
+    const k=dateKey || todayKey();
     const logs=loadJSON(LS.logs,{});
-    logs[activeDayKey]=items;
+    logs[k]=items;
     saveJSON(LS.logs,logs);
   };
 
@@ -1363,10 +1499,10 @@ pan_cristal 2u"></textarea>
 
     if(draft.modeKey !== stored.modeKey){
       $('stageLockHint').textContent = locked
-        ? `Objetivo bloqueado: faltan ${STAGE_LOCK_DAYS - stageSince} días (o activa override).`
+        ? `Objetivo bloqueada: faltan ${STAGE_LOCK_DAYS - stageSince} días (o activa override).`
         : `Puedes cambiar etapa ahora.`;
     } else {
-      $('stageLockHint').textContent = `Objetivo actual bloqueado ${STAGE_LOCK_DAYS} días desde el último cambio. Nivel diario libre.`;
+      $('stageLockHint').textContent = `Objetivo actual bloqueada ${STAGE_LOCK_DAYS} días desde el último cambio. Nivel diario libre.`;
     }
 
     $('overrideStage').textContent = stageOverride ? 'Override etapa (ON)' : 'Override etapa';
@@ -1523,6 +1659,54 @@ pan_cristal 2u"></textarea>
     el.classList.add(cls);
   };
 
+  const computeDeficitGuidance = (profile, storedMode)=>{
+    const logsAll = loadJSON(LS.logs,{});
+    const settingsAll = loadJSON(LS.settings,{});
+
+    const keys = pastKeys(7);
+    let real=0;
+    let planned=0;
+    let dataDays=0;
+
+    for(const k of keys){
+      const items = logsAll[k] || [];
+      if(!items.length) continue;
+      const eaten = sumMacros(items);
+      const day = normalizeDayForKey(settingsAll, k, storedMode.modeKey);
+      const tdee = computeTDEE(profile, day);
+      const goal = computeGoal(profile, day, storedMode);
+      real += (tdee - eaten.kcal);
+      planned += (tdee - goal.goalKcal);
+      dataDays += 1;
+    }
+    if(dataDays===0) return null;
+
+    const denom = Math.abs(planned) < 1 ? 1 : Math.abs(planned);
+    const deviation = (real - planned) / denom;
+
+    // Corrección suave: repartir desfase en 5 días
+    const correctionPerDay = Math.round((planned - real) / 5);
+
+    const absDev = Math.abs(deviation);
+    let sev='ok';
+    if(absDev>0.20) sev='bad';
+    else if(absDev>0.10) sev='mid';
+
+    const pct = Math.round(deviation*100);
+    let msg='';
+    if(storedMode.modeKey==='deficit'){
+      if(real < planned) msg = `Déficit real por debajo del plan (${pct}%). Recomiendo −${Math.abs(correctionPerDay)} kcal/día (5 días).`;
+      else if(real > planned) msg = `Déficit real por encima del plan (+${pct}%). Recomiendo +${Math.abs(correctionPerDay)} kcal/día (5 días).`;
+      else msg = 'Déficit semanal en línea con el plan.';
+    } else if(storedMode.modeKey==='maint'){
+      msg = `Mantenimiento: balance 7d ${pct}% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
+    } else {
+      msg = `Superávit: balance 7d ${pct}% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
+    }
+
+    return {real, planned, deviation, correctionPerDay, sev, msg, dataDays};
+  };
+
   const renderHistoryChips=(profile, storedMode)=>{
     const logsAll = loadJSON(LS.logs,{});
     const settingsAll = loadJSON(LS.settings,{});
@@ -1595,17 +1779,12 @@ pan_cristal 2u"></textarea>
     };
 
     setDef('def7Chip','def7Val',w7);
+    setDef('def15Chip','def15Val',w15);
+    setDef('def30Chip','def30Val',w30);
 
     setAdh('adh7Chip','adh7Val',w7);
-
-    // Drawer estadísticas
-    setDef('def7ChipS','def7ValS',w7);
-    setDef('def15ChipS','def15ValS',w15);
-    setDef('def30ChipS','def30ValS',w30);
-
-    setAdh('adh7ChipS','adh7ValS',w7);
-    setAdh('adh15ChipS','adh15ValS',w15);
-    setAdh('adh30ChipS','adh30ValS',w30);
+    setAdh('adh15Chip','adh15Val',w15);
+    setAdh('adh30Chip','adh30Val',w30);
   };
 
   const renderRec=(rec)=>{
@@ -1689,7 +1868,7 @@ pan_cristal 2u"></textarea>
           ev.stopPropagation();
           if(confirm(`¿Eliminar "${it.name}"?`)){
             items.splice(idx,1);
-            saveLogs(items);
+            saveLogs(activeDayKey, items);
             renderAll();
           }
         };
@@ -1705,7 +1884,7 @@ pan_cristal 2u"></textarea>
           if(txt==='del' || txt==='borrar' || txt==='delete' || txt==='x'){
             if(confirm(`¿Eliminar "${it.name}"?`)){
               items.splice(idx,1);
-              saveLogs(items);
+              saveLogs(activeDayKey, items);
               renderAll();
             }
             return;
@@ -1727,7 +1906,7 @@ pan_cristal 2u"></textarea>
           it.qtyDisplay=qtyDisplay(qtyType,qty);
           it.kcal=mac.kcal; it.p=mac.p; it.c=mac.c; it.f=mac.f;
 
-          saveLogs(items);
+          saveLogs(activeDayKey, items);
           renderAll();
         };
 
@@ -1844,6 +2023,8 @@ pan_cristal 2u"></textarea>
 
     const storedMode=loadMode();
     ensureDaySettings(now, storedMode.modeKey);
+    // al cambiar de día, el foco pasa al día en curso
+    activeDayKey = now;
 
     localStorage.setItem(LS.lastDate, now);
     return true;
@@ -1852,6 +2033,7 @@ pan_cristal 2u"></textarea>
   // ======= RENDER ALL =======
   const renderAll=()=>{
     rolloverIfNeeded();
+    renderWeekChips();
 
     const foods=loadFoodsMerged();
 
@@ -1865,7 +2047,6 @@ pan_cristal 2u"></textarea>
     $('age').value = profile.age;
     $('heightCm').value = profile.heightCm;
 
-    renderWeekChips();
     $('dateChip').textContent = activeDayKey;
     $('weightChip').textContent = `${profile.weightKg} kg`;
 
@@ -1875,7 +2056,9 @@ pan_cristal 2u"></textarea>
     $('weightKg').disabled = lockedW;
     $('weightLockHint').textContent = lockedW ? `· Bloqueado (${WEIGHT_LOCK_DAYS - sinceW} días)` : '';
 
-    const {day}=loadDaySettings(storedMode.modeKey);
+    const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
+
+    const isLocked = (activeDayKey < todayKey());
     $('trainTime').value = day.trainTime || '';
     $('wod').value = String(day.wod ?? 350);
     $('cardioKcal').value = day.cardioKcal ?? '';
@@ -1894,25 +2077,58 @@ pan_cristal 2u"></textarea>
     renderAddFoodList(foods);
     renderFoodsList(foods);
 
-    const logs=loadLogs().items;
+    const logs=loadLogs(activeDayKey).items;
     const eaten=sumMacros(logs);
     const goal=computeGoal(profile, day, storedMode);
 
     renderTotals(goal,eaten);
     renderDayStatus(goal,eaten);
     renderHistoryChips(profile, storedMode);
+
+    // Guidance por desviación acumulada 7d
+    const guidance = computeDeficitGuidance(profile, storedMode);
+    let adjustedGoal = goal;
+    if(guidance){
+      const absDev = Math.abs(guidance.deviation);
+      if(absDev>0.20){
+        $('dayStatusDetail').textContent += ` · ${guidance.msg}`;
+      }
+      if((activeDayKey >= todayKey()) && absDev>0.15){
+        adjustedGoal = { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) };
+      }
+    }
+
     renderMacroStatuses(goal, eaten, storedMode);
     renderLog(foods,logs);
 
     const tc=timeContext(day.trainTime);
     const slot=mealFromClock();
-    $('recContext').textContent = `${tc.ctx} · ${prettyMeal(slot)}: ${tc.detail}`;
+    let recCtx = `${tc.ctx} · ${prettyMeal(slot)}: ${tc.detail}`;
+    if(guidance && guidance.dataDays>=3){
+      const absDev = Math.abs(guidance.deviation);
+      if(absDev>0.15) recCtx += ` · Corrección 7d: ${guidance.correctionPerDay>0?'-':'+'}${Math.abs(guidance.correctionPerDay)} kcal/día (5d)`;
+    }
+    $('recContext').textContent = recCtx;
 
-    const rec = recommendForSlot(foods, goal, eaten, tc.ctx, slot, false);
+    const rec = recommendForSlot(foods, adjustedGoal, eaten, tc.ctx, slot, false);
     currentRec = rec ? {slot, ctx:tc.ctx, items:rec.items, tot:rec.tot} : null;
     renderRec(currentRec);
 
     renderMacrosOk();
+    // lock day (solo consulta) si es pasado
+    /* lock day */
+    const lockables = document.querySelectorAll('#screen-day input, #screen-day select, #screen-day textarea, #screen-day button, #screen-add input, #screen-add select, #screen-add textarea, #screen-add button');
+    lockables.forEach(el=>{
+      if(el.closest('#weekChips')) return;
+      if(el.id==='tabDay' || el.id==='tabAdd') return;
+      if(isLocked){
+        if(el.id==='openFoods' || el.id==='toggleGlobalSearch') return;
+        el.disabled = true;
+      } else {
+        el.disabled = false;
+      }
+    });
+
     refreshTagButtons();
   };
 
@@ -1969,13 +2185,13 @@ pan_cristal 2u"></textarea>
       const since = daysSince(stored.lastModeUpdateTs);
       const locked = (since < STAGE_LOCK_DAYS) && !stageOverride;
       if(locked){
-        alert(`Objetivo bloqueado. Faltan ${STAGE_LOCK_DAYS - since} días (o activa override).`);
+        alert(`Objetivo bloqueada. Faltan ${STAGE_LOCK_DAYS - since} días (o activa override).`);
         renderAll();
         return;
       }
       saveModeFull(modeDraft.modeKey, modeDraft.levelKey);
       stageOverride = false;
-      alert('Objetivo guardado.');
+      alert('Objetivo guardada.');
       renderAll();
       return;
     }
@@ -1985,9 +2201,11 @@ pan_cristal 2u"></textarea>
 
   $('panicBtn').onclick=()=>{
     const storedMode=loadMode();
-    const {day}=loadDaySettings(storedMode.modeKey);
+    const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
+
+    const isLocked = (activeDayKey < todayKey());
     day.panicOn = !day.panicOn;
-    saveDaySettings(day);
+    saveDaySettings(activeDayKey, day);
     alert(day.panicOn
       ? `Pánico activado: se resta ${(loadProfile().sex==='m'?400:300)} kcal al objetivo HOY.`
       : 'Pánico desactivado.');
@@ -1996,7 +2214,7 @@ pan_cristal 2u"></textarea>
 
   $('saveDay').onclick=()=>{
     const storedMode=loadMode();
-    const {day:cur}=loadDaySettings(storedMode.modeKey);
+    const {day:cur}=loadDaySettings(activeDayKey, storedMode.modeKey);
     const day={
       ...cur,
       trainTime: $('trainTime').value || '',
@@ -2005,7 +2223,7 @@ pan_cristal 2u"></textarea>
       steps: $('steps').value,
       neatLevel: $('neatLevel').value || defaultNeatByMode(storedMode.modeKey),
     };
-    saveDaySettings(day);
+    saveDaySettings(activeDayKey, day);
     alert('Guardado.');
     renderAll();
   };
@@ -2038,7 +2256,7 @@ pan_cristal 2u"></textarea>
     if(!f || !qty || qty<=0){ alert('Producto y cantidad.'); return; }
 
     const mac=macroFor(f,qtyType,qty);
-    const logs=loadLogs().items;
+    const logs=loadLogs(activeDayKey).items;
 
     pushLogItem(logs,{
       meal: $('mealSlot').value,
@@ -2049,7 +2267,7 @@ pan_cristal 2u"></textarea>
       ...mac
     });
 
-    saveLogs(logs);
+    saveLogs(activeDayKey, logs);
     $('qty').value='';
     renderAll();
   };
@@ -2059,7 +2277,7 @@ pan_cristal 2u"></textarea>
     if(!txt){ alert('Pega texto.'); return; }
 
     const foods=loadFoodsMerged();
-    const logs=loadLogs().items;
+    const logs=loadLogs(activeDayKey).items;
     const lines=txt.split(/\n+/).map(x=>x.trim()).filter(Boolean);
     let added=0;
 
@@ -2087,7 +2305,7 @@ pan_cristal 2u"></textarea>
       added++;
     }
 
-    saveLogs(logs);
+    saveLogs(activeDayKey, logs);
     $('quickText').value='';
     alert(`Añadidos: ${added}`);
     renderAll();
@@ -2096,22 +2314,28 @@ pan_cristal 2u"></textarea>
   $('regenRec').onclick=()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
-    const {day}=loadDaySettings(storedMode.modeKey);
+    const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
+
+    const isLocked = (activeDayKey < todayKey());
     const profile=loadProfile();
-    const logs=loadLogs().items;
+    const logs=loadLogs(activeDayKey).items;
     const eaten=sumMacros(logs);
     const goal=computeGoal(profile, day, storedMode);
+    const guidance = computeDeficitGuidance(profile, storedMode);
+    const adjustedGoal = (guidance && (activeDayKey >= todayKey()) && Math.abs(guidance.deviation)>0.15)
+      ? { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) }
+      : goal;
     const tc=timeContext(day.trainTime);
     const slot=mealFromClock();
 
-    const rec = recommendForSlot(foods, goal, eaten, tc.ctx, slot, true);
+    const rec = recommendForSlot(foods, adjustedGoal, eaten, tc.ctx, slot, true);
     currentRec = rec ? {slot, ctx:tc.ctx, items:rec.items, tot:rec.tot} : null;
     renderRec(currentRec);
   };
 
   $('addRecToLog').onclick=()=>{
     if(!currentRec){ alert('No hay recomendación.'); return; }
-    const logs=loadLogs().items;
+    const logs=loadLogs(activeDayKey).items;
 
     currentRec.items.forEach(it=>{
       pushLogItem(logs,{
@@ -2125,13 +2349,13 @@ pan_cristal 2u"></textarea>
       });
     });
 
-    saveLogs(logs);
+    saveLogs(activeDayKey, logs);
     renderAll();
   };
 
   $('clearToday').onclick=()=>{
     if(confirm('¿Borrar todo HOY?')){
-      saveLogs([]);
+      saveLogs(activeDayKey, []);
       renderAll();
     }
   };
@@ -2140,12 +2364,18 @@ pan_cristal 2u"></textarea>
   $('macrosOkGen').onclick=()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
-    const {day}=loadDaySettings(storedMode.modeKey);
-    const profile=loadProfile();
-    const {items:logs}=loadLogs();
-    const goal=computeGoal(profile, day, storedMode);
+    const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
 
-    currentMacrosOk = planMacrosOk(foods, goal, logs, day);
+    const isLocked = (activeDayKey < todayKey());
+    const profile=loadProfile();
+    const {items:logs}=loadLogs(activeDayKey);
+    const goal=computeGoal(profile, day, storedMode);
+    const guidance = computeDeficitGuidance(profile, storedMode);
+    const adjustedGoal = (guidance && (activeDayKey >= todayKey()) && Math.abs(guidance.deviation)>0.15)
+      ? { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) }
+      : goal;
+
+    currentMacrosOk = planMacrosOk(foods, adjustedGoal, logs, day);
 
     $('macrosOkContext').textContent = currentMacrosOk?.context || 'Sin sugerencia.';
     renderMacrosOk();
@@ -2156,7 +2386,7 @@ pan_cristal 2u"></textarea>
       alert('No hay sugerencia para confirmar.');
       return;
     }
-    const logs=loadLogs().items;
+    const logs=loadLogs(activeDayKey).items;
 
     currentMacrosOk.items.forEach(it=>{
       pushLogItem(logs,{
@@ -2170,7 +2400,7 @@ pan_cristal 2u"></textarea>
       });
     });
 
-    saveLogs(logs);
+    saveLogs(activeDayKey, logs);
     currentMacrosOk = null;
     $('macrosOkContext').textContent = 'Sugerencia confirmada y añadida al registro.';
     renderAll();
