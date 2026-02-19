@@ -6,7 +6,16 @@
   <title>MacroControlAPP</title>
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MacroControl" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <style>
+    html{ -webkit-text-size-adjust:100%; }
+    body{ overscroll-behavior-y:none; }
+    input,select,textarea,button{ font-size:16px; }
+
     :root{--bg:#0f1115;--card:#161a22;--muted:#9aa4b2;--text:#e6e9ef;--acc:#4da3ff;--line:#242a36;}
     *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;}
     body{margin:0;background:var(--bg);color:var(--text);padding:16px;padding-bottom:92px;}
@@ -109,7 +118,7 @@
 <body>
   <h1>MacroControlAPP</h1>
   <div class="muted" style="margin-bottom:12px;">
-    v1.5.6 · Registro diario con rollover 00:00.
+    v1.5.7 · Registro diario con rollover 00:00.
   </div>
 
   <!-- Drawer ALIMENTOS (full-screen) -->
@@ -1581,19 +1590,21 @@ pan_cristal 2u"></textarea>
 
       for(const k of keys){
         const items = logsAll[k] || [];
+        // Modo realista: si no hay registro ese día, no cuenta ni para déficit ni para adherencia
+        if(!items || items.length===0) continue;
+
         const eaten = sumMacros(items);
         const day = normalizeDayForKey(settingsAll, k, modeKey);
 
         const tdee = computeTDEE(profile, day);
         deficitSum += (tdee - eaten.kcal);
 
-        if(items.length>0){
-          dataDays += 1;
-          const goal = computeGoal(profile, day, storedMode);
-          const kcalOk = goal.goalKcal>0 ? (Math.abs(eaten.kcal-goal.goalKcal)/goal.goalKcal)<=0.05 : false;
-          const pOk = goal.p>0 ? eaten.p >= (goal.p*0.95) : false;
-          if(kcalOk && pOk) adherent += 1;
-        }
+        dataDays += 1;
+
+        const goal = computeGoal(profile, day, storedMode);
+        const kcalOk = goal.goalKcal>0 ? (Math.abs(eaten.kcal-goal.goalKcal)/goal.goalKcal)<=0.05 : false;
+        const pOk = goal.p>0 ? eaten.p >= (goal.p*0.95) : false;
+        if(kcalOk && pOk) adherent += 1;
       }
 
       const adhPct = dataDays>0 ? Math.round((adherent/dataDays)*100) : null;
@@ -1604,6 +1615,12 @@ pan_cristal 2u"></textarea>
 
     const setDef=(chipId,valId,w)=>{
       const chip=$(chipId), val=$(valId);
+      if(!w || !w.dataDays){
+        val.textContent='—';
+        setChipClass(chip,'mid');
+        chip.title='Sin días con registro en esa ventana';
+        return;
+      }
       val.textContent = fmtKcalSigned(w.deficitSum);
       // Color según etapa
       const mk = storedMode.modeKey;
@@ -1612,6 +1629,7 @@ pan_cristal 2u"></textarea>
       else if(mk==='maint') good = Math.abs(w.deficitSum) <= 1500;
       else good = w.deficitSum>0; // deficit
       setChipClass(chip, good ? 'good' : 'bad');
+      chip.title = `Acumulado sobre ${w.dataDays} día(s) con registro`;
     };
 
     const setAdh=(chipId,valId,w)=>{
