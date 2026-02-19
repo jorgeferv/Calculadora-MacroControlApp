@@ -22,7 +22,7 @@
     #weekChips .miniBtn.activeDay{background:linear-gradient(180deg,#23c26b,#128a49);border:none;color:#fff;}
 :root{--bg:#0f1115;--card:#161a22;--muted:#9aa4b2;--text:#e6e9ef;--acc:#4da3ff;--line:#242a36;}
     *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;}
-    body{margin:0;background:var(--bg);color:var(--text);padding:16px;padding-bottom:92px;}
+    body{margin:0;background:var(--bg);color:var(--text);padding:16px;padding-bottom:92px;padding-top:calc(env(safe-area-inset-top) + 16px);}
     h1{font-size:18px;margin:0 0 10px;}
     .muted{color:var(--muted);font-size:13px;line-height:1.35}
     .row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -37,6 +37,15 @@
     .seg{display:flex;gap:8px;flex-wrap:wrap;}
     .seg button{flex:1;min-width:120px}
     .seg button.active{outline:2px solid var(--acc);border-color:transparent;}
+    /* Ventana móvil: chips días */
+    .weekChips{display:flex;gap:8px;overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px;}
+    .weekChips::-webkit-scrollbar{display:none;}
+    .weekChips button{flex:0 0 auto;min-width:44px;height:40px;padding:8px 12px;border-radius:14px;}
+    .weekChips button.activeDay{background:linear-gradient(180deg,rgba(38,208,124,.42),rgba(38,208,124,.18));border-color:rgba(38,208,124,.65);}
+
+    /* iOS: alinear inputs de hora y selects */
+    input[type="time"], select{min-height:44px;}
+
     /* Week chips */
     #weekChips button[disabled]{opacity:.55;cursor:default;}
     #def15Chip,#def30Chip,#adh15Chip,#adh30Chip{display:none;}
@@ -125,7 +134,7 @@
 
 <body>
   <h1>MacroControlAPP</h1>
-  <div id="weekChips" class="seg" style="margin:10px 0 14px;"></div>
+  <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
   <div class="muted" style="margin-bottom:12px;">
     </div>
 
@@ -177,24 +186,26 @@
 
         <label>Tags (rápidos)</label>
         <div class="seg" style="gap:6px;">
-          <button type="button" class="tagBtn" data-tag="protein">prot</button>
-          <button type="button" class="tagBtn" data-tag="carb">carb</button>
-          <button type="button" class="tagBtn" data-tag="fat">fats</button>
+          <button type="button" class="tagBtn" data-tag="protein">Proteína</button>
+          <button type="button" class="tagBtn" data-tag="carb">Carbo</button>
+          <button type="button" class="tagBtn" data-tag="fat">Grasa</button>
         </div>
         <div class="seg" style="gap:6px;margin-top:8px;">
-          <button type="button" class="tagBtn" data-tag="desayuno_ok">desa</button>
-          <button type="button" class="tagBtn" data-tag="comida_ok">comi</button>
-          <button type="button" class="tagBtn" data-tag="merienda_ok">meri</button>
-          <button type="button" class="tagBtn" data-tag="cena_ok">cena</button>
+          <button type="button" class="tagBtn" data-tag="desayuno_ok">Desayuno</button>
+          <button type="button" class="tagBtn" data-tag="comida_ok">Comida</button>
+          <button type="button" class="tagBtn" data-tag="merienda_ok">Merienda</button>
+          <button type="button" class="tagBtn" data-tag="cena_ok">Cena</button>
         </div>
         <div class="seg" style="gap:6px;margin-top:8px;">
-          <button type="button" class="tagBtn" data-tag="pre_ok">pre</button>
-          <button type="button" class="tagBtn" data-tag="post_ok">post</button>
+          <button type="button" class="tagBtn" data-tag="pre_ok">Pre</button>
+          <button type="button" class="tagBtn" data-tag="post_ok">Post</button>
         </div>
 
+        <div id="tagsTextBlock" style="display:none;">
         <label>Tags (texto)</label>
         <input id="f_tags" placeholder="protein, carb, fat, desayuno_ok..." />
         <div class="hint">Puedes usar botones o editar el texto. Se sincroniza.</div>
+        </div>
 
         <button class="primary" id="saveFood" type="button">Guardar alimento</button>
         <div class="muted" style="margin-top:8px;">
@@ -229,6 +240,7 @@
           <div class="pill" id="stageChipPill" style="cursor:pointer;">Objetivo: <b id="stageChip">—</b></div>
           <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
           <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
+          <button class="iconBtn" id="openStatsTop" type="button" title="Estadísticas">📊</button>
         </div>
 
         <div id="globalSearchPop" class="pop" aria-hidden="true">
@@ -2496,10 +2508,13 @@ window.addEventListener('error', function(e){
   // Stats modal (detalle déficit/adherencia)
   function bindStatsModal(){
     const openBtn = $('openStats');
+    const openBtnTop = $('openStatsTop');
     const modal = $('statsModal');
     const closeBtn = $('closeStats');
-    if(openBtn) openBtn.onclick = ()=>{ modal.style.display='block'; renderStatsModal(); };
-    if(closeBtn) closeBtn.onclick = ()=>{ modal.style.display='none'; };
+    const open = ()=>{ if(!modal) return; modal.style.display='block'; renderStatsModal(); };
+    if(openBtn) openBtn.onclick = open;
+    if(openBtnTop) openBtnTop.onclick = open;
+    if(closeBtn) closeBtn.onclick = ()=>{ if(modal) modal.style.display='none'; };
     if(modal) modal.onclick = (e)=>{ if(e.target===modal) modal.style.display='none'; };
   }
 
