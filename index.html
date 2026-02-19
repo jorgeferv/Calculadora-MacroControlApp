@@ -39,6 +39,7 @@
     .seg button.active{outline:2px solid var(--acc);border-color:transparent;}
     /* Week chips */
     #weekChips button[disabled]{opacity:.55;cursor:default;}
+    #def15Chip,#def30Chip,#adh15Chip,#adh30Chip{display:none;}
 
     .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#0c0f14;border:1px solid #2a3242;color:var(--muted);font-size:12px;}
     .kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
@@ -241,7 +242,7 @@
         </div>
 
         <!-- ETAPA -->
-        <details id="stageBox" open>
+        <details id="stageBox">
           <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
             <span>ETAPA</span>
             <span class="pill"><b id="stageChipRight">—</b></span>
@@ -354,6 +355,7 @@
       <div class="card">
         <div class="status" id="dayStatusBox">
           <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
+          <button id="openStats" type="button" class="delBtn" style="position:absolute;top:12px;right:12px;" title="Ver estadísticas">📊</button>
           <div class="muted" id="dayStatusDetail" style="margin-top:6px;">—</div>
           <div class="chipRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
             <div class="pill" id="def7Chip">Déficit 7d: <b id="def7Val">—</b></div>
@@ -484,7 +486,30 @@ pan_cristal 2u"></textarea>
     </div>
   </section>
 
-  <div class="tabs">
+  
+  <!-- Estadísticas (detalle) -->
+  <div id="statsModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);padding:16px;">
+    <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
+      <button id="closeStats" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
+      <h2 style="margin:0 0 8px;font-size:16px;">Estadísticas</h2>
+      <div class="muted" style="margin-bottom:10px;">Solo cuenta días <b>pasados</b> con registro (no incluye días futuros planificados).</div>
+      <div class="kpi">
+        <div class="box"><div class="num" id="statDef7">—</div><div class="lbl">Déficit 7d</div></div>
+        <div class="box"><div class="num" id="statDef15">—</div><div class="lbl">Déficit 15d</div></div>
+        <div class="box"><div class="num" id="statDef30">—</div><div class="lbl">Déficit 30d</div></div>
+        <div class="box"><div class="num" id="statAdh7">—</div><div class="lbl">Adherencia 7d</div></div>
+        <div class="box"><div class="num" id="statAdh15">—</div><div class="lbl">Adherencia 15d</div></div>
+        <div class="box"><div class="num" id="statAdh30">—</div><div class="lbl">Adherencia 30d</div></div>
+      </div>
+      <div class="hr"></div>
+      <div class="status" id="statDevBox">
+        <div class="badge"><span class="dot ok" id="statDevDot"></span> Corrección</div>
+        <div class="muted" id="statDevText" style="margin-top:6px;">—</div>
+      </div>
+    </div>
+  </div>
+
+<div class="tabs">
     <button id="tabDay" class="active" type="button">Día</button>
     <button id="tabAdd" type="button">Añadir</button>
   </div>
@@ -623,7 +648,7 @@ window.addEventListener('error', function(e){
       b.type='button';
       b.textContent=d.label;
       b.className='miniBtn';
-      if(d.key===activeDayKey){ b.style.outline='2px solid var(--acc)'; }
+      if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
       b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
@@ -1365,6 +1390,7 @@ window.addEventListener('error', function(e){
     $('screen-add').style.display=t==='add'?'':'none';
     // fuerza render para que la lista del tab Añadir siempre se vea
     renderAll();
+  bindStatsModal();
   };
   $('tabDay').onclick=()=>setTab('day');
   $('tabAdd').onclick=()=>setTab('add');
@@ -2505,3 +2531,41 @@ window.addEventListener('error', function(e){
 </script>
 </body>
 </html>
+function bindStatsModal(){
+  const openBtn = $('openStats');
+  const modal = $('statsModal');
+  const closeBtn = $('closeStats');
+  if(openBtn) openBtn.onclick = ()=>{ modal.style.display='block'; renderStatsModal(); };
+  if(closeBtn) closeBtn.onclick = ()=>{ modal.style.display='none'; };
+  if(modal) modal.onclick = (e)=>{ if(e.target===modal) modal.style.display='none'; };
+}
+
+function renderStatsModal(){
+  $('statDef7').textContent = $('def7Val').textContent;
+  $('statDef15').textContent = $('def15Val').textContent;
+  $('statDef30').textContent = $('def30Val').textContent;
+  $('statAdh7').textContent = $('adh7Val').textContent;
+  $('statAdh15').textContent = $('adh15Val').textContent;
+  $('statAdh30').textContent = $('adh30Val').textContent;
+
+  const dev = computeDeficitDeviation(loadProfile(), loadMode());
+  if(!dev){
+    $('statDevText').textContent = 'Aún no hay suficientes días cerrados con registro.';
+    return;
+  }
+  const pct = Math.round(dev.deviation*100);
+  let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
+  let dot = 'ok';
+  if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
+  else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
+  else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
+
+  const dotEl = $('statDevDot');
+  dotEl.className = 'dot '+dot;
+
+  const correction = Math.round((dev.planned - dev.real)/5);
+  msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
+  $('statDevText').textContent = msg;
+}
+
+
