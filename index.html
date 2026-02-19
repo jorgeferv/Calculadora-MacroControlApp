@@ -2491,6 +2491,48 @@ window.addEventListener('error', function(e){
     r.readAsText(file);
   };
 
+
+
+  // Stats modal (detalle déficit/adherencia)
+  function bindStatsModal(){
+    const openBtn = $('openStats');
+    const modal = $('statsModal');
+    const closeBtn = $('closeStats');
+    if(openBtn) openBtn.onclick = ()=>{ modal.style.display='block'; renderStatsModal(); };
+    if(closeBtn) closeBtn.onclick = ()=>{ modal.style.display='none'; };
+    if(modal) modal.onclick = (e)=>{ if(e.target===modal) modal.style.display='none'; };
+  }
+
+  function renderStatsModal(){
+    $('statDef7').textContent = $('def7Val').textContent;
+    $('statDef15').textContent = $('def15Val').textContent;
+    $('statDef30').textContent = $('def30Val').textContent;
+    $('statAdh7').textContent = $('adh7Val').textContent;
+    $('statAdh15').textContent = $('adh15Val').textContent;
+    $('statAdh30').textContent = $('adh30Val').textContent;
+
+    const dev = computeDeficitDeviation(loadProfile(), loadMode());
+    if(!dev){
+      $('statDevText').textContent = 'Aún no hay suficientes días cerrados con registro.';
+      return;
+    }
+    const pct = Math.round(dev.deviation*100);
+    let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
+    let dot = 'ok';
+    if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
+    else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
+    else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
+
+    const dotEl = $('statDevDot');
+    dotEl.className = 'dot '+dot;
+
+    const correction = Math.round((dev.planned - dev.real)/5);
+    msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
+    $('statDevText').textContent = msg;
+  }
+
+
+
   // Service Worker (actualización agresiva)
   if('serviceWorker' in navigator){
     window.addEventListener('load', async ()=>{
@@ -2531,41 +2573,3 @@ window.addEventListener('error', function(e){
 </script>
 </body>
 </html>
-function bindStatsModal(){
-  const openBtn = $('openStats');
-  const modal = $('statsModal');
-  const closeBtn = $('closeStats');
-  if(openBtn) openBtn.onclick = ()=>{ modal.style.display='block'; renderStatsModal(); };
-  if(closeBtn) closeBtn.onclick = ()=>{ modal.style.display='none'; };
-  if(modal) modal.onclick = (e)=>{ if(e.target===modal) modal.style.display='none'; };
-}
-
-function renderStatsModal(){
-  $('statDef7').textContent = $('def7Val').textContent;
-  $('statDef15').textContent = $('def15Val').textContent;
-  $('statDef30').textContent = $('def30Val').textContent;
-  $('statAdh7').textContent = $('adh7Val').textContent;
-  $('statAdh15').textContent = $('adh15Val').textContent;
-  $('statAdh30').textContent = $('adh30Val').textContent;
-
-  const dev = computeDeficitDeviation(loadProfile(), loadMode());
-  if(!dev){
-    $('statDevText').textContent = 'Aún no hay suficientes días cerrados con registro.';
-    return;
-  }
-  const pct = Math.round(dev.deviation*100);
-  let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
-  let dot = 'ok';
-  if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
-  else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
-  else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
-
-  const dotEl = $('statDevDot');
-  dotEl.className = 'dot '+dot;
-
-  const correction = Math.round((dev.planned - dev.real)/5);
-  msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
-  $('statDevText').textContent = msg;
-}
-
-
