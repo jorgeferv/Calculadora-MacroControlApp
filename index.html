@@ -65,6 +65,7 @@
     .tabs button{flex:1;border-radius:14px;padding:10px;border:1px solid var(--line);background:#0f1115;color:var(--muted);}
     .tabs button.active{color:var(--text);border-color:#2a3242;outline:2px solid #2a3242;}
     .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .stack{display:flex;flex-direction:column;gap:10px;}
     .delBtn{width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;}
     .status{border-radius:14px;padding:12px;border:1px solid #2a3242;background:#0c0f14;}
     .status.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
@@ -107,6 +108,7 @@
       overflow:auto;
       -webkit-overflow-scrolling:touch;
       padding:16px;
+      padding-top:calc(16px + env(safe-area-inset-top));
       padding-bottom:calc(16px + env(safe-area-inset-bottom));
     }
     .drawer{max-width:820px;margin:0 auto;}
@@ -172,7 +174,7 @@
         </select>
 
         <label>Macros por unidad base</label>
-        <div class="two">
+        <div class="stack">
           <input id="f_kcal" type="number" placeholder="kcal" />
           <input id="f_p" type="number" placeholder="P" />
         </div>
@@ -500,7 +502,7 @@ pan_cristal 2u"></textarea>
 
   
   <!-- Estadísticas (detalle) -->
-  <div id="statsModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);padding:16px;">
+  <div id="statsModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
     <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
       <button id="closeStats" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
       <h2 style="margin:0 0 8px;font-size:16px;">Estadísticas</h2>
@@ -2519,33 +2521,38 @@ window.addEventListener('error', function(e){
   }
 
   function renderStatsModal(){
-    $('statDef7').textContent = $('def7Val').textContent;
-    $('statDef15').textContent = $('def15Val').textContent;
-    $('statDef30').textContent = $('def30Val').textContent;
-    $('statAdh7').textContent = $('adh7Val').textContent;
-    $('statAdh15').textContent = $('adh15Val').textContent;
-    $('statAdh30').textContent = $('adh30Val').textContent;
+    try{
+      $('statDef7').textContent = $('def7Val')?.textContent ?? '—';
+      $('statDef15').textContent = $('def15Val')?.textContent ?? '—';
+      $('statDef30').textContent = $('def30Val')?.textContent ?? '—';
+      $('statAdh7').textContent = $('adh7Val')?.textContent ?? '—';
+      $('statAdh15').textContent = $('adh15Val')?.textContent ?? '—';
+      $('statAdh30').textContent = $('adh30Val')?.textContent ?? '—';
 
-    const dev = computeDeficitDeviation(loadProfile(), loadMode());
-    if(!dev){
-      $('statDevText').textContent = 'Aún no hay suficientes días cerrados con registro.';
-      return;
+      const dev = computeDeficitDeviation(loadProfile(), loadMode());
+      if(!dev){
+        $('statDevText').textContent = 'Aún no hay suficientes días cerrados con registro.';
+        const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot ok';
+        return;
+      }
+      const pct = Math.round(dev.deviation*100);
+      let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
+      let dot = 'ok';
+      if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
+      else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
+      else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
+
+      const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot '+dot;
+
+      const correction = Math.round((dev.planned - dev.real)/5);
+      msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
+      $('statDevText').textContent = msg;
+    }catch(e){
+      console.error(e);
+      const t = $('statDevText'); if(t) t.textContent = 'Error al calcular estadísticas: ' + (e?.message||e);
+      const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot bad';
     }
-    const pct = Math.round(dev.deviation*100);
-    let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
-    let dot = 'ok';
-    if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
-    else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
-    else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
-
-    const dotEl = $('statDevDot');
-    dotEl.className = 'dot '+dot;
-
-    const correction = Math.round((dev.planned - dev.real)/5);
-    msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
-    $('statDevText').textContent = msg;
   }
-
 
 
   // Service Worker (actualización agresiva)
