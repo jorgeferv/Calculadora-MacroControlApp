@@ -18,7 +18,7 @@
 
     
     /* iOS: alinear input time y select (altura similar) */
-    input[type="time"], select{ min-height:44px; }
+    input[type="time"], select{ min-height:48px; height:48px; }
     #weekChips .miniBtn.activeDay{background:linear-gradient(180deg,#23c26b,#128a49);border:none;color:#fff;}
 :root{--bg:#0f1115;--card:#161a22;--muted:#9aa4b2;--text:#e6e9ef;--acc:#4da3ff;--line:#242a36;}
     *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;}
@@ -44,7 +44,7 @@
     .weekChips button.activeDay{background:linear-gradient(180deg,rgba(38,208,124,.42),rgba(38,208,124,.18));border-color:rgba(38,208,124,.65);}
 
     /* iOS: alinear inputs de hora y selects */
-    input[type="time"], select{min-height:44px;}
+    input[type="time"], select{ min-height:48px; height:48px; }
 
     /* Week chips */
     #weekChips button[disabled]{opacity:.55;cursor:default;}
@@ -115,6 +115,8 @@
     .drawerTop{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;}
     .iconBtn{width:auto;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#0f1115;color:var(--text);}
     .tagBtn{width:auto;min-width:auto;flex:0 0 auto;padding:8px 10px;border-radius:12px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
+    #saveFood{ margin-top:12px; }
+
     .searchRow{display:flex;gap:8px;align-items:center;}
     .searchRow input{flex:1;}
     .foodListScroller{max-height:48vh; overflow:auto; -webkit-overflow-scrolling:touch; padding-right:2px;}
@@ -210,6 +212,7 @@
         </div>
 
         <button class="primary" id="saveFood" type="button">Guardar alimento</button>
+        <div style="height:12px;"></div>
         <div class="muted" style="margin-top:8px;">
           Lo guardado aquí se almacena como “usuario” y se conserva aunque actualices el código.
         </div>
@@ -334,7 +337,7 @@
 
         <div class="hr"></div>
 
-        <div class="two">
+        <div class="stack">
           <div>
             <label>Hora entreno</label>
             <input id="trainTime" type="time" />
