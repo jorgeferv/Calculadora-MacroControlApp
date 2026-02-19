@@ -1,12 +1,12 @@
 /* sw.js - MacroControlAPP
    Estrategia: network-first para index, cache-first para estáticos.
 */
-const CACHE = 'mcapp-cache-v1.5.4';
+const CACHE = 'mcapp-cache-v1.5.5';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './sw.js'
+  './macrocontrol_foods_merged_v2_sorted.json'
 ];
 
 self.addEventListener('install', (event) => {

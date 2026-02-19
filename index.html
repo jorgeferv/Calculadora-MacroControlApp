@@ -1432,7 +1432,6 @@ pan_cristal 2u"></textarea>
 
       arr.forEach(({it, idx})=>{
         const d=document.createElement('div'); d.className='item';
-
         d.innerHTML = `
           <div>
             <b>${it.name}</b><br>
@@ -1443,23 +1442,147 @@ pan_cristal 2u"></textarea>
               <b>${it.kcal}</b><small> kcal</small><br>
               <small>P ${it.p} · C ${it.c} · F ${it.f}</small>
             </div>
+            <button class="delBtn" title="Eliminar">🗑</button>
+          </div>
+        `;
+
+        d.querySelector('.delBtn').onclick=(ev)=>{
+          ev.stopPropagation();
+          if(confirm(`¿Eliminar "${it.name}"?`)){
+            items.splice(idx,1);
+            saveLogs(items);
+            renderAll();
+          }
+        };
+
+        d.onclick=()=>{
+          const action = prompt(
+            `Editar "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
+            `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
+          );
+          if(action===null) return;
+
+          const txt=action.trim().toLowerCase();
+          if(txt==='del' || txt==='borrar' || txt==='delete' || txt==='x'){
+            if(confirm(`¿Eliminar "${it.name}"?`)){
+              items.splice(idx,1);
+              saveLogs(items);
+              renderAll();
+            }
+            return;
+          }
+
+          const m=txt.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|u|ud|uds|ml)$/i);
+          if(!m){ alert('Formato inválido. Ej: 200 g / 2 u / 250 ml'); return; }
+
+          const qty=Number(m[1].replace(',','.'));
+          const u=m[2].toLowerCase();
+          const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
+
+          const f=foodById(foods,it.foodId);
+          if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
+
+          const mac=macroFor(f,qtyType,qty);
+          it.qty=qty;
+          it.qtyType=qtyType;
+          it.qtyDisplay=qtyDisplay(qtyType,qty);
+          it.kcal=mac.kcal; it.p=mac.p; it.c=mac.c; it.f=mac.f;
+
+          saveLogs(items);
+          renderAll();
+        };
+
+        wrap.appendChild(d);
+      });
+
+      block.appendChild(wrap);
+      list.appendChild(block);
+    }
+  }
+  // ======= MACROS OK (planificador del resto del día) =======
+  const recalcMacrosOkTotals = ()=>{
+    if(!currentMacrosOk) return;
+    const tot = currentMacrosOk.items.reduce((a,x)=>({
+      kcal:a.kcal+(Number(x.kcal)||0),
+      p:a.p+(Number(x.p)||0),
+      c:a.c+(Number(x.c)||0),
+      f:a.f+(Number(x.f)||0),
+    }),{kcal:0,p:0,c:0,f:0});
+    currentMacrosOk.tot = tot;
+  };
+
+  const renderMacrosOk = ()=>{
+    const list = $('macrosOkList');
+    list.innerHTML = '';
+
+    if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
+      list.innerHTML = '<div class="muted">Genera una sugerencia con “Macros OK”.</div>';
+      return;
+    }
+
+    // Agrupar por comida
+    const groups = new Map();
+    currentMacrosOk.items.forEach((it, globalIdx)=>{
+      const m = normalizeMealLabel(it.meal);
+      if(!groups.has(m)) groups.set(m, []);
+      groups.get(m).push({it, globalIdx});
+    });
+
+    const entries = Array.from(groups.entries()).sort((a,b)=> mealOrder(a[0]) - mealOrder(b[0]));
+
+    for(const [mealKey, arr] of entries){
+      const tot = arr.reduce((acc, x)=>({
+        kcal: acc.kcal + (Number(x.it.kcal)||0),
+        p: acc.p + (Number(x.it.p)||0),
+        c: acc.c + (Number(x.it.c)||0),
+        f: acc.f + (Number(x.it.f)||0),
+      }),{kcal:0,p:0,c:0,f:0});
+
+      const block=document.createElement('details');
+      block.open = true;
+
+      const sum=document.createElement('summary');
+      sum.className='groupSummary';
+      sum.innerHTML = `
+        <div>
+          <b>${prettyMeal(mealKey)}</b><br>
+          <small><b>${round(tot.kcal)}</b> kcal · P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small>
+        </div>
+      `;
+      block.appendChild(sum);
+
+      const wrap=document.createElement('div');
+      wrap.className='groupWrap';
+
+      arr.forEach(({it, globalIdx})=>{
+        const d=document.createElement('div'); d.className='item';
+
+        d.innerHTML = `
+          <div>
+            <b>${it.name}</b><br>
+            <small>${it.qtyDisplay}</small>
+          </div>
+          <div class="right" style="display:flex;align-items:center;gap:10px;">
+            <div>
+              <b>${it.kcal}</b><small> kcal</small><br>
+              <small>P ${round(it.p,1)} · C ${round(it.c,1)} · F ${round(it.f,1)}</small>
+            </div>
             <button class="miniBtn" data-act="swap" type="button" title="Cambiar alimento">↺</button>
             <button class="miniBtn" data-act="del" type="button" title="Eliminar">🗑</button>
           </div>
         `;
 
-        // Cambiar alimento (sin tocar el resto del plan)
+        // Cambiar alimento (manteniendo el slot)
         d.querySelector('[data-act="swap"]').onclick=(ev)=>{
-          ev.stopPropagation();
+          ev.preventDefault(); ev.stopPropagation();
 
           const foods=loadFoodsMerged();
-          const mealKey = normalizeMealLabel(it.meal);
           const allowedTag = slotToAllowedTag(mealKey);
 
           const q = prompt('Cambiar alimento\n\nEscribe id o parte del nombre:', it.foodId || it.name || '');
           if(q===null) return;
           const needle = q.trim().toLowerCase();
-          if(!needle){ return; }
+          if(!needle) return;
 
           const candidates = foods
             .filter(f=>{
@@ -1483,7 +1606,7 @@ pan_cristal 2u"></textarea>
             pick = candidates[ni-1];
           }
 
-          // Ajuste conservador de unidades si cambia el tipo base
+          // Ajuste conservador del tipo de unidad si cambia base
           const defQtyType = (pick.baseUnit==='unit') ? 'unit' : (pick.baseUnit==='100ml' ? 'ml' : 'g');
           let qtyType = it.qtyType;
           let qty = it.qty;
@@ -1507,23 +1630,23 @@ pan_cristal 2u"></textarea>
 
         // Eliminar ítem
         d.querySelector('[data-act="del"]').onclick=(ev)=>{
-          ev.stopPropagation();
-          currentMacrosOk.items.splice(idx,1);
+          ev.preventDefault(); ev.stopPropagation();
+          currentMacrosOk.items.splice(globalIdx,1);
           recalcMacrosOkTotals();
           renderMacrosOk();
         };
 
-        // Editar gramos/unidades (tap sobre el ítem)
+        // Editar cantidad (tap en el ítem)
         d.onclick=()=>{
           const action = prompt(
-            `Editar sugerencia "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
+            `Editar "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
             `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
           );
           if(action===null) return;
 
           const txt=action.trim().toLowerCase();
           if(txt==='del' || txt==='borrar' || txt==='delete' || txt==='x'){
-            currentMacrosOk.items.splice(idx,1);
+            currentMacrosOk.items.splice(globalIdx,1);
             recalcMacrosOkTotals();
             renderMacrosOk();
             return;
@@ -1550,25 +1673,17 @@ pan_cristal 2u"></textarea>
           renderMacrosOk();
         };
 
-        list.appendChild(d);
+        wrap.appendChild(d);
       });
+
+      block.appendChild(wrap);
+      list.appendChild(block);
     }
 
     const s=document.createElement('div'); s.className='item';
     s.innerHTML=`<div><b>Total plan (Macros OK)</b><br><small>Se añadirá al registro al confirmar</small></div>
                  <div class="right"><b>${round(currentMacrosOk.tot.kcal)}</b><small> kcal</small><br><small>P ${round(currentMacrosOk.tot.p,1)} · C ${round(currentMacrosOk.tot.c,1)} · F ${round(currentMacrosOk.tot.f,1)}</small></div>`;
     list.appendChild(s);
-  };
-
-  const recalcMacrosOkTotals = ()=>{
-    if(!currentMacrosOk) return;
-    const tot = currentMacrosOk.items.reduce((a,x)=>({
-      kcal:a.kcal+(Number(x.kcal)||0),
-      p:a.p+(Number(x.p)||0),
-      c:a.c+(Number(x.c)||0),
-      f:a.f+(Number(x.f)||0),
-    }),{kcal:0,p:0,c:0,f:0});
-    currentMacrosOk.tot = tot;
   };
 
   // ======= ROLLOVER =======
@@ -1883,15 +1998,22 @@ pan_cristal 2u"></textarea>
     const eaten=sumMacros(logs);
     const goal=computeGoal(profile, day, storedMode);
 
-    const {slotsAll, remaining} = getMacrosOkSlotsToPlan(day, logs);
+    const {slotsAll, remaining, filled} = getMacrosOkSlotsToPlan(day, logs);
 
     // Si no hay nada registrado: plan completo (y Post solo si procede).
     // Si ya hay comidas: plan SOLO para los slots que faltan.
-    const slotsToPlan = (logs.length===0) ? slotsAll : remaining;
+    let slotsToPlan = (logs.length===0) ? slotsAll : remaining;
+
+    // Caso especial: si ya están todos los slots cubiertos pero aún faltan macros,
+    // permitimos un bloque extra PRE-entreno SOLO si ya existe CENA y PRE está vacío.
+    const remKcal = Math.max(0, goal.goalKcal - eaten.kcal);
+    if(!slotsToPlan.length && remKcal > 150 && filled.has('cena') && !filled.has('pre_entreno')){
+      slotsToPlan = ['pre_entreno'];
+    }
 
     if(!slotsToPlan.length){
       currentMacrosOk = null;
-      $('macrosOkContext').textContent = 'No queda nada por cuadrar: ya tienes todas las comidas registradas (o no hay slots disponibles).';
+      $('macrosOkContext').textContent = 'No queda nada por cuadrar con slots pendientes.';
       renderMacrosOk();
       return;
     }
