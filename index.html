@@ -1,0 +1,2005 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>MacroControlAPP</title>
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <style>
+    :root{--bg:#0f1115;--card:#161a22;--muted:#9aa4b2;--text:#e6e9ef;--acc:#4da3ff;--line:#242a36;}
+    *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;}
+    body{margin:0;background:var(--bg);color:var(--text);padding:16px;padding-bottom:92px;}
+    h1{font-size:18px;margin:0 0 10px;}
+    .muted{color:var(--muted);font-size:13px;line-height:1.35}
+    .row{display:flex;gap:10px;flex-wrap:wrap;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;flex:1;min-width:280px;}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px;}
+    input,select,button,textarea{width:100%;border-radius:12px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);padding:10px;font-size:14px;}
+    textarea{min-height:92px;resize:vertical;}
+    button{background:#0c0f14;cursor:pointer;}
+    button.primary{background:linear-gradient(180deg,#1a7cff,#0b5bd6);border:none;}
+    button.success{background:linear-gradient(180deg,#23c26b,#128a49);border:none;}
+    button.danger{background:linear-gradient(180deg,#ff4d4d,#c91f1f);border:none;}
+    .seg{display:flex;gap:8px;flex-wrap:wrap;}
+    .seg button{flex:1;min-width:120px}
+    .seg button.active{outline:2px solid var(--acc);border-color:transparent;}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#0c0f14;border:1px solid #2a3242;color:var(--muted);font-size:12px;}
+    .kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+    .box{background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
+    .num{font-size:18px;font-weight:700;}
+    .lbl{font-size:12px;color:var(--muted);}
+    .hr{height:1px;background:var(--line);margin:10px 0;}
+    .list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+    .item{display:flex;justify-content:space-between;gap:10px;background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
+    .item b{font-size:14px;}
+    .item small{color:var(--muted);}
+    .right{text-align:right;}
+    .tabs{position:fixed;left:0;right:0;bottom:0;background:#0b0d12;border-top:1px solid var(--line);display:flex;gap:8px;padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
+    .tabs button{flex:1;border-radius:14px;padding:10px;border:1px solid var(--line);background:#0f1115;color:var(--muted);}
+    .tabs button.active{color:var(--text);border-color:#2a3242;outline:2px solid #2a3242;}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .delBtn{width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;}
+    .status{border-radius:14px;padding:12px;border:1px solid #2a3242;background:#0c0f14;}
+    .status.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
+    .status.ok{outline:2px solid rgba(255,200,0,.18);border-color:rgba(255,200,0,.35);}
+    .status.bad{outline:2px solid rgba(255,70,70,.18);border-color:rgba(255,70,70,.35);}
+    .status .badge{display:inline-flex;align-items:center;gap:8px;font-weight:700}
+    .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+    .dot.good{background:rgb(0,255,120)}
+    .dot.ok{background:rgb(255,200,0)}
+    .dot.bad{background:rgb(255,70,70)}
+
+    details{background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
+    summary{cursor:pointer;color:var(--text);font-weight:700;list-style:none;}
+    summary::-webkit-details-marker{display:none;}
+    .hint{color:var(--muted);font-size:12px;line-height:1.35;margin-top:6px;}
+
+    .groupSummary{
+      display:flex;justify-content:space-between;align-items:center;gap:10px;
+      padding:8px 10px;border-radius:12px;border:1px solid #2a3242;background:#0c0f14;
+    }
+    .groupSummary b{font-size:13px;}
+    .groupSummary small{color:var(--muted);}
+    .groupWrap{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+    .miniBtn{width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
+
+    /* Macro status (P/C/F consumido) */
+    .macroBox.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
+    .macroBox.ok{outline:2px solid rgba(255,200,0,.18);border-color:rgba(255,200,0,.35);}
+    .macroBox.bad{outline:2px solid rgba(255,70,70,.18);border-color:rgba(255,70,70,.35);}
+    .macroBadge{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--muted);}
+    .macroBadge b{color:var(--text);font-weight:700;}
+
+    .topPills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+
+    /* Drawer full-screen */
+    .drawerBack{
+      position:fixed;inset:0;z-index:9999;
+      background:#0b0d12;
+      display:none;
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
+      padding:16px;
+      padding-bottom:calc(16px + env(safe-area-inset-bottom));
+    }
+    .drawer{max-width:820px;margin:0 auto;}
+    .drawerTop{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;}
+    .iconBtn{width:auto;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#0f1115;color:var(--text);}
+    .tagBtn{width:auto;min-width:auto;flex:0 0 auto;padding:8px 10px;border-radius:12px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
+    .searchRow{display:flex;gap:8px;align-items:center;}
+    .searchRow input{flex:1;}
+    .foodListScroller{max-height:48vh; overflow:auto; -webkit-overflow-scrolling:touch; padding-right:2px;}
+  </style>
+</head>
+
+<body>
+  <h1>MacroControlAPP</h1>
+  <div class="muted" style="margin-bottom:12px;">
+    v1.5.4 · Registro diario con rollover 00:00.
+  </div>
+
+  <!-- Drawer ALIMENTOS (full-screen) -->
+  <div class="drawerBack" id="drawerBack">
+    <div class="drawer">
+      <div class="drawerTop">
+        <b>Alimentos</b>
+        <button class="iconBtn" id="closeDrawer" type="button">Cerrar</button>
+      </div>
+
+      <!-- 1) CONTROL ARRIBA (lo pediste así) -->
+      <div class="card" style="margin-bottom:12px;">
+        <label>Control</label>
+        <div class="seg">
+          <button id="exportFoods" type="button">Exportar JSON</button>
+          <button id="importFoodsBtn" type="button">Importar JSON</button>
+        </div>
+        <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
+        <div class="muted" style="margin-top:8px;">
+          Consejo: exporta primero, edita el JSON en ordenador y reimporta.
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <label>Añadir / editar alimento</label>
+        <input id="f_id" placeholder="id (sin espacios)" />
+        <input id="f_name" placeholder="Nombre" />
+
+        <label>Unidad base</label>
+        <select id="f_baseUnit">
+          <option value="100g" selected>por 100 g</option>
+          <option value="100ml">por 100 ml</option>
+          <option value="unit">por unidad</option>
+        </select>
+
+        <label>Macros por unidad base</label>
+        <div class="two">
+          <input id="f_kcal" type="number" placeholder="kcal" />
+          <input id="f_p" type="number" placeholder="P" />
+        </div>
+        <div class="two">
+          <input id="f_c" type="number" placeholder="C" />
+          <input id="f_f" type="number" placeholder="F" />
+        </div>
+
+        <label>Gramos por unidad (si aplica)</label>
+        <input id="f_unitGrams" type="number" placeholder="Ej: 60 (pan cristal)" />
+
+        <label>Tags (rápidos)</label>
+        <div class="seg" style="gap:6px;">
+          <button type="button" class="tagBtn" data-tag="protein">prot</button>
+          <button type="button" class="tagBtn" data-tag="carb">carb</button>
+          <button type="button" class="tagBtn" data-tag="fat">fats</button>
+        </div>
+        <div class="seg" style="gap:6px;margin-top:8px;">
+          <button type="button" class="tagBtn" data-tag="desayuno_ok">desa</button>
+          <button type="button" class="tagBtn" data-tag="comida_ok">comi</button>
+          <button type="button" class="tagBtn" data-tag="merienda_ok">meri</button>
+          <button type="button" class="tagBtn" data-tag="cena_ok">cena</button>
+        </div>
+        <div class="seg" style="gap:6px;margin-top:8px;">
+          <button type="button" class="tagBtn" data-tag="pre_ok">pre</button>
+          <button type="button" class="tagBtn" data-tag="post_ok">post</button>
+        </div>
+
+        <label>Tags (texto)</label>
+        <input id="f_tags" placeholder="protein, carb, fat, desayuno_ok..." />
+        <div class="hint">Puedes usar botones o editar el texto. Se sincroniza.</div>
+
+        <button class="primary" id="saveFood" type="button">Guardar alimento</button>
+        <div class="muted" style="margin-top:8px;">
+          Lo guardado aquí se almacena como “usuario” y se conserva aunque actualices el código.
+        </div>
+      </div>
+
+      <!-- 2) LISTA ABAJO (plegable + buscador) -->
+      <details open>
+        <summary>Lista de alimentos (toca uno para editar)</summary>
+        <div class="card" style="margin-top:10px;">
+          <div class="searchRow">
+            <input id="foodsSearch" placeholder="Buscar por nombre o id..." />
+            <button id="clearFoodsSearch" type="button" class="iconBtn">X</button>
+          </div>
+          <div class="foodListScroller">
+            <div class="list" id="foodsList"></div>
+          </div>
+          <div class="hint">Si la lista es grande, usa el buscador (arriba).</div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- DÍA -->
+  <section id="screen-day">
+    <div class="row">
+      <div class="card">
+        <div class="topPills">
+          <div class="pill">Fecha: <b id="dateChip">—</b></div>
+          <div class="pill">Peso: <b id="weightChip">—</b></div>
+          <div class="pill" id="stageChipPill" style="cursor:pointer;">Etapa: <b id="stageChip">—</b></div>
+          <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
+        </div>
+
+        <div class="two" style="margin-top:8px;">
+          <input id="globalFoodSearch" placeholder="Buscar alimento (id o nombre)…" />
+          <button class="iconBtn" id="globalFoodSearchBtn" type="button">Buscar</button>
+        </div>
+
+        <!-- ETAPA -->
+        <details id="stageBox" open>
+          <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <span>ETAPA</span>
+            <span class="pill"><b id="stageChipRight">—</b></span>
+          </summary>
+
+          <label style="margin-top:10px;">Etapa (cambia cada 30 días)</label>
+          <div class="seg" id="modeSeg"></div>
+
+          <label>Nivel diario (cambiable a diario)</label>
+          <div class="seg" id="levelSeg"></div>
+
+          <div class="seg" style="margin-top:10px;">
+            <button id="overrideStage" type="button">Override etapa</button>
+            <button class="primary" id="saveStage" type="button">Guardar etapa</button>
+          </div>
+          <div class="hint" id="stageLockHint">—</div>
+          <div class="hint">Tip: toca el chip “Etapa” arriba para alternar Suave/Medio/Agresivo.</div>
+        </details>
+
+        <div class="hr"></div>
+
+        <!-- PERFIL -->
+        <details id="profileBox">
+          <summary>PERFIL DE COMPOSICIÓN CORPORAL</summary>
+          <div class="two" style="margin-top:10px;">
+            <div>
+              <label>Sexo</label>
+              <select id="sex">
+                <option value="m" selected>Hombre</option>
+                <option value="f">Mujer</option>
+              </select>
+            </div>
+            <div>
+              <label>Edad</label>
+              <input id="age" type="number" inputmode="numeric" placeholder="35" />
+            </div>
+          </div>
+
+          <div class="two">
+            <div>
+              <label>Altura (cm)</label>
+              <input id="heightCm" type="number" inputmode="numeric" placeholder="175" />
+            </div>
+            <div>
+              <label>Peso (kg) <span id="weightLockHint" class="muted"></span></label>
+              <input id="weightKg" type="number" inputmode="decimal" placeholder="69" />
+              <div class="seg" style="margin-top:8px;">
+                <button id="overrideWeight" type="button">Override peso</button>
+                <button class="primary" id="saveProfile" type="button">Guardar perfil</button>
+              </div>
+              <div class="hint">El peso se bloquea 10 días tras actualizarlo (salvo override).</div>
+            </div>
+          </div>
+        </details>
+
+        <div class="hr"></div>
+
+        <!-- NEAT -->
+        <label>NEAT diario</label>
+        <div class="two">
+          <div>
+            <label>Pasos (opcional)</label>
+            <input id="steps" type="number" inputmode="numeric" placeholder="Ej: 10500" />
+          </div>
+          <div>
+            <label>Actividad (NEAT)</label>
+            <select id="neatLevel">
+              <option value="low">Baja</option>
+              <option value="med">Media</option>
+              <option value="high" selected>Alta</option>
+            </select>
+          </div>
+        </div>
+        <div class="muted" id="neatInfo" style="margin-top:6px;">—</div>
+
+        <div class="hr"></div>
+
+        <div class="two">
+          <div>
+            <label>Hora entreno</label>
+            <input id="trainTime" type="time" />
+          </div>
+          <div>
+            <label>WOD</label>
+            <select id="wod">
+              <option value="0">Sin WOD</option>
+              <option value="300">Ligero (+300)</option>
+              <option value="350" selected>Normal (+350)</option>
+              <option value="450">Alto (+450)</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Calorías activas (dispositivo) *</label>
+        <input id="cardioKcal" type="number" inputmode="numeric" placeholder="Ej: 421" />
+        <div class="muted" style="margin-top:6px;">
+          * Se descuenta automáticamente un <b>8%</b> por seguridad (sobreestimación típica).
+        </div>
+
+        <div class="hr"></div>
+
+        <!-- BOTONES FIJOS (como pediste): Guardar + Pánico al lado -->
+        <div class="seg" style="margin-top:0;">
+          <button class="primary" id="saveDay" type="button">Guardar ajustes del día</button>
+          <button class="danger" id="panicBtn" type="button" title="Aplica déficit fijo de emergencia">Pánico</button>
+        </div>
+        <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).</div>
+      </div>
+
+      <div class="card">
+        <div class="status" id="dayStatusBox">
+          <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
+          <div class="muted" id="dayStatusDetail" style="margin-top:6px;">—</div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="kpi">
+          <div class="box"><div class="num" id="goalKcal">—</div><div class="lbl">Objetivo kcal</div></div>
+          <div class="box"><div class="num" id="eatenKcal">—</div><div class="lbl">Consumidas</div></div>
+          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl">Restantes</div></div>
+          <div class="box"><div class="num" id="tdeeKcal">—</div><div class="lbl">TDEE estimado</div></div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="kpi">
+          <div class="box"><div class="num" id="goalP">—</div><div class="lbl">P objetivo</div></div>
+          <div class="box macroBox" id="eatenPBox">
+            <div class="num" id="eatenP">—</div><div class="lbl">P consumida</div>
+            <div class="macroBadge" id="pBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
+          </div>
+
+          <div class="box"><div class="num" id="goalC">—</div><div class="lbl">C objetivo</div></div>
+          <div class="box macroBox" id="eatenCBox">
+            <div class="num" id="eatenC">—</div><div class="lbl">C consumidos</div>
+            <div class="macroBadge" id="cBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
+          </div>
+
+          <div class="box"><div class="num" id="goalF">—</div><div class="lbl">F objetivo</div></div>
+          <div class="box macroBox" id="eatenFBox">
+            <div class="num" id="eatenF">—</div><div class="lbl">F consumidas</div>
+            <div class="macroBadge" id="fBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <!-- MACROS OK -->
+        <label>Macros OK (sugerencia)</label>
+        <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
+        <div class="list" id="macrosOkList"></div>
+        <div class="seg">
+          <button id="macrosOkGen" type="button">Macros OK</button>
+          <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
+        </div>
+        <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
+
+        <div class="hr"></div>
+
+        <label>Recomendación dinámica (ventana actual)</label>
+        <div class="muted" id="recContext">—</div>
+        <div class="list" id="recList"></div>
+        <div class="seg">
+          <button id="regenRec" type="button">Regenerar</button>
+          <button id="addRecToLog" type="button">Añadir recomendación</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <label>Registro de hoy (por bloques)</label>
+        <div class="muted">Edita tocando un item. Borra con 🗑 o escribe <b>DEL</b>.</div>
+        <div class="list" id="logList"></div>
+
+        <div class="seg">
+          <button id="clearToday" type="button">Borrar día</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AÑADIR -->
+  <section id="screen-add" style="display:none;">
+    <div class="row">
+      <div class="card">
+        <label>Comida</label>
+        <select id="mealSlot">
+          <option value="desayuno">Desayuno</option>
+          <option value="comida" selected>Comida</option>
+          <option value="merienda">Merienda</option>
+          <option value="cena">Cena</option>
+          <option value="post_entreno">Post-entreno</option>
+          <option value="pre_entreno">Pre-entreno</option>
+        </select>
+
+        <label>Buscar</label>
+        <input id="foodSearch" placeholder="Escribe para filtrar..." />
+
+        <!-- Lista visible (se acabó el “select vacío” en iOS) -->
+        <label>Lista (toca para seleccionar)</label>
+        <div class="foodListScroller" style="max-height:46vh;">
+          <div class="list" id="addFoodList"></div>
+        </div>
+        <div class="hint">Se filtra con el buscador. El alimento seleccionado queda arriba en “Producto”.</div>
+
+        <label>Producto (seleccionado)</label>
+        <select id="foodPick"></select>
+
+        <label>Cantidad</label>
+        <div class="two">
+          <select id="qtyType">
+            <option value="g" selected>gramos</option>
+            <option value="unit">unidades</option>
+            <option value="ml">ml</option>
+          </select>
+          <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
+        </div>
+
+        <button class="primary" id="addItem" type="button">Añadir</button>
+
+        <div class="hr"></div>
+
+        <label>Texto rápido</label>
+        <textarea id="quickText" placeholder="Ej:
+pollo_pechuga 200g
+gnocchi 180g
+pan_cristal 2u"></textarea>
+        <button id="parseQuick" type="button">Verificar y añadir</button>
+        <div class="muted" style="margin-top:8px;">Acepta g/u/ml. Usa id o parte del nombre.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <button id="tabDay" class="active" type="button">Día</button>
+    <button id="tabAdd" type="button">Añadir</button>
+  </div>
+
+<script>
+(()=> {
+  // =========================
+  // STORAGE KEYS (estables)
+  // =========================
+  const LS = {
+    mode: 'mc_mode_v9',
+    settings: 'mc_settings_v9',
+    logs: 'mc_logs_v9',
+    lastDate: 'mc_lastDate_v9',
+    profile: 'mc_profile',
+    foodsRoot: 'mc_foods_root',
+    foodsUser: 'mc_foods_user',
+    foodsLegacy: 'mc_foods_v8'
+  };
+
+  const WEIGHT_LOCK_DAYS = 10;
+  const STAGE_LOCK_DAYS = 30;
+  const CARDIO_DISCOUNT = 0.08; // <-- máximo 8% (lo acordado)
+  let weightOverride = false;
+  let stageOverride = false;
+
+  // Etapas
+  const MODES=[
+    {key:'deficit',label:'Déficit'},
+    {key:'maint',label:'Mantenimiento'},
+    {key:'surplus',label:'Superávit'}
+  ];
+
+  const LEVELS={
+    deficit:[
+      {key:'d250',label:'Suave (−250)',adj:-250},
+      {key:'d350',label:'Medio (−350)',adj:-350},
+      {key:'d430',label:'Agresivo (−430)',adj:-430}
+    ],
+    maint:[{key:'m0',label:'0',adj:0}],
+    surplus:[
+      {key:'s150',label:'Suave (+150)',adj:150},
+      {key:'s250',label:'Medio (+250)',adj:250},
+      {key:'s350',label:'Agresivo (+350)',adj:350}
+    ],
+  };
+
+  const PAL = { low: 1.25, med: 1.35, high: 1.45 };
+
+  // ======= DEFAULT FOODS (raíz) =======
+  const DEFAULT_FOODS = [
+    {id:'pollo_pechuga', name:'Pechuga pollo filete', baseUnit:'100g', kcal:108, p:22, c:0.5, f:1.8, unitGrams:null, tags:['protein','comida_ok','cena_ok','post_ok']},
+    {id:'gnocchi', name:'Gnocchi Hacendado', baseUnit:'100g', kcal:174, p:4.5, c:37.6, f:0.4, unitGrams:null, tags:['carb','comida_ok','cena_ok','pre_ok','post_ok']},
+    {id:'queso_batido_0', name:'Queso batido 0% (edítalo)', baseUnit:'100g', kcal:44, p:8, c:4, f:0, unitGrams:null, tags:['protein','desayuno_ok','merienda_ok','post_ok']},
+    {id:'tortitas_maiz_choco', name:'Tortitas maíz chocolate', baseUnit:'unit', kcal:155, p:2, c:21, f:6.8, unitGrams:null, tags:['carb','desayuno_ok','merienda_ok','pre_ok']},
+    {id:'pan_cristal', name:'Pan cristal (1u=60g)', baseUnit:'100g', kcal:228, p:7.3, c:43, f:2.3, unitGrams:60, tags:['carb','desayuno_ok','comida_ok','cena_ok','pre_ok','post_ok']},
+    {id:'claras', name:'Claras líquidas', baseUnit:'100ml', kcal:42, p:11, c:0.5, f:0, unitGrams:null, tags:['protein','desayuno_ok','comida_ok','cena_ok','post_ok']},
+    {id:'huevo_M', name:'Huevo M (1u≈60g)', baseUnit:'100g', kcal:138, p:12.5, c:0.7, f:9.5, unitGrams:60, tags:['protein','fat','desayuno_ok','comida_ok','cena_ok','post_ok']},
+    {id:'banana', name:'Banana', baseUnit:'100g', kcal:89, p:1, c:23, f:0, unitGrams:null, tags:['carb','desayuno_ok','merienda_ok','pre_ok','post_ok']},
+    {id:'freson', name:'Fresón', baseUnit:'100g', kcal:32, p:0.7, c:7, f:0, unitGrams:null, tags:['carb','desayuno_ok','merienda_ok','post_ok']},
+    {id:'chocolate_85', name:'Chocolate 85%', baseUnit:'100g', kcal:597, p:12, c:20, f:49, unitGrams:null, tags:['fat','merienda_ok','cena_ok']}
+  ];
+
+  // ======= HELPERS =======
+  const $=id=>document.getElementById(id);
+  const round=(n,d=0)=>{const p=10**d; return Math.round((Number(n)||0)*p)/p;};
+  const todayKey=()=>{
+    const d=new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}}; 
+  const saveJSON=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
+  const getLevel=(mk,lk)=>(LEVELS[mk]||[]).find(x=>x.key===lk) || (LEVELS[mk]||[])[0];
+  const daysSince = (ts)=>{
+    if(!ts) return 9999;
+    const diff = Date.now() - ts;
+    return Math.floor(diff / (1000*60*60*24));
+  };
+
+  const normalizeFood = (f)=>({
+    id: String(f.id||'').trim(),
+    name: String(f.name||'').trim(),
+    baseUnit: f.baseUnit==='100ml'?'100ml':(f.baseUnit==='unit'?'unit':'100g'),
+    kcal: Number(f.kcal)||0,
+    p: Number(f.p)||0,
+    c: Number(f.c)||0,
+    f: Number(f.f)||0,
+    unitGrams: (f.unitGrams===null || f.unitGrams===undefined || f.unitGrams==='') ? null : Number(f.unitGrams),
+    tags: Array.isArray(f.tags) ? f.tags.map(x=>String(x).trim()).filter(Boolean) : String(f.tags||'').split(',').map(x=>x.trim()).filter(Boolean)
+  });
+
+  const uniqByIdPreferLast = (arr)=>{
+    const m=new Map();
+    arr.forEach(x=>{ if(x?.id) m.set(x.id, x); });
+    return Array.from(m.values());
+  };
+
+  const qtyDisplay = (qtyType, qty)=>{
+    const u = qtyType==='unit'?'u':(qtyType==='ml'?'ml':'g');
+    return `${qty}${u}`;
+  };
+
+  // ======= PERFIL =======
+  const defaultProfile = ()=>({ sex:'m', age:35, heightCm:175, weightKg:69, lastWeightUpdateTs:0 });
+
+  const loadProfile = ()=>{
+    const p=loadJSON(LS.profile,null);
+    const base = p && typeof p==='object' ? p : defaultProfile();
+    return {
+      sex: (base.sex==='f')?'f':'m',
+      age: Math.max(10, Number(base.age)||35),
+      heightCm: Math.max(120, Number(base.heightCm)||175),
+      weightKg: Math.max(30, Number(base.weightKg)||69),
+      lastWeightUpdateTs: Number(base.lastWeightUpdateTs)||0
+    };
+  };
+
+  const saveProfile = (p)=>saveJSON(LS.profile,p);
+
+  // ======= FOODS =======
+  const ensureFoodsStores = ()=>{
+    const rootExists = !!localStorage.getItem(LS.foodsRoot);
+    const userExists = !!localStorage.getItem(LS.foodsUser);
+    const legacy = loadJSON(LS.foodsLegacy, null);
+
+    if(!rootExists && !userExists && Array.isArray(legacy) && legacy.length){
+      saveJSON(LS.foodsRoot, DEFAULT_FOODS.map(normalizeFood));
+      saveJSON(LS.foodsUser, uniqByIdPreferLast(legacy.map(normalizeFood)));
+      return;
+    }
+    if(!rootExists) saveJSON(LS.foodsRoot, DEFAULT_FOODS.map(normalizeFood));
+    if(!userExists) saveJSON(LS.foodsUser, []);
+    syncRootWithDefaults();
+  };
+
+  const syncRootWithDefaults = ()=>{
+    const root = loadJSON(LS.foodsRoot, []);
+    const rootMap = new Map((Array.isArray(root)?root:[]).map(f=>[f.id, normalizeFood(f)]));
+    for(const d of DEFAULT_FOODS.map(normalizeFood)){
+      if(!rootMap.has(d.id)) rootMap.set(d.id, d);
+    }
+    saveJSON(LS.foodsRoot, Array.from(rootMap.values()));
+  };
+
+  const loadFoodsMerged = ()=>{
+    ensureFoodsStores();
+    const root = loadJSON(LS.foodsRoot, []).map(normalizeFood);
+    const user = loadJSON(LS.foodsUser, []).map(normalizeFood);
+
+    // sanea tags comunes (pos_ok -> post_ok), sin tocar IDs
+    user.forEach(f=>{
+      f.tags = (f.tags||[]).map(t=>t==='pos_ok'?'post_ok':t);
+    });
+
+    const map=new Map();
+    root.forEach(f=>map.set(f.id,f));
+    user.forEach(f=>map.set(f.id,f));
+    return Array.from(map.values());
+  };
+
+  const upsertFoodFromApp = (foodObj)=>{
+    ensureFoodsStores();
+    const u = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    const idx = u.findIndex(x=>x.id===foodObj.id);
+    if(idx>=0) u[idx]=foodObj; else u.push(foodObj);
+    saveJSON(LS.foodsUser, uniqByIdPreferLast(u));
+  };
+
+  const foodById=(foods,id)=>foods.find(f=>f.id===id);
+
+  const macroFor=(food,qtyType,qty)=>{
+    qty=Number(qty)||0; if(qty<=0) return {kcal:0,p:0,c:0,f:0};
+    let factor=0;
+
+    if(food.baseUnit==='100g'){
+      const grams = qtyType==='g' ? qty : (qtyType==='unit' && food.unitGrams ? qty*food.unitGrams : qty);
+      factor = grams/100;
+    } else if(food.baseUnit==='100ml'){
+      const ml = qtyType==='ml' ? qty : qty;
+      factor = ml/100;
+    } else {
+      const units = qtyType==='unit' ? qty : qty;
+      factor = units;
+    }
+    return {kcal:round(food.kcal*factor), p:round(food.p*factor,1), c:round(food.c*factor,1), f:round(food.f*factor,1)};
+  };
+
+  // ======= ETAPA =======
+  const loadMode=()=>{
+    const m=loadJSON(LS.mode,null);
+    const def={modeKey:'deficit',levelKey:'d250',lastModeUpdateTs:0};
+    if(m && m.modeKey && m.levelKey){
+      return {
+        modeKey: m.modeKey,
+        levelKey: m.levelKey,
+        lastModeUpdateTs: Number(m.lastModeUpdateTs)||0
+      };
+    }
+    saveJSON(LS.mode,def);
+    return def;
+  };
+
+  let modeDraft = null;
+
+  const saveModeLevelOnly = (newLevelKey)=>{
+    const cur = loadMode();
+    const next = { ...cur, levelKey: newLevelKey };
+    saveJSON(LS.mode, next);
+  };
+
+  const saveModeFull = (newModeKey, newLevelKey)=>{
+    const next = { modeKey:newModeKey, levelKey:newLevelKey, lastModeUpdateTs: Date.now() };
+    saveJSON(LS.mode, next);
+  };
+
+  // ======= DÍA =======
+  const defaultNeatByMode = (modeKey)=> (modeKey==='surplus') ? 'med' : 'high';
+
+  const ensureDaySettings=(dateKey, modeKey)=>{
+    const all=loadJSON(LS.settings,{});
+    if(!all[dateKey]){
+      all[dateKey]={
+        trainTime:'',
+        wod:350,
+        cardioKcal:'',
+        steps:'',
+        neatLevel: defaultNeatByMode(modeKey),
+        panicOn: false
+      };
+      saveJSON(LS.settings,all);
+    } else {
+      if(all[dateKey].neatLevel===undefined) all[dateKey].neatLevel = defaultNeatByMode(modeKey);
+      if(all[dateKey].steps===undefined) all[dateKey].steps = '';
+      if(all[dateKey].panicOn===undefined) all[dateKey].panicOn = false;
+      saveJSON(LS.settings,all);
+    }
+    return all[dateKey];
+  };
+
+  const loadDaySettings=(modeKey)=>{
+    const k=todayKey();
+    const day=ensureDaySettings(k, modeKey);
+    return {k,day};
+  };
+
+  const saveDaySettings=(day)=>{
+    const all=loadJSON(LS.settings,{});
+    all[todayKey()]=day;
+    saveJSON(LS.settings,all);
+  };
+
+  const loadLogs=()=>{
+    const logs=loadJSON(LS.logs,{});
+    const k=todayKey();
+    if(!logs[k]){logs[k]=[]; saveJSON(LS.logs,logs);}
+    return {k,items:logs[k]};
+  };
+
+  const saveLogs=(items)=>{
+    const logs=loadJSON(LS.logs,{});
+    logs[todayKey()]=items;
+    saveJSON(LS.logs,logs);
+  };
+
+  const sumMacros=(items)=>items.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
+
+  // ======= BMR / GOAL =======
+  const computeBMR = (profile)=>{
+    const w=Number(profile.weightKg)||69;
+    const h=Number(profile.heightCm)||175;
+    const a=Number(profile.age)||35;
+    const base = (10*w) + (6.25*h) - (5*a);
+    return round(base + (profile.sex==='m'? 5 : -161));
+  };
+
+  const proteinTargetFromProfile = (profile)=> Math.round((Number(profile.weightKg)||69) * 2.5);
+
+  const computeTDEE=(profile, day)=>{
+    const bmr = computeBMR(profile);
+    const neat = day.neatLevel || 'high';
+    const pal = PAL[neat] || PAL.high;
+    const base = bmr * pal;
+
+    const wod = Number(day.wod)||0;
+
+    const cardioKcal=Number(day.cardioKcal)||0;
+    const cardioReal=cardioKcal*(1 - CARDIO_DISCOUNT); // 92%
+
+    return round(base + wod + cardioReal);
+  };
+
+  const computeGoal=(profile, day, modeStored)=>{
+    const tdee = computeTDEE(profile, day);
+    const lvl = getLevel(modeStored.modeKey, modeStored.levelKey);
+
+    let goalKcal = tdee + (lvl?.adj ?? 0);
+
+    // PÁNICO (déficit fijo de emergencia)
+    if(day.panicOn){
+      goalKcal -= (profile.sex==='m' ? 400 : 300);
+    }
+
+    const pTarget = proteinTargetFromProfile(profile);
+
+    let fat = 62;
+    if(modeStored.modeKey==='maint') fat=65;
+    if(modeStored.modeKey==='surplus') fat=70;
+
+    const carbKcal = Math.max(0, goalKcal - (pTarget*4) - (fat*9));
+    const carbs = Math.floor(carbKcal/4);
+
+    return {tdee, goalKcal:round(goalKcal), p:pTarget, c:carbs, f:fat};
+  };
+
+  // ======= CONTEXTO =======
+  const timeContext=(trainTime)=>{
+    if(!trainTime) return {ctx:'NEUTRA',detail:'Sin hora de entreno: reparto neutro.'};
+    const now=new Date();
+    const [hh,mm]=trainTime.split(':').map(Number);
+    const t=new Date(now); t.setHours(hh,mm,0,0);
+    const diffMin=Math.round((t-now)/60000);
+
+    if(diffMin>=45 && diffMin<=180) return {ctx:'PRE',detail:`A ~${diffMin} min del entreno: hidrato alto, grasa baja.`};
+    if(diffMin<45 && diffMin>=0) return {ctx:'PRE-RÁPIDO',detail:'A <45 min: hidrato fácil, casi sin grasa.'};
+
+    const post=Math.abs(diffMin);
+    if(diffMin<0 && post<=180) return {ctx:'POST',detail:`Post entreno (~${post} min): proteína alta + hidrato.`};
+
+    return {ctx:'NEUTRA',detail:'Fuera de ventana pre/post.'};
+  };
+
+  const mealFromClock = ()=>{
+    const now = new Date();
+    const h = now.getHours() + now.getMinutes()/60;
+    if(h>=5 && h<10) return 'desayuno';
+    if(h>=12 && h<15) return 'comida';
+    if(h>=15 && h<18) return 'merienda';
+    if(h>=18 && h<=22) return 'cena';
+    return 'otros';
+  };
+
+  const normalizeMealLabel = (m)=>{
+    if(m==='post') return 'post_entreno';
+    if(m==='pre') return 'pre_entreno';
+    return m;
+  };
+
+  const prettyMeal = (m)=>{
+    m = normalizeMealLabel(m);
+    if(m==='desayuno') return 'Desayuno';
+    if(m==='comida') return 'Comida';
+    if(m==='merienda') return 'Merienda';
+    if(m==='cena') return 'Cena';
+    if(m==='post_entreno') return 'Post-entreno';
+    if(m==='pre_entreno') return 'Pre-entreno';
+    return 'Otros';
+  };
+
+  const mealOrder = (m)=>{
+    m = normalizeMealLabel(m);
+    if(m==='desayuno') return 1;
+    if(m==='comida') return 2;
+    if(m==='merienda') return 3;
+    if(m==='cena') return 4;
+    if(m==='post_entreno') return 5;
+    if(m==='pre_entreno') return 6;
+    return 9;
+  };
+
+  const slotToAllowedTag = (slot)=>(
+    (slot==='desayuno') ? 'desayuno_ok' :
+    (slot==='comida') ? 'comida_ok' :
+    (slot==='merienda') ? 'merienda_ok' :
+    (slot==='cena') ? 'cena_ok' :
+    (slot==='post_entreno') ? 'post_ok' :
+    (slot==='pre_entreno') ? 'pre_ok' :
+    null
+  );
+
+  // ======= RECOMENDADOR =======
+  const shuffled = (arr)=>{
+    const a=arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  };
+
+  const recommendForSlot=(foods,goal,eaten,ctx,slotOverride, randomize=false)=>{
+    const rem={
+      kcal:Math.max(0,goal.goalKcal-eaten.kcal),
+      p:Math.max(0,goal.p-eaten.p),
+      c:Math.max(0,goal.c-eaten.c),
+      f:Math.max(0,goal.f-eaten.f)
+    };
+
+    const allowedTag = slotToAllowedTag(slotOverride);
+    const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
+
+    let tgt;
+    if(ctx==='PRE') tgt={p:Math.min(30,rem.p), c:Math.min(110,rem.c), f:Math.min(12,rem.f), kcal:Math.min(650,rem.kcal)};
+    else if(ctx==='PRE-RÁPIDO') tgt={p:Math.min(20,rem.p), c:Math.min(60,rem.c), f:Math.min(8,rem.f), kcal:Math.min(350,rem.kcal)};
+    else if(ctx==='POST') tgt={p:Math.min(65,rem.p), c:Math.min(140,rem.c), f:Math.min(20,rem.f), kcal:Math.min(900,rem.kcal)};
+    else tgt={p:Math.min(60,rem.p), c:Math.min(90,rem.c), f:Math.min(22,rem.f), kcal:Math.min(800,rem.kcal)};
+
+    if(slotOverride==='desayuno' || slotOverride==='merienda') tgt.f = Math.min(tgt.f, 16);
+
+    let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
+    let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
+    let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f));
+
+    if(!proteins.length) return null;
+
+    const protPref=['queso_batido_0','claras','huevo_M','pollo_pechuga'];
+    proteins.sort((a,b)=>protPref.indexOf(a.id)-protPref.indexOf(b.id));
+
+    const protGr=[150,200,250,300];
+    const carbGr=[120,150,180,200,220,250,300];
+    const fruitGr=[100,120,150,180];
+
+    const protIter = randomize ? shuffled(proteins) : proteins;
+    const protGrIter = randomize ? shuffled(protGr) : protGr;
+    const carbGrIter = randomize ? shuffled(carbGr) : carbGr;
+    const fruitGrIter = randomize ? shuffled(fruitGr) : fruitGr;
+
+    let best=null;
+
+    const score=(tot)=>{
+      const dp=Math.max(0,tgt.p-tot.p);
+      const df=Math.max(0,tgt.f-tot.f);
+      const dc=Math.max(0,tgt.c-tot.c);
+
+      const overKcal = tot.kcal>rem.kcal ? (tot.kcal-rem.kcal)*1.0 : 0;
+      const fatHard = ((ctx.startsWith('PRE') || slotOverride==='desayuno' || slotOverride==='merienda') && tot.f>18) ? (tot.f-18)*10 : 0;
+
+      const jitter = randomize ? (Math.random()*0.35) : 0;
+      return dp*10 + df*4 + dc*1.5 + overKcal + fatHard + jitter;
+    };
+
+    for(const pr of protIter){
+      for(const pg of (pr.baseUnit==='unit'?[1,2]:protGrIter)){
+        const prQtyType=(pr.baseUnit==='unit'?'unit':'g');
+        const prM=macroFor(pr,prQtyType,pg);
+
+        const carbPool = (tgt.c>20 && carbs.length) ? (randomize?shuffled(carbs):carbs) : [null];
+        for(const cb of carbPool){
+          for(const cg of (cb?(cb.baseUnit==='unit'?[1,2]:carbGrIter):[0])){
+            const cbQtyType = cb ? (cb.baseUnit==='unit'?'unit':'g') : 'g';
+            const cbM=cb?macroFor(cb,cbQtyType,cg):{kcal:0,p:0,c:0,f:0};
+
+            const needFruit = (tgt.c - (prM.c+cbM.c) > 25) && fruits.length;
+            const fruitPool = needFruit ? (randomize?shuffled(fruits):fruits) : [null];
+
+            for(const fr of fruitPool){
+              for(const fg of (fr?fruitGrIter:[0])){
+                const frM=fr?macroFor(fr,'g',fg):{kcal:0,p:0,c:0,f:0};
+
+                const tot={
+                  kcal:prM.kcal+cbM.kcal+frM.kcal,
+                  p:prM.p+cbM.p+frM.p,
+                  c:prM.c+cbM.c+frM.c,
+                  f:prM.f+cbM.f+frM.f
+                };
+
+                const s=score(tot);
+                if(!best || s<best.s){
+                  best={s, slot:slotOverride, ctx, items:[
+                    {meal:slotOverride, foodId:pr.id,name:pr.name, qtyType:prQtyType, qty:pg, qtyDisplay:qtyDisplay(prQtyType,pg), ...prM},
+                    ...(cb?[{meal:slotOverride, foodId:cb.id,name:cb.name, qtyType:cbQtyType, qty:cg, qtyDisplay:qtyDisplay(cbQtyType,cg), ...cbM}]:[]),
+                    ...(fr?[{meal:slotOverride, foodId:fr.id,name:fr.name, qtyType:'g', qty:fg, qtyDisplay:qtyDisplay('g',fg), ...frM}]:[])
+                  ], tot};
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return best;
+  };
+
+  // ======= MACROS OK =======
+  const planMacrosOk=(foods, goal, eatenEff)=>{
+    const slots = ['desayuno','comida','merienda','cena'];
+    const items=[];
+    let tmp={...eatenEff};
+
+    // preferencia estable por “clásicos”
+    const pref = (arr, ids)=>{
+      const m=new Map(arr.map(x=>[x.id,x]));
+      const out=[];
+      ids.forEach(id=>{ if(m.has(id)) out.push(m.get(id)); });
+      arr.forEach(x=>{ if(!ids.includes(x.id)) out.push(x); });
+      return out;
+    };
+
+    for(const slot of slots){
+      const rem={
+        kcal: Math.max(0, goal.goalKcal - tmp.kcal),
+        p: Math.max(0, goal.p - tmp.p),
+        c: Math.max(0, goal.c - tmp.c),
+        f: Math.max(0, goal.f - tmp.f)
+      };
+      if(rem.kcal < 180) break;
+
+      const remainingSlots = slots.slice(slots.indexOf(slot)).length;
+      const slotKcalTarget = Math.max(220, Math.min(720, Math.round(rem.kcal / remainingSlots)));
+
+      const allowedTag = slotToAllowedTag(slot);
+      const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
+
+      let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
+      let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
+      let fats=foods.filter(f=>f.tags?.includes('fat') && allow(f));
+      let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f));
+
+      proteins = pref(proteins, ['queso_batido_0','claras','huevo_M','pollo_pechuga','Pechuga_92%_pavo_hacendado_lonchas','Lomo_embuchado_Hacendado_lonchas']);
+      carbs    = pref(carbs, ['gnocchi','pan_cristal','Pan_Brioche_Hamburguesa_Hacendado','Pan_molde_blanco_Hacendado']);
+      fats     = pref(fats, ['chocolate_85','Bacón_ahumado_La_Selva_lonchas']);
+
+      if(!proteins.length) continue;
+
+      const picks=[];
+      const p=proteins[0];
+      const pQty = (p.baseUnit==='unit') ? 2 : 200;
+      picks.push({meal:slot, foodId:p.id, name:p.name, qtyType:(p.baseUnit==='unit'?'unit':'g'), qty:pQty});
+
+      if(rem.c > 25 && carbs.length){
+        const c=carbs[0];
+        const cQty = (c.baseUnit==='unit') ? 2 : 150;
+        picks.push({meal:slot, foodId:c.id, name:c.name, qtyType:(c.baseUnit==='unit'?'unit':'g'), qty:cQty});
+      } else if(rem.c > 25 && fruits.length){
+        const fr=fruits[0];
+        picks.push({meal:slot, foodId:fr.id, name:fr.name, qtyType:'g', qty:150});
+      }
+
+      // grasa: solo si cabe y especialmente en cena
+      if(slot==='cena' && rem.f>12 && fats.length){
+        const ft=fats[0];
+        picks.push({meal:slot, foodId:ft.id, name:ft.name, qtyType:(ft.baseUnit==='unit'?'unit':'g'), qty:(ft.baseUnit==='unit'?1:10)});
+      }
+
+      let slotSum=0;
+      for(const b of picks){
+        const f=foodById(foods,b.foodId);
+        if(!f) continue;
+        const mac=macroFor(f,b.qtyType,b.qty);
+        const it={...b, qtyDisplay:qtyDisplay(b.qtyType,b.qty), ...mac};
+
+        // hard cap: evita que se “coma” todo el día en 1 bloque
+        if(slotSum + it.kcal > slotKcalTarget + 120) continue;
+
+        items.push(it);
+        slotSum += it.kcal;
+        tmp={kcal:tmp.kcal+it.kcal,p:tmp.p+it.p,c:tmp.c+it.c,f:tmp.f+it.f};
+      }
+    }
+
+    const tot=items.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
+    return {slots, items, tot};
+  };
+
+  // ======= ESTADO =======
+  const computeDayStatus=(goal,eaten)=>{
+    const kcalRatio = goal.goalKcal>0 ? eaten.kcal/goal.goalKcal : 0;
+    const pRatio = goal.p>0 ? eaten.p/goal.p : 0;
+
+    let state='ok';
+    if(kcalRatio<=1.05 && pRatio>=0.90) state='good';
+    else if(kcalRatio<=1.12 && pRatio>=0.75) state='ok';
+    else state='bad';
+
+    const kcalPct = Math.round(kcalRatio*100);
+    const pPct = Math.round(pRatio*100);
+
+    let label = state==='good'?'BUENO':(state==='ok'?'REGULAR':'MALO');
+    let detail = `Calorías: ${kcalPct}% del objetivo · Proteína: ${pPct}% del objetivo`;
+
+    if(state==='bad'){
+      if(kcalRatio>1.12) detail += ' · Prioriza proteína magra y evita hidratos extra.';
+      else detail += ' · Te falta proteína: mete un bloque proteico ya.';
+    } else if(state==='ok'){
+      if(pRatio<0.9) detail += ' · Aún falta proteína: sube P en la próxima comida.';
+      else detail += ' · Controlado: ajusta fino con proteína y grasas.';
+    } else {
+      detail += ' · Bien ejecutado.';
+    }
+    return {state,label,detail};
+  };
+
+  const macroStatus = (modeKey, macroKey, eatenVal, goalVal) => {
+    const eaten = Number(eatenVal) || 0;
+    const goal = Number(goalVal) || 0;
+    if(goal <= 0) return {state:'ok', label:'—', detail:''};
+
+    const ratio = eaten / goal;
+
+    let tol = {
+      protein: { greenMin: 0.95, greenMax: 1.10, okMin: 0.90, okMax: 1.15 },
+      carbs:   { greenMin: 0.90, greenMax: 1.05, okMin: 0.80, okMax: 1.15 },
+      fat:     { greenMin: 0.90, greenMax: 1.10, okMin: 0.80, okMax: 1.20 },
+    };
+
+    if(modeKey === 'maint'){
+      tol.carbs = { greenMin: 0.95, greenMax: 1.05, okMin: 0.90, okMax: 1.10 };
+      tol.fat   = { greenMin: 0.95, greenMax: 1.05, okMin: 0.90, okMax: 1.10 };
+    }
+    if(modeKey === 'surplus'){
+      tol.carbs = { greenMin: 0.90, greenMax: 1.10, okMin: 0.80, okMax: 1.20 };
+      tol.fat   = { greenMin: 0.85, greenMax: 1.10, okMin: 0.75, okMax: 1.20 };
+    }
+
+    const t = tol[macroKey];
+
+    let state = 'bad';
+    if(ratio >= t.greenMin && ratio <= t.greenMax) state = 'good';
+    else if(ratio >= t.okMin && ratio <= t.okMax) state = 'ok';
+
+    const pct = Math.round(ratio*100);
+    let label = (state==='good')?'OK':(state==='ok'?'DESVÍO':'FUERA');
+
+    let hint='';
+    if(macroKey==='protein'){
+      if(ratio > t.greenMax) hint='· Baja P, sube C';
+      else if(ratio < t.greenMin) hint='· Sube P';
+      else hint='· Mantén';
+    }
+    return { state, label, detail: `(${pct}%) ${hint}`.trim() };
+  };
+
+  const setMacroBoxState = (boxEl, badgeEl, state, label, detail) => {
+    if(!boxEl || !badgeEl) return;
+
+    boxEl.classList.remove('good','ok','bad');
+    boxEl.classList.add(state);
+
+    const dot = badgeEl.querySelector('.dot');
+    const b = badgeEl.querySelector('b');
+    const spans = badgeEl.querySelectorAll('span');
+
+    if(dot){
+      dot.classList.remove('good','ok','bad');
+      dot.classList.add(state==='good'?'good':(state==='ok'?'ok':'bad'));
+    }
+    if(b) b.textContent = label;
+    if(spans.length >= 2) spans[1].textContent = detail || '';
+  };
+
+  const renderMacroStatuses = (goal, eaten, modeStored) => {
+    const p = macroStatus(modeStored.modeKey, 'protein', eaten.p, goal.p);
+    const c = macroStatus(modeStored.modeKey, 'carbs', eaten.c, goal.c);
+    const f = macroStatus(modeStored.modeKey, 'fat', eaten.f, goal.f);
+
+    setMacroBoxState($('eatenPBox'), $('pBadge'), p.state, p.label, p.detail);
+    setMacroBoxState($('eatenCBox'), $('cBadge'), c.state, c.label, c.detail);
+    setMacroBoxState($('eatenFBox'), $('fBadge'), f.state, f.label, f.detail);
+  };
+
+  // ======= UI / TABS =======
+  let currentRec=null;
+  let currentMacrosOk=null;
+
+  const setTab=(t)=>{
+    $('tabDay').classList.toggle('active',t==='day');
+    $('tabAdd').classList.toggle('active',t==='add');
+    $('screen-day').style.display=t==='day'?'':'none';
+    $('screen-add').style.display=t==='add'?'':'none';
+    // fuerza render para que la lista del tab Añadir siempre se vea
+    renderAll();
+  };
+  $('tabDay').onclick=()=>setTab('day');
+  $('tabAdd').onclick=()=>setTab('add');
+
+  // Drawer open/close
+  const openDrawer=()=>{
+    $('drawerBack').style.display='block';
+    document.body.style.overflow='hidden';
+    // foco al buscador de lista
+    setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
+  };
+  const closeDrawer=()=>{
+    $('drawerBack').style.display='none';
+    document.body.style.overflow='';
+  };
+  $('openFoods').onclick=openDrawer;
+  $('closeDrawer').onclick=closeDrawer;
+
+  // Buscador rápido (pantalla Día) -> filtra lista de alimentos en el drawer
+  const openDrawerWithSearch = (q)=>{
+    openDrawer();
+    if($('foodsSearch')){
+      $('foodsSearch').value = String(q||'');
+    }
+    renderAll();
+    setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
+  };
+
+  $('globalFoodSearchBtn').onclick=()=> openDrawerWithSearch($('globalFoodSearch').value);
+  $('globalFoodSearch').addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); openDrawerWithSearch($('globalFoodSearch').value); }
+  });
+
+  // Tags UI
+  const getTagSetFromInput = ()=>{
+    return new Set(String($('f_tags').value||'')
+      .split(',')
+      .map(x=>x.trim())
+      .filter(Boolean));
+  };
+
+  const setTagsToInput = (set)=>{
+    $('f_tags').value = Array.from(set.values()).join(', ');
+  };
+
+  const refreshTagButtons = ()=>{
+    const set = getTagSetFromInput();
+    document.querySelectorAll('[data-tag]').forEach(btn=>{
+      const t=btn.getAttribute('data-tag');
+      btn.style.outline = set.has(t) ? '2px solid var(--acc)' : '';
+    });
+  };
+
+  document.addEventListener('click',(e)=>{
+    const btn = e.target.closest('[data-tag]');
+    if(!btn) return;
+    const t = btn.getAttribute('data-tag');
+    const set = getTagSetFromInput();
+    if(set.has(t)) set.delete(t); else set.add(t);
+    setTagsToInput(set);
+    refreshTagButtons();
+  });
+
+  $('f_tags').addEventListener('input', ()=>refreshTagButtons());
+
+  // ======= RENDER ETAPA =======
+  const renderModeUI=(draft, stored)=>{
+    $('modeSeg').innerHTML='';
+    MODES.forEach(m=>{
+      const b=document.createElement('button');
+      b.textContent=m.label;
+      b.className=(m.key===draft.modeKey)?'active':'';
+      b.onclick=()=>{
+        draft.modeKey=m.key;
+        draft.levelKey=(LEVELS[m.key]||[])[0].key;
+        renderAll();
+      };
+      $('modeSeg').appendChild(b);
+    });
+
+    $('levelSeg').innerHTML='';
+    (LEVELS[draft.modeKey]||[]).forEach(l=>{
+      const b=document.createElement('button');
+      b.textContent=l.label;
+      b.className=(l.key===draft.levelKey)?'active':'';
+      b.onclick=()=>{
+        draft.levelKey=l.key;
+        saveModeLevelOnly(draft.levelKey);
+        renderAll();
+      };
+      $('levelSeg').appendChild(b);
+    });
+
+    const lvlDraft=getLevel(draft.modeKey, draft.levelKey);
+    const modeLbl = MODES.find(x=>x.key===draft.modeKey)?.label || '—';
+    $('stageChip').textContent = `${modeLbl} · ${lvlDraft.label}`;
+    $('stageChipRight').textContent = `${modeLbl} · ${lvlDraft.label}`;
+
+    const stageSince = daysSince(stored.lastModeUpdateTs);
+    const locked = (stageSince < STAGE_LOCK_DAYS) && !stageOverride;
+
+    if(draft.modeKey !== stored.modeKey){
+      $('stageLockHint').textContent = locked
+        ? `Etapa bloqueada: faltan ${STAGE_LOCK_DAYS - stageSince} días (o activa override).`
+        : `Puedes cambiar etapa ahora.`;
+    } else {
+      $('stageLockHint').textContent = `Etapa actual bloqueada ${STAGE_LOCK_DAYS} días desde el último cambio. Nivel diario libre.`;
+    }
+
+    $('overrideStage').textContent = stageOverride ? 'Override etapa (ON)' : 'Override etapa';
+  };
+
+  const cycleLevelByChip = ()=>{
+    const stored = loadMode();
+    if(stored.modeKey==='maint') return;
+    const list = LEVELS[stored.modeKey] || [];
+    if(list.length<=1) return;
+    const idx = Math.max(0, list.findIndex(x=>x.key===stored.levelKey));
+    const next = list[(idx+1) % list.length];
+    saveModeLevelOnly(next.key);
+    if(modeDraft){
+      modeDraft.modeKey = stored.modeKey;
+      modeDraft.levelKey = next.key;
+    }
+    renderAll();
+  };
+
+  $('stageChipPill').onclick=()=>cycleLevelByChip();
+
+  // ======= RENDER FOODS (drawer + add tab) =======
+  const renderFoodPicker=(foods)=>{
+    const q = ($('foodSearch')?.value || '').trim().toLowerCase();
+    const sel=$('foodPick'); sel.innerHTML='';
+    foods
+      .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
+      .sort((a,b)=>a.name.localeCompare(b.name,'es'))
+      .forEach(f=>{
+        const o=document.createElement('option'); o.value=f.id; o.textContent=f.name; sel.appendChild(o);
+      });
+  };
+
+  const renderAddFoodList=(foods)=>{
+    const list=$('addFoodList');
+    if(!list) return;
+    list.innerHTML='';
+    const q = ($('foodSearch')?.value || '').trim().toLowerCase();
+    const filtered = foods
+      .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
+      .sort((a,b)=>a.name.localeCompare(b.name,'es'));
+
+    if(!filtered.length){
+      list.innerHTML = '<div class="muted">Sin resultados.</div>';
+      return;
+    }
+
+    filtered.forEach(f=>{
+      const d=document.createElement('div'); d.className='item';
+      d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id}</small></div>
+                     <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
+      d.onclick=()=>{
+        $('foodPick').value = f.id;
+        // scroll a cantidad (mejor UX)
+        $('qty')?.focus();
+      };
+      list.appendChild(d);
+    });
+  };
+
+  const renderFoodsList=(foods)=>{
+    const list=$('foodsList'); list.innerHTML='';
+    const q = ($('foodsSearch')?.value || '').trim().toLowerCase();
+    foods
+      .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
+      .slice()
+      .sort((a,b)=>a.name.localeCompare(b.name,'es'))
+      .forEach(f=>{
+        const d=document.createElement('div'); d.className='item';
+        d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id} · ${f.baseUnit}${f.unitGrams?` · ${f.unitGrams}g/u`:''}</small><br><small>${(f.tags||[]).join(', ')}</small></div>
+                     <div class="right"><b>${f.kcal}</b><small> kcal</small><br><small>P ${f.p} · C ${f.c} · F ${f.f}</small></div>`;
+        d.onclick=()=>{
+          $('f_id').value=f.id;
+          $('f_name').value=f.name;
+          $('f_baseUnit').value=f.baseUnit;
+          $('f_kcal').value=f.kcal;
+          $('f_p').value=f.p;
+          $('f_c').value=f.c;
+          $('f_f').value=f.f;
+          $('f_unitGrams').value=f.unitGrams??'';
+          $('f_tags').value=(f.tags||[]).join(', ');
+          refreshTagButtons();
+          // NO reabrimos drawer: ya estás dentro. Solo subimos arriba.
+          window.scrollTo({top:0, behavior:'smooth'});
+        };
+        list.appendChild(d);
+      });
+  };
+
+  const renderTotals=(goal,eaten)=>{
+    $('goalKcal').textContent=goal.goalKcal;
+    $('tdeeKcal').textContent=goal.tdee;
+
+    $('eatenKcal').textContent=round(eaten.kcal);
+    $('remKcal').textContent=round(goal.goalKcal - eaten.kcal);
+
+    $('goalP').textContent=goal.p;
+    $('goalC').textContent=goal.c;
+    $('goalF').textContent=goal.f;
+
+    $('eatenP').textContent=round(eaten.p,1);
+    $('eatenC').textContent=round(eaten.c,1);
+    $('eatenF').textContent=round(eaten.f,1);
+  };
+
+  const renderDayStatus=(goal,eaten)=>{
+    const st=computeDayStatus(goal,eaten);
+    const box=$('dayStatusBox');
+    box.classList.remove('good','ok','bad');
+    box.classList.add(st.state);
+
+    const badge=$('dayStatusBadge');
+    const dotClass = st.state==='good'?'good':(st.state==='ok'?'ok':'bad');
+    badge.innerHTML = `<span class="dot ${dotClass}"></span> Estado del día: ${st.label}`;
+    $('dayStatusDetail').textContent = st.detail;
+  };
+
+  const renderRec=(rec)=>{
+    const list=$('recList'); list.innerHTML='';
+    if(!rec){ list.innerHTML='<div class="muted">Sin recomendación.</div>'; return; }
+
+    rec.items.forEach(it=>{
+      const d=document.createElement('div'); d.className='item';
+      d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
+                     <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>`;
+      list.appendChild(d);
+    });
+
+    const s=document.createElement('div'); s.className='item';
+    s.innerHTML=`<div><b>Total recomendación</b><br><small>${rec.ctx} · ${prettyMeal(rec.slot)}</small></div>
+                 <div class="right"><b>${round(rec.tot.kcal)}</b><small> kcal</small><br><small>P ${round(rec.tot.p,1)} · C ${round(rec.tot.c,1)} · F ${round(rec.tot.f,1)}</small></div>`;
+    list.appendChild(s);
+  };
+
+  const renderLog=(foods,items)=>{
+    const list=$('logList'); list.innerHTML='';
+    if(!items.length){ list.innerHTML='<div class="muted">Aún no hay registros hoy.</div>'; return; }
+
+    const groups = new Map();
+    items.forEach((it, idx)=>{
+      const m = normalizeMealLabel(it.meal);
+      if(!groups.has(m)) groups.set(m, []);
+      groups.get(m).push({it, idx});
+    });
+
+    const entries = Array.from(groups.entries()).sort((a,b)=> mealOrder(a[0]) - mealOrder(b[0]));
+
+    for(const [mealKey, arr] of entries){
+      const tot = arr.reduce((acc, x)=>({
+        kcal: acc.kcal + (Number(x.it.kcal)||0),
+        p: acc.p + (Number(x.it.p)||0),
+        c: acc.c + (Number(x.it.c)||0),
+        f: acc.f + (Number(x.it.f)||0),
+      }),{kcal:0,p:0,c:0,f:0});
+
+      const block=document.createElement('details');
+      block.open = true;
+
+      const sum=document.createElement('summary');
+      sum.className='groupSummary';
+      sum.innerHTML = `
+        <div>
+          <b>${prettyMeal(mealKey)}</b><br>
+          <small><b>${round(tot.kcal)}</b> kcal · P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small>
+        </div>
+        <button class="miniBtn" type="button">+ Añadir</button>
+      `;
+      block.appendChild(sum);
+
+      sum.querySelector('.miniBtn').onclick=(ev)=>{
+        ev.preventDefault(); ev.stopPropagation();
+        $('mealSlot').value = mealKey;
+        setTab('add');
+      };
+
+      const wrap=document.createElement('div');
+      wrap.className='groupWrap';
+
+      arr.forEach(({it, idx})=>{
+        const d=document.createElement('div'); d.className='item';
+        d.innerHTML = `
+          <div>
+            <b>${it.name}</b><br>
+            <small>${it.qtyDisplay}</small>
+          </div>
+          <div class="right" style="display:flex;align-items:center;gap:10px;">
+            <div>
+              <b>${it.kcal}</b><small> kcal</small><br>
+              <small>P ${it.p} · C ${it.c} · F ${it.f}</small>
+            </div>
+            <button class="delBtn" title="Eliminar">🗑</button>
+          </div>
+        `;
+
+        d.querySelector('.delBtn').onclick=(ev)=>{
+          ev.stopPropagation();
+          if(confirm(`¿Eliminar "${it.name}"?`)){
+            items.splice(idx,1);
+            saveLogs(items);
+            renderAll();
+          }
+        };
+
+        d.onclick=()=>{
+          const action = prompt(
+            `Editar "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
+            `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
+          );
+          if(action===null) return;
+
+          const txt=action.trim().toLowerCase();
+          if(txt==='del' || txt==='borrar' || txt==='delete' || txt==='x'){
+            if(confirm(`¿Eliminar "${it.name}"?`)){
+              items.splice(idx,1);
+              saveLogs(items);
+              renderAll();
+            }
+            return;
+          }
+
+          const m=txt.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|u|ud|uds|ml)$/i);
+          if(!m){ alert('Formato inválido. Ej: 200 g / 2 u / 250 ml'); return; }
+
+          const qty=Number(m[1].replace(',','.'));
+          const u=m[2].toLowerCase();
+          const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
+
+          const f=foodById(foods,it.foodId);
+          if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
+
+          const mac=macroFor(f,qtyType,qty);
+          it.qty=qty;
+          it.qtyType=qtyType;
+          it.qtyDisplay=qtyDisplay(qtyType,qty);
+          it.kcal=mac.kcal; it.p=mac.p; it.c=mac.c; it.f=mac.f;
+
+          saveLogs(items);
+          renderAll();
+        };
+
+        wrap.appendChild(d);
+      });
+
+      block.appendChild(wrap);
+      list.appendChild(block);
+    }
+  };
+
+  // ======= MACROS OK RENDER + EDIT =======
+  const renderMacrosOk = ()=>{
+    const list=$('macrosOkList');
+    list.innerHTML='';
+
+    if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
+      list.innerHTML = '<div class="muted">Sin sugerencia aún.</div>';
+      return;
+    }
+
+    const groups = new Map();
+    currentMacrosOk.items.forEach((it, idx)=>{
+      const m = normalizeMealLabel(it.meal);
+      if(!groups.has(m)) groups.set(m, []);
+      groups.get(m).push({it, idx});
+    });
+
+    const entries = Array.from(groups.entries()).sort((a,b)=>mealOrder(a[0]) - mealOrder(b[0]));
+
+    for(const [mealKey, arr] of entries){
+      const tot = arr.reduce((acc, x)=>({
+        kcal: acc.kcal + (Number(x.it.kcal)||0),
+        p: acc.p + (Number(x.it.p)||0),
+        c: acc.c + (Number(x.it.c)||0),
+        f: acc.f + (Number(x.it.f)||0),
+      }),{kcal:0,p:0,c:0,f:0});
+
+      const header=document.createElement('div');
+      header.className='item';
+      header.innerHTML = `<div><b>${prettyMeal(mealKey)} (plan)</b><br><small>${arr.length} items</small></div>
+        <div class="right"><b>${round(tot.kcal)}</b><small> kcal</small><br><small>P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small></div>`;
+      list.appendChild(header);
+
+      arr.forEach(({it, idx})=>{
+        const d=document.createElement('div'); d.className='item';
+        d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
+                       <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>`;
+        d.onclick=()=>{
+          const action = prompt(
+            `Editar sugerencia "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
+            `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
+          );
+          if(action===null) return;
+
+          const txt=action.trim().toLowerCase();
+          if(txt==='del' || txt==='borrar' || txt==='delete' || txt==='x'){
+            currentMacrosOk.items.splice(idx,1);
+            recalcMacrosOkTotals();
+            renderMacrosOk();
+            return;
+          }
+
+          const m=txt.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|u|ud|uds|ml)$/i);
+          if(!m){ alert('Formato inválido. Ej: 200 g / 2 u / 250 ml'); return; }
+
+          const qty=Number(m[1].replace(',','.'));
+          const u=m[2].toLowerCase();
+          const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
+
+          const foods=loadFoodsMerged();
+          const f=foodById(foods,it.foodId);
+          if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
+
+          const mac=macroFor(f,qtyType,qty);
+          it.qty=qty;
+          it.qtyType=qtyType;
+          it.qtyDisplay=qtyDisplay(qtyType,qty);
+          it.kcal=mac.kcal; it.p=mac.p; it.c=mac.c; it.f=mac.f;
+
+          recalcMacrosOkTotals();
+          renderMacrosOk();
+        };
+        list.appendChild(d);
+      });
+    }
+
+    const s=document.createElement('div'); s.className='item';
+    s.innerHTML=`<div><b>Total plan (Macros OK)</b><br><small>Se añadirá al registro al confirmar</small></div>
+                 <div class="right"><b>${round(currentMacrosOk.tot.kcal)}</b><small> kcal</small><br><small>P ${round(currentMacrosOk.tot.p,1)} · C ${round(currentMacrosOk.tot.c,1)} · F ${round(currentMacrosOk.tot.f,1)}</small></div>`;
+    list.appendChild(s);
+  };
+
+  const recalcMacrosOkTotals = ()=>{
+    if(!currentMacrosOk) return;
+    const tot = currentMacrosOk.items.reduce((a,x)=>({
+      kcal:a.kcal+(Number(x.kcal)||0),
+      p:a.p+(Number(x.p)||0),
+      c:a.c+(Number(x.c)||0),
+      f:a.f+(Number(x.f)||0),
+    }),{kcal:0,p:0,c:0,f:0});
+    currentMacrosOk.tot = tot;
+  };
+
+  // ======= ROLLOVER =======
+  const rolloverIfNeeded=()=>{
+    const last=localStorage.getItem(LS.lastDate);
+    const now=todayKey();
+    if(!last){
+      localStorage.setItem(LS.lastDate, now);
+      return false;
+    }
+    if(last===now) return false;
+
+    const storedMode=loadMode();
+    ensureDaySettings(now, storedMode.modeKey);
+
+    localStorage.setItem(LS.lastDate, now);
+    return true;
+  };
+
+  // ======= RENDER ALL =======
+  const renderAll=()=>{
+    rolloverIfNeeded();
+
+    const foods=loadFoodsMerged();
+
+    const storedMode=loadMode();
+    if(!modeDraft) modeDraft = {...storedMode};
+
+    renderModeUI(modeDraft, storedMode);
+
+    const profile=loadProfile();
+    $('sex').value = profile.sex;
+    $('age').value = profile.age;
+    $('heightCm').value = profile.heightCm;
+
+    $('dateChip').textContent = todayKey();
+    $('weightChip').textContent = `${profile.weightKg} kg`;
+
+    const sinceW = daysSince(profile.lastWeightUpdateTs);
+    const lockedW = (sinceW < WEIGHT_LOCK_DAYS) && !weightOverride;
+    $('weightKg').value = profile.weightKg;
+    $('weightKg').disabled = lockedW;
+    $('weightLockHint').textContent = lockedW ? `· Bloqueado (${WEIGHT_LOCK_DAYS - sinceW} días)` : '';
+
+    const {day}=loadDaySettings(storedMode.modeKey);
+    $('trainTime').value = day.trainTime || '';
+    $('wod').value = String(day.wod ?? 350);
+    $('cardioKcal').value = day.cardioKcal ?? '';
+    $('steps').value = day.steps ?? '';
+    $('neatLevel').value = day.neatLevel ?? defaultNeatByMode(storedMode.modeKey);
+
+    const pal = PAL[$('neatLevel').value] || PAL.high;
+    const bmr = computeBMR(profile);
+    $('neatInfo').textContent = `PAL aplicado: ${pal} · TMB: ${bmr} kcal`;
+
+    // Pánico (estado visual)
+    $('panicBtn').textContent = day.panicOn ? 'Pánico (ON)' : 'Pánico';
+    $('panicBtn').style.outline = day.panicOn ? '2px solid rgba(255,77,77,.55)' : '';
+
+    renderFoodPicker(foods);
+    renderAddFoodList(foods);
+    renderFoodsList(foods);
+
+    const logs=loadLogs().items;
+    const eaten=sumMacros(logs);
+    const goal=computeGoal(profile, day, storedMode);
+
+    renderTotals(goal,eaten);
+    renderDayStatus(goal,eaten);
+    renderMacroStatuses(goal, eaten, storedMode);
+    renderLog(foods,logs);
+
+    const tc=timeContext(day.trainTime);
+    const slot=mealFromClock();
+    $('recContext').textContent = `${tc.ctx} · ${prettyMeal(slot)}: ${tc.detail}`;
+
+    const rec = recommendForSlot(foods, goal, eaten, tc.ctx, slot, false);
+    currentRec = rec ? {slot, ctx:tc.ctx, items:rec.items, tot:rec.tot} : null;
+    renderRec(currentRec);
+
+    renderMacrosOk();
+    refreshTagButtons();
+  };
+
+  // ======= ACTIONS =======
+  $('overrideWeight').onclick=()=>{
+    weightOverride = !weightOverride;
+    alert(weightOverride ? 'Override peso activado.' : 'Override peso desactivado.');
+    renderAll();
+  };
+
+  $('saveProfile').onclick=()=>{
+    const p = loadProfile();
+
+    const next = {
+      sex: ($('sex').value==='f')?'f':'m',
+      age: Math.max(10, Number($('age').value)||p.age),
+      heightCm: Math.max(120, Number($('heightCm').value)||p.heightCm),
+      weightKg: Math.max(30, Number($('weightKg').value)||p.weightKg),
+      lastWeightUpdateTs: p.lastWeightUpdateTs
+    };
+
+    const weightChanged = Math.abs(next.weightKg - p.weightKg) > 0.0001;
+
+    const since = daysSince(p.lastWeightUpdateTs);
+    const locked = (since < WEIGHT_LOCK_DAYS) && !weightOverride;
+
+    if(weightChanged && locked){
+      alert(`Peso bloqueado. Faltan ${WEIGHT_LOCK_DAYS - since} días (o activa override).`);
+      renderAll();
+      return;
+    }
+
+    if(weightChanged){
+      next.lastWeightUpdateTs = Date.now();
+      weightOverride = false;
+    }
+
+    saveProfile(next);
+    alert('Perfil guardado.');
+    renderAll();
+  };
+
+  $('overrideStage').onclick=()=>{
+    stageOverride = !stageOverride;
+    alert(stageOverride ? 'Override etapa activado.' : 'Override etapa desactivado.');
+    renderAll();
+  };
+
+  $('saveStage').onclick=()=>{
+    const stored=loadMode();
+    const wantsChangeMode = modeDraft.modeKey !== stored.modeKey;
+
+    if(wantsChangeMode){
+      const since = daysSince(stored.lastModeUpdateTs);
+      const locked = (since < STAGE_LOCK_DAYS) && !stageOverride;
+      if(locked){
+        alert(`Etapa bloqueada. Faltan ${STAGE_LOCK_DAYS - since} días (o activa override).`);
+        renderAll();
+        return;
+      }
+      saveModeFull(modeDraft.modeKey, modeDraft.levelKey);
+      stageOverride = false;
+      alert('Etapa guardada.');
+      renderAll();
+      return;
+    }
+
+    alert('Etapa sin cambios. El nivel diario se guarda al seleccionarlo.');
+  };
+
+  $('panicBtn').onclick=()=>{
+    const storedMode=loadMode();
+    const {day}=loadDaySettings(storedMode.modeKey);
+    day.panicOn = !day.panicOn;
+    saveDaySettings(day);
+    alert(day.panicOn
+      ? `Pánico activado: se resta ${(loadProfile().sex==='m'?400:300)} kcal al objetivo HOY.`
+      : 'Pánico desactivado.');
+    renderAll();
+  };
+
+  $('saveDay').onclick=()=>{
+    const storedMode=loadMode();
+    const {day:cur}=loadDaySettings(storedMode.modeKey);
+    const day={
+      ...cur,
+      trainTime: $('trainTime').value || '',
+      wod: Number($('wod').value) || 0,
+      cardioKcal: $('cardioKcal').value,
+      steps: $('steps').value,
+      neatLevel: $('neatLevel').value || defaultNeatByMode(storedMode.modeKey),
+    };
+    saveDaySettings(day);
+    alert('Guardado.');
+    renderAll();
+  };
+
+  $('foodSearch').addEventListener('input', ()=>renderAll());
+  $('foodsSearch').addEventListener('input', ()=>renderAll());
+  $('clearFoodsSearch').onclick=()=>{
+    $('foodsSearch').value='';
+    renderAll();
+  };
+
+  const pushLogItem = (logs, payload)=>{
+    logs.push({
+      ts: Date.now(),
+      meal: normalizeMealLabel(payload.meal),
+      foodId: payload.foodId,
+      name: payload.name,
+      qtyType: payload.qtyType,
+      qty: payload.qty,
+      qtyDisplay: payload.qtyDisplay,
+      kcal: payload.kcal, p: payload.p, c: payload.c, f: payload.f
+    });
+  };
+
+  $('addItem').onclick=()=>{
+    const foods=loadFoodsMerged();
+    const f=foodById(foods,$('foodPick').value);
+    const qtyType=$('qtyType').value;
+    const qty=Number($('qty').value);
+    if(!f || !qty || qty<=0){ alert('Producto y cantidad.'); return; }
+
+    const mac=macroFor(f,qtyType,qty);
+    const logs=loadLogs().items;
+
+    pushLogItem(logs,{
+      meal: $('mealSlot').value,
+      foodId: f.id,
+      name: f.name,
+      qtyType, qty,
+      qtyDisplay: qtyDisplay(qtyType,qty),
+      ...mac
+    });
+
+    saveLogs(logs);
+    $('qty').value='';
+    renderAll();
+  };
+
+  $('parseQuick').onclick=()=>{
+    const txt=$('quickText').value.trim();
+    if(!txt){ alert('Pega texto.'); return; }
+
+    const foods=loadFoodsMerged();
+    const logs=loadLogs().items;
+    const lines=txt.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+    let added=0;
+
+    for(const line of lines){
+      const m=line.match(/(.+?)\s+(\d+(?:[.,]\d+)?)\s*(g|gr|u|ud|uds|ml)\b/i);
+      if(!m) continue;
+
+      const needle=m[1].trim().toLowerCase();
+      const qty=Number(String(m[2]).replace(',','.'));
+      const u=m[3].toLowerCase();
+      const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
+
+      const f=foods.find(x=>x.id.toLowerCase()===needle) || foods.find(x=>x.name.toLowerCase().includes(needle));
+      if(!f) continue;
+
+      const mac=macroFor(f,qtyType,qty);
+      pushLogItem(logs,{
+        meal: $('mealSlot').value,
+        foodId: f.id,
+        name: f.name,
+        qtyType, qty,
+        qtyDisplay: qtyDisplay(qtyType,qty),
+        ...mac
+      });
+      added++;
+    }
+
+    saveLogs(logs);
+    $('quickText').value='';
+    alert(`Añadidos: ${added}`);
+    renderAll();
+  };
+
+  $('regenRec').onclick=()=>{
+    const foods=loadFoodsMerged();
+    const storedMode=loadMode();
+    const {day}=loadDaySettings(storedMode.modeKey);
+    const profile=loadProfile();
+    const logs=loadLogs().items;
+    const eaten=sumMacros(logs);
+    const goal=computeGoal(profile, day, storedMode);
+    const tc=timeContext(day.trainTime);
+    const slot=mealFromClock();
+
+    const rec = recommendForSlot(foods, goal, eaten, tc.ctx, slot, true);
+    currentRec = rec ? {slot, ctx:tc.ctx, items:rec.items, tot:rec.tot} : null;
+    renderRec(currentRec);
+  };
+
+  $('addRecToLog').onclick=()=>{
+    if(!currentRec){ alert('No hay recomendación.'); return; }
+    const logs=loadLogs().items;
+
+    currentRec.items.forEach(it=>{
+      pushLogItem(logs,{
+        meal: currentRec.slot,
+        foodId: it.foodId,
+        name: it.name,
+        qtyType: it.qtyType,
+        qty: it.qty,
+        qtyDisplay: it.qtyDisplay,
+        kcal: it.kcal, p: it.p, c: it.c, f: it.f
+      });
+    });
+
+    saveLogs(logs);
+    renderAll();
+  };
+
+  $('clearToday').onclick=()=>{
+    if(confirm('¿Borrar todo HOY?')){
+      saveLogs([]);
+      renderAll();
+    }
+  };
+
+  // Macros OK
+  $('macrosOkGen').onclick=()=>{
+    const foods=loadFoodsMerged();
+    const storedMode=loadMode();
+    const {day}=loadDaySettings(storedMode.modeKey);
+    const profile=loadProfile();
+    const logs=loadLogs().items;
+    const eaten=sumMacros(logs);
+    const goal=computeGoal(profile, day, storedMode);
+
+    currentMacrosOk = planMacrosOk(foods, goal, eaten);
+
+    const remK = Math.max(0, goal.goalKcal - eaten.kcal);
+    $('macrosOkContext').textContent = `Plan día completo · Restan ${Math.round(remK)} kcal.`;
+    renderMacrosOk();
+  };
+
+  $('macrosOkConfirm').onclick=()=>{
+    if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
+      alert('No hay sugerencia para confirmar.');
+      return;
+    }
+    const logs=loadLogs().items;
+
+    currentMacrosOk.items.forEach(it=>{
+      pushLogItem(logs,{
+        meal: it.meal,
+        foodId: it.foodId,
+        name: it.name,
+        qtyType: it.qtyType,
+        qty: it.qty,
+        qtyDisplay: it.qtyDisplay,
+        kcal: it.kcal, p: it.p, c: it.c, f: it.f
+      });
+    });
+
+    saveLogs(logs);
+    currentMacrosOk = null;
+    $('macrosOkContext').textContent = 'Sugerencia confirmada y añadida al registro.';
+    renderAll();
+  };
+
+  // CRUD alimentos
+  $('saveFood').onclick=()=>{
+    const id=$('f_id').value.trim();
+    const name=$('f_name').value.trim();
+    if(!id || !name){ alert('id y nombre obligatorios'); return; }
+
+    const obj=normalizeFood({
+      id, name,
+      baseUnit: $('f_baseUnit').value,
+      kcal: Number($('f_kcal').value),
+      p: Number($('f_p').value),
+      c: Number($('f_c').value),
+      f: Number($('f_f').value),
+      unitGrams: ($('f_unitGrams').value.trim()?Number($('f_unitGrams').value):null),
+      tags: $('f_tags').value
+    });
+
+    if(!isFinite(obj.kcal)||!isFinite(obj.p)||!isFinite(obj.c)||!isFinite(obj.f)){
+      alert('Macros inválidos.');
+      return;
+    }
+
+    upsertFoodFromApp(obj);
+    alert('Guardado (usuario).');
+    renderAll();
+  };
+
+  $('exportFoods').onclick=()=>{
+    const foods=loadFoodsMerged();
+    const blob=new Blob([JSON.stringify(foods,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='macrocontrolapp_foods_merged.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  $('importFoodsBtn').onclick=()=>$('importFoodsFile').click();
+  $('importFoodsFile').onchange=(ev)=>{
+    const file=ev.target.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const data=JSON.parse(r.result);
+        if(!Array.isArray(data)) throw new Error('No es una lista');
+
+        const incoming = data.map(normalizeFood).filter(x=>x.id && x.name);
+        ensureFoodsStores();
+        const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+        const mergedUser = uniqByIdPreferLast([...currentUser, ...incoming]);
+        saveJSON(LS.foodsUser, mergedUser);
+
+        alert(`Importado a usuario: ${incoming.length}`);
+        renderAll();
+      }catch(e){
+        alert('JSON inválido: '+e.message);
+      }
+    };
+    r.readAsText(file);
+  };
+
+  // Service Worker (actualización agresiva)
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', async ()=>{
+      try{
+        const reg = await navigator.serviceWorker.register('sw.js');
+        if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+
+        reg.addEventListener('updatefound', ()=>{
+          const nw = reg.installing;
+          if(!nw) return;
+          nw.addEventListener('statechange', ()=>{
+            if(nw.state==='installed' && navigator.serviceWorker.controller){
+              nw.postMessage({type:'SKIP_WAITING'});
+            }
+          });
+        });
+
+        navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+          window.location.reload();
+        });
+      }catch(e){}
+    });
+  }
+
+  // Watcher medianoche
+  setInterval(()=>{
+    if(rolloverIfNeeded()){
+      renderAll();
+      alert('Nuevo día: registro reiniciado.');
+    }
+  }, 20000);
+
+  // Init
+  ensureFoodsStores();
+  rolloverIfNeeded();
+  renderAll();
+})();
+</script>
+</body>
+</html>
