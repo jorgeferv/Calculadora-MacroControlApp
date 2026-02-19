@@ -261,7 +261,7 @@
         <!-- ETAPA -->
         <details id="stageBox">
           <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-            <span>ETAPA</span>
+            <span>OBJETIVO</span>
             <span class="pill"><b id="stageChipRight">—</b></span>
           </summary>
 
@@ -272,7 +272,7 @@
           <div class="seg" id="levelSeg"></div>
 
           <div class="seg" style="margin-top:10px;">
-            <button id="overrideStage" type="button">Override etapa</button>
+            <button id="overrideStage" type="button">Modo manual</button>
             <button class="primary" id="saveStage" type="button">Guardar etapa</button>
           </div>
           <div class="hint" id="stageLockHint">—</div>
@@ -370,6 +370,22 @@
       </div>
 
       <div class="card">
+        <div id="opSummary" class="box" style="margin-bottom:10px;">
+          <div class="row" style="gap:10px;align-items:stretch;">
+            <div class="box" style="flex:1;min-width:140px;">
+              <div class="num" id="opRemKcal">—</div>
+              <div class="lbl">Kcal restantes</div>
+            </div>
+            <div class="box" style="flex:1;min-width:140px;">
+              <div class="num" id="opRemP">—</div>
+              <div class="lbl">Proteína restante</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <button class="primary" id="opMacrosOk" type="button">Macros OK</button>
+          </div>
+        </div>
+
         <div class="status" id="dayStatusBox">
           <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
           <button id="openStats" type="button" class="delBtn" style="position:absolute;top:12px;right:12px;" title="Ver estadísticas">📊</button>
@@ -561,6 +577,26 @@ window.addEventListener('error', function(e){
     foodsLegacy: 'mc_foods_v8'
   };
 
+  // =========================
+  // DATA VERSIONING (migraciones seguras)
+  // =========================
+  const DATA_VERSION = 1;
+  const LS_VERSION_KEY = 'mc_data_version';
+
+  const migrateIfNeeded = ()=>{
+    const cur = Number(localStorage.getItem(LS_VERSION_KEY) || 0);
+    if(cur === DATA_VERSION) return;
+    // Migraciones futuras: aquí.
+    // Por ahora: garantizar estructuras base sin romper datos existentes.
+    try{
+      const logs = loadJSON(LS.logs, {});
+      if(typeof logs !== 'object' || Array.isArray(logs)) saveJSON(LS.logs, {});
+      const settings = loadJSON(LS.settings, {});
+      if(typeof settings !== 'object' || Array.isArray(settings)) saveJSON(LS.settings, {});
+    }catch(_){}
+    localStorage.setItem(LS_VERSION_KEY, String(DATA_VERSION));
+  };
+
   const WEIGHT_LOCK_DAYS = 10;
   const STAGE_LOCK_DAYS = 30;
   const CARDIO_DISCOUNT = 0.08; // <-- máximo 8% (lo acordado)
@@ -663,7 +699,8 @@ window.addEventListener('error', function(e){
 
       const b=document.createElement('button');
       b.type='button';
-      b.textContent=d.label;
+      const dayNum = Number(d.key.split('-')[2]);
+      b.innerHTML = `<div>${d.label}</div><div style="font-size:11px;opacity:.7;line-height:1;">${dayNum}</div>`;
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
@@ -1548,7 +1585,7 @@ window.addEventListener('error', function(e){
       $('stageLockHint').textContent = `Objetivo actual bloqueada ${STAGE_LOCK_DAYS} días desde el último cambio. Nivel diario libre.`;
     }
 
-    $('overrideStage').textContent = stageOverride ? 'Override etapa (ON)' : 'Override etapa';
+    $('overrideStage').textContent = stageOverride ? 'Modo manual (ON)' : 'Modo manual';
   };
 
   const cycleLevelByChip = ()=>{
@@ -1748,6 +1785,13 @@ window.addEventListener('error', function(e){
     }
 
     return {real, planned, deviation, correctionPerDay, sev, msg, dataDays};
+  };
+
+  // Compatibilidad: detalle estadístico 7d (usa solo días con registro; NO cuenta futuros)
+  const computeDeficitDeviation = (profile, storedMode)=>{
+    const g = computeDeficitGuidance(profile, storedMode);
+    if(!g) return null;
+    return { real: g.real, planned: g.planned, deviation: g.deviation };
   };
 
   const renderHistoryChips=(profile, storedMode)=>{
@@ -2125,6 +2169,12 @@ window.addEventListener('error', function(e){
     const goal=computeGoal(profile, day, storedMode);
 
     renderTotals(goal,eaten);
+    // Resumen operativo
+    const remK = Math.round(goal.goalKcal - eaten.kcal);
+    const remP = Math.round(goal.p - eaten.p);
+    const opRemKcal = $('opRemKcal'); if(opRemKcal) opRemKcal.textContent = String(remK);
+    const opRemP = $('opRemP'); if(opRemP) opRemP.textContent = String(remP);
+    const opBtn = $('opMacrosOk'); if(opBtn) opBtn.onclick = ()=>$('macrosOkGen')?.click();
     renderDayStatus(goal,eaten);
     renderHistoryChips(profile, storedMode);
 
@@ -2216,7 +2266,7 @@ window.addEventListener('error', function(e){
 
   $('overrideStage').onclick=()=>{
     stageOverride = !stageOverride;
-    alert(stageOverride ? 'Override etapa activado.' : 'Override etapa desactivado.');
+    alert(stageOverride ? 'Modo manual activado.' : 'Modo manual desactivado.');
     renderAll();
   };
 
@@ -2473,6 +2523,11 @@ window.addEventListener('error', function(e){
 
     upsertFoodFromApp(obj);
     alert('Guardado (usuario).');
+    // UX: limpiar formulario y dejar listo para el siguiente
+    $('f_id').value=''; $('f_name').value='';
+    $('f_kcal').value=''; $('f_p').value=''; $('f_c').value=''; $('f_f').value='';
+    $('f_unitGrams').value=''; $('f_tags').value=''; refreshTagButtons();
+    $('f_id')?.focus();
     renderAll();
   };
 
@@ -2591,6 +2646,7 @@ window.addEventListener('error', function(e){
   }, 20000);
 
   // Init
+  migrateIfNeeded();
   ensureFoodsStores();
   rolloverIfNeeded();
   renderAll();
