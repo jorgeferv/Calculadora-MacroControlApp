@@ -128,11 +128,25 @@
     input[type="time"], select{min-height:44px;}
 
 
+  
+    /* iOS: alinear altura de hora + select */
+    input[type="time"], select{
+      min-height:44px;
+      height:44px;
+      line-height:44px;
+      padding-top:0;
+      padding-bottom:0;
+    }
+
   </style>
 </head>
 
 <body>
   <h1>MacroControlAPP</h1>
+  <div id="fatalErr" class="card" style="display:none;border-color:rgba(255,77,77,.55);background:rgba(255,77,77,.08);">
+    <b style="color:#ff6b6b;">Error</b>
+    <div class="muted" id="fatalErrMsg" style="margin-top:6px;word-break:break-word;"></div>
+  </div>
   <div id="weekChips" class="dayChips" aria-label="Planificación (7 días)"></div>
   <!-- Drawer ALIMENTOS (full-screen) -->
   <div class="drawerBack" id="drawerBack">
@@ -614,34 +628,22 @@ pan_cristal 2u"></textarea>
 
   let modeDraft = null;
 
+  const saveModeLevelOnly = (newLevelKey)=>{
+    const cur = loadMode();
+    const next = { ...cur, levelKey: newLevelKey };
+    saveJSON(LS.mode, next);
+  };
 
   const saveModeFull = (newModeKey, newLevelKey)=>{
     const next = { modeKey:newModeKey, levelKey:newLevelKey, lastModeUpdateTs: Date.now() };
     saveJSON(LS.mode, next);
   };
 
-  // Nivel diario por fecha (no global)
-  const setDayLevelKey = (dateKey, levelKey)=>{
-    const all=loadJSON(LS.settings,{});
-    if(!all[dateKey]) all[dateKey]={};
-    all[dateKey].levelKey = levelKey;
-    saveJSON(LS.settings,all);
-  };
-
-  const modeForDay = (modeStored, day)=>({
-    ...modeStored,
-    levelKey: (day && day.levelKey) ? day.levelKey : modeStored.levelKey
-  });
-
-
   // ======= DÍA =======
   const defaultNeatByMode = (modeKey)=> (modeKey==='surplus') ? 'med' : 'high';
 
-  const ensureDaySettings=(dateKey, modeStored)=>{
+  const ensureDaySettings=(dateKey, modeKey)=>{
     const all=loadJSON(LS.settings,{});
-    const modeKey = modeStored?.modeKey || 'deficit';
-    const defaultLevelKey = modeStored?.levelKey || (LEVELS[modeKey]||[])[0]?.key || 'd250';
-
     if(!all[dateKey]){
       all[dateKey]={
         trainTime:'',
@@ -649,25 +651,22 @@ pan_cristal 2u"></textarea>
         cardioKcal:'',
         steps:'',
         neatLevel: defaultNeatByMode(modeKey),
-        panicOn: false,
-        // Nivel diario (solo para este día)
-        levelKey: defaultLevelKey
+        panicOn: false
       };
       saveJSON(LS.settings,all);
     } else {
       if(all[dateKey].neatLevel===undefined) all[dateKey].neatLevel = defaultNeatByMode(modeKey);
       if(all[dateKey].steps===undefined) all[dateKey].steps = '';
       if(all[dateKey].panicOn===undefined) all[dateKey].panicOn = false;
-      if(all[dateKey].levelKey===undefined) all[dateKey].levelKey = defaultLevelKey;
       saveJSON(LS.settings,all);
     }
     return all[dateKey];
   };
 
-  const loadDaySettings=(modeStored)=>{
+  const loadDaySettings=(modeKey)=>{
     ensureActiveInWindow();
     const k=activeDayKey;
-    const day=ensureDaySettings(k, modeStored);
+    const day=ensureDaySettings(k, modeKey);
     return {k,day};
   };
 
@@ -1348,7 +1347,7 @@ pan_cristal 2u"></textarea>
       b.className=(l.key===draft.levelKey)?'active':'';
       b.onclick=()=>{
         draft.levelKey=l.key;
-        setDayLevelKey(activeDayKey, draft.levelKey);
+        saveModeLevelOnly(draft.levelKey);
         renderAll();
       };
       $('levelSeg').appendChild(b);
@@ -1378,16 +1377,9 @@ pan_cristal 2u"></textarea>
     if(stored.modeKey==='maint') return;
     const list = LEVELS[stored.modeKey] || [];
     if(list.length<=1) return;
-
-    const day = ensureDaySettings(activeDayKey, stored);
-    const curKey = day.levelKey || stored.levelKey;
-
-    const idx = Math.max(0, list.findIndex(x=>x.key===curKey));
+    const idx = Math.max(0, list.findIndex(x=>x.key===stored.levelKey));
     const next = list[(idx+1) % list.length];
-
-    day.levelKey = next.key;
-    setDayLevelKey(activeDayKey, next.key);
-
+    saveModeLevelOnly(next.key);
     if(modeDraft){
       modeDraft.modeKey = stored.modeKey;
       modeDraft.levelKey = next.key;
@@ -1506,20 +1498,17 @@ pan_cristal 2u"></textarea>
     return out;
   };
 
-  const normalizeDayForKey=(allSettings, key, modeStored)=>{
-    const modeKey = modeStored?.modeKey || 'deficit';
+  const normalizeDayForKey=(allSettings, key, modeKey)=>{
     const base = {
       trainTime:'',
       wod:0,
       cardioKcal:'',
       steps:'',
       neatLevel: defaultNeatByMode(modeKey),
-      panicOn:false,
-      levelKey: modeStored?.levelKey
+      panicOn:false
     };
     const d = allSettings[key] ? {...base, ...allSettings[key]} : base;
     if(d.neatLevel===undefined) d.neatLevel = defaultNeatByMode(modeKey);
-    if(d.levelKey===undefined) d.levelKey = modeStored?.levelKey;
     return d;
   };
 
@@ -1553,15 +1542,14 @@ pan_cristal 2u"></textarea>
         if(!items || items.length===0) continue;
 
         const eaten = sumMacros(items);
-        const day = normalizeDayForKey(settingsAll, k, storedMode);
-        const mDay = modeForDay(storedMode, day);
+        const day = normalizeDayForKey(settingsAll, k, modeKey);
 
         const tdee = computeTDEE(profile, day);
         deficitSum += (tdee - eaten.kcal);
 
         dataDays += 1;
 
-        const goal = computeGoal(profile, day, modeForDay(storedMode, day));
+        const goal = computeGoal(profile, day, storedMode);
         const kcalOk = goal.goalKcal>0 ? (Math.abs(eaten.kcal-goal.goalKcal)/goal.goalKcal)<=0.05 : false;
         const pOk = goal.p>0 ? eaten.p >= (goal.p*0.95) : false;
         if(kcalOk && pOk) adherent += 1;
@@ -1855,7 +1843,7 @@ pan_cristal 2u"></textarea>
     if(last===now) return false;
 
     const storedMode=loadMode();
-    ensureDaySettings(now, storedMode);
+    ensureDaySettings(now, storedMode.modeKey);
 
     localStorage.setItem(LS.lastDate, now);
     return true;
@@ -1887,13 +1875,7 @@ pan_cristal 2u"></textarea>
     $('weightKg').disabled = lockedW;
     $('weightLockHint').textContent = lockedW ? `· Bloqueado (${WEIGHT_LOCK_DAYS - sinceW} días)` : '';
 
-    const {day}=loadDaySettings(storedMode);
-
-    // El nivel (−250/−350/…) es por día: sincroniza el draft con el día activo
-    if(modeDraft){
-      modeDraft.levelKey = (day && day.levelKey) ? day.levelKey : storedMode.levelKey;
-      modeDraft.modeKey = storedMode.modeKey;
-    }
+    const {day}=loadDaySettings(storedMode.modeKey);
     $('trainTime').value = day.trainTime || '';
     $('wod').value = String(day.wod ?? 350);
     $('cardioKcal').value = day.cardioKcal ?? '';
@@ -1914,7 +1896,7 @@ pan_cristal 2u"></textarea>
 
     const logs=loadLogs().items;
     const eaten=sumMacros(logs);
-    const goal=computeGoal(profile, day, modeForDay(storedMode, day));
+    const goal=computeGoal(profile, day, storedMode);
 
     renderTotals(goal,eaten);
     renderDayStatus(goal,eaten);
@@ -1991,13 +1973,7 @@ pan_cristal 2u"></textarea>
         renderAll();
         return;
       }
-      const newDefaultLevel = (LEVELS[modeDraft.modeKey]||[])[0]?.key || modeDraft.levelKey;
-      saveModeFull(modeDraft.modeKey, newDefaultLevel);
-      // Ajusta el nivel del día activo al nuevo modo
-      setDayLevelKey(activeDayKey, newDefaultLevel);
-      const {day:dy}=loadDaySettings(loadMode());
-      dy.levelKey = newDefaultLevel;
-      saveDaySettings(dy);
+      saveModeFull(modeDraft.modeKey, modeDraft.levelKey);
       stageOverride = false;
       alert('Objetivo guardado.');
       renderAll();
@@ -2009,13 +1985,7 @@ pan_cristal 2u"></textarea>
 
   $('panicBtn').onclick=()=>{
     const storedMode=loadMode();
-    const {day}=loadDaySettings(storedMode);
-
-    // El nivel (−250/−350/…) es por día: sincroniza el draft con el día activo
-    if(modeDraft){
-      modeDraft.levelKey = (day && day.levelKey) ? day.levelKey : storedMode.levelKey;
-      modeDraft.modeKey = storedMode.modeKey;
-    }
+    const {day}=loadDaySettings(storedMode.modeKey);
     day.panicOn = !day.panicOn;
     saveDaySettings(day);
     alert(day.panicOn
@@ -2026,7 +1996,7 @@ pan_cristal 2u"></textarea>
 
   $('saveDay').onclick=()=>{
     const storedMode=loadMode();
-    const {day:cur}=loadDaySettings(storedMode);
+    const {day:cur}=loadDaySettings(storedMode.modeKey);
     const day={
       ...cur,
       trainTime: $('trainTime').value || '',
@@ -2126,17 +2096,11 @@ pan_cristal 2u"></textarea>
   $('regenRec').onclick=()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
-    const {day}=loadDaySettings(storedMode);
-
-    // El nivel (−250/−350/…) es por día: sincroniza el draft con el día activo
-    if(modeDraft){
-      modeDraft.levelKey = (day && day.levelKey) ? day.levelKey : storedMode.levelKey;
-      modeDraft.modeKey = storedMode.modeKey;
-    }
+    const {day}=loadDaySettings(storedMode.modeKey);
     const profile=loadProfile();
     const logs=loadLogs().items;
     const eaten=sumMacros(logs);
-    const goal=computeGoal(profile, day, modeForDay(storedMode, day));
+    const goal=computeGoal(profile, day, storedMode);
     const tc=timeContext(day.trainTime);
     const slot=mealFromClock();
 
@@ -2176,16 +2140,10 @@ pan_cristal 2u"></textarea>
   $('macrosOkGen').onclick=()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
-    const {day}=loadDaySettings(storedMode);
-
-    // El nivel (−250/−350/…) es por día: sincroniza el draft con el día activo
-    if(modeDraft){
-      modeDraft.levelKey = (day && day.levelKey) ? day.levelKey : storedMode.levelKey;
-      modeDraft.modeKey = storedMode.modeKey;
-    }
+    const {day}=loadDaySettings(storedMode.modeKey);
     const profile=loadProfile();
     const {items:logs}=loadLogs();
-    const goal=computeGoal(profile, day, modeForDay(storedMode, day));
+    const goal=computeGoal(profile, day, storedMode);
 
     currentMacrosOk = planMacrosOk(foods, goal, logs, day);
 
