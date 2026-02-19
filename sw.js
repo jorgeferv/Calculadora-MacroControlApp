@@ -6,6 +6,7 @@ const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './sw.js',
   './macrocontrol_foods_merged_v2_sorted.json'
 ];
 

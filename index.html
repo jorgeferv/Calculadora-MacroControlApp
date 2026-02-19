@@ -924,119 +924,219 @@ pan_cristal 2u"></textarea>
   };
 
   // ======= MACROS OK =======
-  // Post-entreno SOLO si hay WOD (ligero/normal/alto) o calorías activas > 0. NEAT no cuenta.
-  const isPostActive = (day)=>{
-    const wod = Number(day?.wod)||0;          // 0 = sin WOD
-    const cardio = Number(day?.cardioKcal)||0; // calorías activas (sin descuento aquí; es solo “presencia”)
-    return (wod > 0) || (cardio > 0);
-  };
+  // Objetivo: cuadrar SOLO lo que falta en el día, respetando lo ya registrado.
+  // Post-entreno es opcional y solo entra si (WOD > 0) o (Calorías activas > 0). NEAT NO afecta.
+  const planMacrosOk=(foods, goal, logs, day)=>{
+    const baseSlots = ['desayuno','comida','merienda','cena'];
 
-  const getFilledSlotsFromLogs = (logs)=>{
+    const postActive = ((Number(day?.wod)||0) > 0) || ((Number(day?.cardioKcal)||0) > 0);
+    const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
+
+    const eaten = sumMacros(logs);
+
+    // qué slots ya están “rellenos” (tienen al menos 1 item)
     const filled = new Set();
-    (logs||[]).forEach(it=>{
-      const m = normalizeMealLabel(it.meal);
-      filled.add(m);
-    });
-    return filled;
-  };
+    for(const it of logs){
+      const mk = normalizeMealLabel(it.meal);
+      if(mk) filled.add(mk);
+    }
 
-  const getMacrosOkSlotsToPlan = (day, logs)=>{
-    const base = ['desayuno','comida','merienda','cena'];
-    const slotsAll = isPostActive(day) ? [...base, 'post_entreno'] : [...base];
+    // slots a completar = los activos que NO estén rellenos
+    let slotsToPlan = allSlots.filter(s => !filled.has(s));
 
-    const filled = getFilledSlotsFromLogs(logs);
-    // Solo consideramos “relleno” si el slot existe en el día (slotsAll)
-    const remaining = slotsAll.filter(s => !filled.has(s));
+    // Caso especial: si no queda ningún slot activo pero faltan kcal, permitir “pre_entreno”
+    // SOLO si ya existe cena (última comida tradicional) y aún falta por cuadrar.
+    const remainingNow = ()=>{
+      const e = sumMacros([...logs, ...plannedItems]); // plannedItems definido más abajo
+      return {
+        kcal: Math.max(0, goal.goalKcal - e.kcal),
+        p: Math.max(0, goal.p - e.p),
+        c: Math.max(0, goal.c - e.c),
+        f: Math.max(0, goal.f - e.f),
+      };
+    };
 
-    return { slotsAll, remaining, filled };
-  };
-
-  // Genera plan SOLO para los slots indicados.
-  const planMacrosOk=(foods, goal, eatenEff, slotsToPlan)=>{
-    const slots = Array.isArray(slotsToPlan) && slotsToPlan.length
-      ? slotsToPlan.slice()
-      : ['desayuno','comida','merienda','cena'];
-
-    const items=[];
-    let tmp={...eatenEff};
-
-    // preferencia estable por “clásicos”
-    const pref = (arr, ids)=>{
+    // ===== helpers selección =====
+    const preferOrder = (arr, ids)=>{
       const m=new Map(arr.map(x=>[x.id,x]));
       const out=[];
       ids.forEach(id=>{ if(m.has(id)) out.push(m.get(id)); });
-      arr.forEach(x=>{ if(!ids.includes(x.id)) out.push(x); });
+      for(const x of arr){ if(!ids.includes(x.id)) out.push(x); }
       return out;
     };
 
-    for(const slot of slots){
-      const rem={
-        kcal: Math.max(0, goal.goalKcal - tmp.kcal),
-        p: Math.max(0, goal.p - tmp.p),
-        c: Math.max(0, goal.c - tmp.c),
-        f: Math.max(0, goal.f - tmp.f)
-      };
+    const allowedForSlot = (slot)=>{
+      const tag = slotToAllowedTag(slot);
+      return (f)=> !tag || (f.tags||[]).includes(tag);
+    };
 
-      // Si ya no queda “día” por cuadrar, paramos.
-      if(rem.kcal < 180) break;
+    const candidatesByTag = (tag, slot)=>{
+      const allow = allowedForSlot(slot);
+      let arr = foods.filter(f => (f.tags||[]).includes(tag) && allow(f));
+      if(tag==='fruit'){
+        arr = foods.filter(f => ['banana','freson','uva','manzana'].includes(f.id) && allow(f));
+      }
+      if(tag==='protein'){
+        arr = preferOrder(arr, ['queso_batido_0','claras','huevo_M','pollo_pechuga','Pechuga_92%_pavo_hacendado_lonchas','lomo_cerdo','Lomo_embuchado_Hacendado_lonchas']);
+      }
+      if(tag==='carb'){
+        arr = preferOrder(arr, ['gnocchi','pan_cristal','Pan_Brioche_Hamburguesa_Hacendado','Pan_molde_blanco_Hacendado','patata_guarnicion','baston_batata']);
+      }
+      if(tag==='fat'){
+        arr = preferOrder(arr, ['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light']);
+      }
+      return arr;
+    };
 
-      const remainingSlots = slots.slice(slots.indexOf(slot)).length;
-      const slotKcalTarget = Math.max(220, Math.min(720, Math.round(rem.kcal / remainingSlots)));
+    const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
+    const round5 = (x)=> Math.round(x/5)*5;
 
-      const allowedTag = slotToAllowedTag(slot);
-      const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
+    const qtyForMacro = (food, macroKey, target)=>{
+      // target en gramos de macro; devuelve qty (g o units) aproximada
+      const per = macroFor(food, 'g', 100);
+      const perUnit = macroFor(food, 'unit', 1);
+      if(food.baseUnit==='unit'){
+        const mv = (macroKey==='p'?perUnit.p:(macroKey==='c'?perUnit.c:perUnit.f));
+        if(mv<=0) return 1;
+        return clamp(Math.round(target / mv), 1, 6);
+      } else {
+        const mv = (macroKey==='p'?per.p:(macroKey==='c'?per.c:per.f));
+        if(mv<=0) return 100;
+        return clamp(round5((target / mv)*100), 30, 400);
+      }
+    };
 
-      let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
-      let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
-      let fats=foods.filter(f=>f.tags?.includes('fat') && allow(f));
-      let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f));
+    const addItem = (slot, food, qtyType, qty)=>{
+      const mac = macroFor(food, qtyType, qty);
+      plannedItems.push({
+        meal: slot,
+        foodId: food.id,
+        name: food.name,
+        qtyType,
+        qty,
+        qtyDisplay: qtyDisplay(qtyType, qty),
+        kcal: mac.kcal, p: mac.p, c: mac.c, f: mac.f
+      });
+    };
 
-      proteins = pref(proteins, ['queso_batido_0','claras','huevo_M','pollo_pechuga','Pechuga_92%_pavo_hacendado_lonchas','Lomo_embuchado_Hacendado_lonchas']);
-      carbs    = pref(carbs, ['gnocchi','pan_cristal','Pan_Brioche_Hamburguesa_Hacendado','Pan_molde_blanco_Hacendado']);
-      fats     = pref(fats, ['chocolate_85','Bacón_ahumado_La_Selva_lonchas']);
+    const buildSlot = (slot, rem, slotsLeft)=>{
+      // target kcal para este slot
+      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
 
-      if(!proteins.length) continue;
+      const proteins = candidatesByTag('protein', slot);
+      const carbs    = candidatesByTag('carb', slot);
+      const fats     = candidatesByTag('fat', slot);
+      const fruits   = candidatesByTag('fruit', slot);
 
-      const picks=[];
-      const p=proteins[0];
-      const pQty = (p.baseUnit==='unit') ? 2 : 200;
-      picks.push({meal:slot, foodId:p.id, name:p.name, qtyType:(p.baseUnit==='unit'?'unit':'g'), qty:pQty});
+      if(!proteins.length) return;
 
-      if(rem.c > 25 && carbs.length){
-        const c=carbs[0];
-        const cQty = (c.baseUnit==='unit') ? 2 : 150;
-        picks.push({meal:slot, foodId:c.id, name:c.name, qtyType:(c.baseUnit==='unit'?'unit':'g'), qty:cQty});
-      } else if(rem.c > 25 && fruits.length){
-        const fr=fruits[0];
-        picks.push({meal:slot, foodId:fr.id, name:fr.name, qtyType:'g', qty:150});
+      // 1) Proteína base
+      const pFood = proteins[0];
+      const pNeed = clamp(rem.p / Math.max(1, slotsLeft), 28, 55); // gramos de proteína
+      const pQty = qtyForMacro(pFood, 'p', pNeed);
+      addItem(slot, pFood, (pFood.baseUnit==='unit'?'unit':'g'), pQty);
+
+      // 2) Hidrato si hace falta o si faltan kcal
+      let afterP = sumMacros(plannedItems.filter(x=>x.meal===slot));
+      let localRem = { ...rem, kcal: Math.max(0, kcalTarget - afterP.kcal) };
+
+      const needCarb = (rem.c / Math.max(1, slotsLeft)) > 18 || localRem.kcal > 220;
+      if(needCarb){
+        const cFood = carbs[0] || fruits[0];
+        if(cFood){
+          const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, 90);
+          const cQty = (cFood.id==='banana'||cFood.id==='uva'||cFood.id==='freson'||cFood.id==='manzana')
+            ? clamp(round5(cNeed*5), 80, 250)
+            : qtyForMacro(cFood, 'c', cNeed);
+          addItem(slot, cFood, (cFood.baseUnit==='unit'?'unit':'g'), cQty);
+        }
       }
 
-      // grasa: solo si cabe y especialmente en cena
-      if(slot==='cena' && rem.f>12 && fats.length){
-        const ft=fats[0];
-        picks.push({meal:slot, foodId:ft.id, name:ft.name, qtyType:(ft.baseUnit==='unit'?'unit':'g'), qty:(ft.baseUnit==='unit'?1:10)});
+      // 3) Grasa/extra para cerrar kcal si sigue corto o falta grasa del día
+      afterP = sumMacros(plannedItems.filter(x=>x.meal===slot));
+      const needFat = (rem.f / Math.max(1, slotsLeft)) > 12 || (kcalTarget - afterP.kcal) > 180;
+
+      if(needFat && fats.length){
+        const fFood = fats[0];
+        // target grasa moderada
+        const fNeed = clamp(rem.f / Math.max(1, slotsLeft), 8, 18);
+        const fQty = qtyForMacro(fFood, 'f', fNeed);
+        addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
       }
 
-      let slotSum=0;
-      for(const b of picks){
-        const f=foodById(foods,b.foodId);
-        if(!f) continue;
-        const mac=macroFor(f,b.qtyType,b.qty);
-        const it={...b, qtyDisplay:qtyDisplay(b.qtyType,b.qty), ...mac};
+      // 4) Ajuste final: si aún falta mucha kcal, empuja con carb o fat según lo que falte
+      let guard=0;
+      while(guard++<6){
+        const slotTot = sumMacros(plannedItems.filter(x=>x.meal===slot));
+        const delta = kcalTarget - slotTot.kcal;
+        if(delta < 120) break;
 
-        // hard cap: evita que se “coma” todo el día en 1 bloque
-        if(slotSum + it.kcal > slotKcalTarget + 120) continue;
+        // decide si empujar con carb o fat
+        const wantCarb = (rem.c > rem.f*0.8) || carbs.length;
+        const pushFood = wantCarb ? (carbs[0] || fruits[0]) : fats[0];
+        if(!pushFood) break;
 
-        items.push(it);
-        slotSum += it.kcal;
-        tmp={kcal:tmp.kcal+it.kcal,p:tmp.p+it.p,c:tmp.c+it.c,f:tmp.f+it.f};
+        const qtyType = (pushFood.baseUnit==='unit') ? 'unit' : 'g';
+        const step = (qtyType==='unit') ? 1 : (pushFood.tags?.includes('fat') ? 10 : 50);
+
+        // si ya existe ese alimento en slot, sube qty, si no, añádelo
+        const existing = plannedItems.find(x=>x.meal===slot && x.foodId===pushFood.id);
+        if(existing){
+          existing.qty += step;
+          const mac = macroFor(pushFood, existing.qtyType, existing.qty);
+          existing.qtyDisplay = qtyDisplay(existing.qtyType, existing.qty);
+          existing.kcal=mac.kcal; existing.p=mac.p; existing.c=mac.c; existing.f=mac.f;
+        } else {
+          addItem(slot, pushFood, qtyType, (qtyType==='unit'?1:step));
+        }
+      }
+    };
+
+    const plannedItems = [];
+
+    // Si el día está vacío (no hay logs), cuadrar el día completo en slots base (+post si activo)
+    // Si ya hay algo, solo completar slots restantes.
+    // Si slotsToPlan quedó vacío pero falta, permitir pre_entreno si existe cena.
+    const initialRem = {
+      kcal: Math.max(0, goal.goalKcal - eaten.kcal),
+      p: Math.max(0, goal.p - eaten.p),
+      c: Math.max(0, goal.c - eaten.c),
+      f: Math.max(0, goal.f - eaten.f),
+    };
+
+    // Si no hay nada y aun así rem muy bajo, no hacemos nada.
+    if(initialRem.kcal < 120) return {slots:[], slotsToPlan:[], items:[], tot:{kcal:0,p:0,c:0,f:0}, context:'Nada que cuadrar.'};
+
+    // Plan principal
+    for(let i=0;i<slotsToPlan.length;i++){
+      const slot = slotsToPlan[i];
+      const rem = remainingNow();
+      if(rem.kcal < 160) break;
+      buildSlot(slot, rem, (slotsToPlan.length - i));
+    }
+
+    // Caso especial: si no quedan slotsToPlan (o ya los hemos llenado) y aún falta bastante, permitir pre_entreno
+    // SOLO si ya existe 'cena' en logs (última comida) y el usuario no tiene post activo (o ya está relleno).
+    const remAfter = remainingNow();
+    if(remAfter.kcal > 220){
+      const hasDinner = filled.has('cena');
+      const postFilled = filled.has('post_entreno');
+      const allowPre = hasDinner && (!postActive || postFilled);
+      if(allowPre && !filled.has('pre_entreno')){
+        // meter un bloque extra para cerrar (pre-entreno)
+        buildSlot('pre_entreno', remAfter, 1);
+        if(!allSlots.includes('pre_entreno')) allSlots.push('pre_entreno');
+        if(!slotsToPlan.includes('pre_entreno')) slotsToPlan.push('pre_entreno');
       }
     }
 
-    const tot=items.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
-    return {slots, items, tot};
-  };
+    // Totales del plan
+    const tot = plannedItems.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
 
+    const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
+    const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
+    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
+  };
   // ======= ESTADO =======
   const computeDayStatus=(goal,eaten)=>{
     const kcalRatio = goal.goalKcal>0 ? eaten.kcal/goal.goalKcal : 0;
@@ -1498,37 +1598,26 @@ pan_cristal 2u"></textarea>
       block.appendChild(wrap);
       list.appendChild(block);
     }
-  }
-  // ======= MACROS OK (planificador del resto del día) =======
-  const recalcMacrosOkTotals = ()=>{
-    if(!currentMacrosOk) return;
-    const tot = currentMacrosOk.items.reduce((a,x)=>({
-      kcal:a.kcal+(Number(x.kcal)||0),
-      p:a.p+(Number(x.p)||0),
-      c:a.c+(Number(x.c)||0),
-      f:a.f+(Number(x.f)||0),
-    }),{kcal:0,p:0,c:0,f:0});
-    currentMacrosOk.tot = tot;
   };
 
+  // ======= MACROS OK RENDER + EDIT =======
   const renderMacrosOk = ()=>{
-    const list = $('macrosOkList');
-    list.innerHTML = '';
+    const list=$('macrosOkList');
+    list.innerHTML='';
 
     if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
-      list.innerHTML = '<div class="muted">Genera una sugerencia con “Macros OK”.</div>';
+      list.innerHTML = '<div class="muted">Sin sugerencia aún.</div>';
       return;
     }
 
-    // Agrupar por comida
     const groups = new Map();
-    currentMacrosOk.items.forEach((it, globalIdx)=>{
+    currentMacrosOk.items.forEach((it, idx)=>{
       const m = normalizeMealLabel(it.meal);
       if(!groups.has(m)) groups.set(m, []);
-      groups.get(m).push({it, globalIdx});
+      groups.get(m).push({it, idx});
     });
 
-    const entries = Array.from(groups.entries()).sort((a,b)=> mealOrder(a[0]) - mealOrder(b[0]));
+    const entries = Array.from(groups.entries()).sort((a,b)=>mealOrder(a[0]) - mealOrder(b[0]));
 
     for(const [mealKey, arr] of entries){
       const tot = arr.reduce((acc, x)=>({
@@ -1538,115 +1627,26 @@ pan_cristal 2u"></textarea>
         f: acc.f + (Number(x.it.f)||0),
       }),{kcal:0,p:0,c:0,f:0});
 
-      const block=document.createElement('details');
-      block.open = true;
+      const header=document.createElement('div');
+      header.className='item';
+      header.innerHTML = `<div><b>${prettyMeal(mealKey)} (plan)</b><br><small>${arr.length} items</small></div>
+        <div class="right"><b>${round(tot.kcal)}</b><small> kcal</small><br><small>P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small></div>`;
+      list.appendChild(header);
 
-      const sum=document.createElement('summary');
-      sum.className='groupSummary';
-      sum.innerHTML = `
-        <div>
-          <b>${prettyMeal(mealKey)}</b><br>
-          <small><b>${round(tot.kcal)}</b> kcal · P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small>
-        </div>
-      `;
-      block.appendChild(sum);
-
-      const wrap=document.createElement('div');
-      wrap.className='groupWrap';
-
-      arr.forEach(({it, globalIdx})=>{
+      arr.forEach(({it, idx})=>{
         const d=document.createElement('div'); d.className='item';
-
-        d.innerHTML = `
-          <div>
-            <b>${it.name}</b><br>
-            <small>${it.qtyDisplay}</small>
-          </div>
-          <div class="right" style="display:flex;align-items:center;gap:10px;">
-            <div>
-              <b>${it.kcal}</b><small> kcal</small><br>
-              <small>P ${round(it.p,1)} · C ${round(it.c,1)} · F ${round(it.f,1)}</small>
-            </div>
-            <button class="miniBtn" data-act="swap" type="button" title="Cambiar alimento">↺</button>
-            <button class="miniBtn" data-act="del" type="button" title="Eliminar">🗑</button>
-          </div>
-        `;
-
-        // Cambiar alimento (manteniendo el slot)
-        d.querySelector('[data-act="swap"]').onclick=(ev)=>{
-          ev.preventDefault(); ev.stopPropagation();
-
-          const foods=loadFoodsMerged();
-          const allowedTag = slotToAllowedTag(mealKey);
-
-          const q = prompt('Cambiar alimento\n\nEscribe id o parte del nombre:', it.foodId || it.name || '');
-          if(q===null) return;
-          const needle = q.trim().toLowerCase();
-          if(!needle) return;
-
-          const candidates = foods
-            .filter(f=>{
-              const okTag = !allowedTag || (f.tags||[]).includes(allowedTag);
-              const hit = f.id.toLowerCase().includes(needle) || f.name.toLowerCase().includes(needle);
-              return okTag && hit;
-            })
-            .slice(0, 8);
-
-          if(!candidates.length){
-            alert('Sin resultados para ese texto.');
-            return;
-          }
-
-          let pick = candidates[0];
-          if(candidates.length > 1){
-            const menu = candidates.map((f,i)=>`${i+1}) ${f.name} [${f.id}]`).join('\n');
-            const n = prompt(`Elige número:\n${menu}\n\n(1-${candidates.length})`, '1');
-            const ni = Number(n);
-            if(!ni || ni<1 || ni>candidates.length) return;
-            pick = candidates[ni-1];
-          }
-
-          // Ajuste conservador del tipo de unidad si cambia base
-          const defQtyType = (pick.baseUnit==='unit') ? 'unit' : (pick.baseUnit==='100ml' ? 'ml' : 'g');
-          let qtyType = it.qtyType;
-          let qty = it.qty;
-
-          if(qtyType !== defQtyType){
-            qtyType = defQtyType;
-            qty = (qtyType==='unit') ? 1 : (qtyType==='ml' ? 250 : 150);
-          }
-
-          const mac=macroFor(pick, qtyType, qty);
-          it.foodId = pick.id;
-          it.name = pick.name;
-          it.qtyType = qtyType;
-          it.qty = qty;
-          it.qtyDisplay = qtyDisplay(qtyType, qty);
-          it.kcal=mac.kcal; it.p=mac.p; it.c=mac.c; it.f=mac.f;
-
-          recalcMacrosOkTotals();
-          renderMacrosOk();
-        };
-
-        // Eliminar ítem
-        d.querySelector('[data-act="del"]').onclick=(ev)=>{
-          ev.preventDefault(); ev.stopPropagation();
-          currentMacrosOk.items.splice(globalIdx,1);
-          recalcMacrosOkTotals();
-          renderMacrosOk();
-        };
-
-        // Editar cantidad (tap en el ítem)
+        d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
+                       <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>`;
         d.onclick=()=>{
           const action = prompt(
-            `Editar "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
+            `Editar sugerencia "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
             `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
           );
           if(action===null) return;
 
           const txt=action.trim().toLowerCase();
           if(txt==='del' || txt==='borrar' || txt==='delete' || txt==='x'){
-            currentMacrosOk.items.splice(globalIdx,1);
+            currentMacrosOk.items.splice(idx,1);
             recalcMacrosOkTotals();
             renderMacrosOk();
             return;
@@ -1672,18 +1672,25 @@ pan_cristal 2u"></textarea>
           recalcMacrosOkTotals();
           renderMacrosOk();
         };
-
-        wrap.appendChild(d);
+        list.appendChild(d);
       });
-
-      block.appendChild(wrap);
-      list.appendChild(block);
     }
 
     const s=document.createElement('div'); s.className='item';
     s.innerHTML=`<div><b>Total plan (Macros OK)</b><br><small>Se añadirá al registro al confirmar</small></div>
                  <div class="right"><b>${round(currentMacrosOk.tot.kcal)}</b><small> kcal</small><br><small>P ${round(currentMacrosOk.tot.p,1)} · C ${round(currentMacrosOk.tot.c,1)} · F ${round(currentMacrosOk.tot.f,1)}</small></div>`;
     list.appendChild(s);
+  };
+
+  const recalcMacrosOkTotals = ()=>{
+    if(!currentMacrosOk) return;
+    const tot = currentMacrosOk.items.reduce((a,x)=>({
+      kcal:a.kcal+(Number(x.kcal)||0),
+      p:a.p+(Number(x.p)||0),
+      c:a.c+(Number(x.c)||0),
+      f:a.f+(Number(x.f)||0),
+    }),{kcal:0,p:0,c:0,f:0});
+    currentMacrosOk.tot = tot;
   };
 
   // ======= ROLLOVER =======
@@ -1994,39 +2001,16 @@ pan_cristal 2u"></textarea>
     const storedMode=loadMode();
     const {day}=loadDaySettings(storedMode.modeKey);
     const profile=loadProfile();
-    const logs=loadLogs().items;
-    const eaten=sumMacros(logs);
+    const {items:logs}=loadLogs();
     const goal=computeGoal(profile, day, storedMode);
 
-    const {slotsAll, remaining, filled} = getMacrosOkSlotsToPlan(day, logs);
+    currentMacrosOk = planMacrosOk(foods, goal, logs, day);
 
-    // Si no hay nada registrado: plan completo (y Post solo si procede).
-    // Si ya hay comidas: plan SOLO para los slots que faltan.
-    let slotsToPlan = (logs.length===0) ? slotsAll : remaining;
-
-    // Caso especial: si ya están todos los slots cubiertos pero aún faltan macros,
-    // permitimos un bloque extra PRE-entreno SOLO si ya existe CENA y PRE está vacío.
-    const remKcal = Math.max(0, goal.goalKcal - eaten.kcal);
-    if(!slotsToPlan.length && remKcal > 150 && filled.has('cena') && !filled.has('pre_entreno')){
-      slotsToPlan = ['pre_entreno'];
-    }
-
-    if(!slotsToPlan.length){
-      currentMacrosOk = null;
-      $('macrosOkContext').textContent = 'No queda nada por cuadrar con slots pendientes.';
-      renderMacrosOk();
-      return;
-    }
-
-    currentMacrosOk = planMacrosOk(foods, goal, eaten, slotsToPlan);
-
-    const remK = Math.max(0, goal.goalKcal - eaten.kcal);
-    const slotsTxt = slotsToPlan.map(prettyMeal).join(' + ');
-    $('macrosOkContext').textContent = `Cuadrando: ${slotsTxt} · Restan ${Math.round(remK)} kcal.`;
-
+    $('macrosOkContext').textContent = currentMacrosOk?.context || 'Sin sugerencia.';
     renderMacrosOk();
   };
-$('macrosOkConfirm').onclick=()=>{
+
+  $('macrosOkConfirm').onclick=()=>{
     if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
       alert('No hay sugerencia para confirmar.');
       return;
