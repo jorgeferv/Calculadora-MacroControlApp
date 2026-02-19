@@ -1,11 +1,12 @@
 /* sw.js - MacroControlAPP
    Estrategia: network-first para index, cache-first para estáticos.
 */
-const CACHE = 'mcapp-cache-v1.5.3';
+const CACHE = 'mcapp-cache-v1.5.4';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './sw.js'
 ];
 
 self.addEventListener('install', (event) => {
