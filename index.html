@@ -169,23 +169,22 @@
     #foodsControlBox > summary{padding:2px 0;}
 
 
+    /* iOS anti-zoom on inputs */
+    input, select, textarea, button { font-size:16px; }
     /* Mini sticky day status */
     .miniSticky{position:fixed;top:0;left:0;right:0;z-index:220;
       padding:8px 12px;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
       border-bottom:1px solid #1d2330;}
     .miniStickyContent{display:flex;justify-content:space-between;gap:10px;
       font-size:13px; font-variant-numeric: tabular-nums;}
-
-
-    /* Add tab controls */
-    .unitToggle{display:flex;gap:8px;align-items:center;margin-top:6px;}
-    .unitToggle .miniBtn{min-width:54px}
-    .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
+    /* Add tab UX */
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
+    .unitToggle{display:flex;gap:8px;align-items:center;margin-top:8px;}
+    .unitToggle .miniBtn{min-width:60px}
+    .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
+    .foodListScroller.hidden{display:none;}
 
-
-    input, select, textarea { font-size: 16px; }
 </style>
 </head>
 
@@ -560,7 +559,7 @@
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
         <label>Lista (toca para seleccionar)</label>
-        <div class="foodListScroller" style="max-height:46vh;">
+        <div class="foodListScroller" id="addFoodScroller" style="max-height:46vh;">
           <div class="list" id="addFoodList"></div>
         </div>
         <div class="hint">Se filtra con el buscador. El alimento seleccionado queda arriba en “Producto”.</div>
@@ -578,7 +577,7 @@
             <button type="button" class="miniBtn" id="btnUnitG">g</button>
             <button type="button" class="miniBtn" id="btnUnitU">ud</button>
           </div>
-          <input id="qty" type="number" inputmode="decimal" placeholder="Ej: 200" />
+          <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
         </div>
 
         <button class="primary" id="addItem" type="button">Añadir</button>
@@ -1011,7 +1010,6 @@ window.addEventListener('error', function(e){
 
   const computeGoal=(profile, day, modeStored)=>{
     const tdee = computeTDEE(profile, day);
-    window.__lastTDEE = tdee;
     const lvl = getLevel(modeStored.modeKey, modeStored.levelKey);
 
     let goalKcal = tdee + (lvl?.adj ?? 0);
@@ -1686,7 +1684,10 @@ window.addEventListener('error', function(e){
   // ======= RENDER FOODS (drawer + add tab) =======
   const renderFoodPicker=(foods)=>{
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
-    if(q.length < 2){ const sel=$('foodPick'); if(sel){ sel.innerHTML = '<option value="">Escribe 2 letras…</option>'; } return; }
+    if(q.length < 2){ return; }
+    const sc=$('addFoodScroller');
+    if(q.length < 2){ if(sc) sc.classList.add('hidden'); list.innerHTML=''; return; }
+    if(sc) sc.classList.remove('hidden');
     const sel=$('foodPick'); sel.innerHTML='';
     foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
@@ -1701,7 +1702,6 @@ window.addEventListener('error', function(e){
     if(!list) return;
     list.innerHTML='';
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
-    if(q.length < 2){ list.innerHTML = '<div class="muted">Escribe 2 letras para buscar…</div>'; return; }
     const filtered = foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
@@ -1717,8 +1717,7 @@ window.addEventListener('error', function(e){
                      <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
       d.onclick=()=>{
         $('foodPick').value = f.id;
-        // aplicar modo según alimento (bloqueo total)
-        try{ applyQtyModeForFood(f); }catch(e){}
+        // scroll a cantidad (mejor UX)
         $('qty')?.focus();
       };
       list.appendChild(d);
@@ -1877,7 +1876,6 @@ window.addEventListener('error', function(e){
 // ===== End Macro Bars updater =====
 
   const renderDayStatus=(goal,eaten)=>{
-    try{ updateMiniSticky(goal, eaten, window.__lastTDEE); }catch(e){}
     renderMacroBars(goal,eaten);
     renderBalanceBar(goal.tdee||0, Number(eaten.kcal)||0);
 
@@ -1945,7 +1943,6 @@ window.addEventListener('error', function(e){
       const eaten = sumMacros(items);
       const day = normalizeDayForKey(settingsAll, k, storedMode.modeKey);
       const tdee = computeTDEE(profile, day);
-    window.__lastTDEE = tdee;
       const goal = computeGoal(profile, day, storedMode);
       real += (tdee - eaten.kcal);
       planned += (tdee - goal.goalKcal);
@@ -2008,7 +2005,6 @@ window.addEventListener('error', function(e){
         const day = normalizeDayForKey(settingsAll, k, modeKey);
 
         const tdee = computeTDEE(profile, day);
-    window.__lastTDEE = tdee;
         deficitSum += (tdee - eaten.kcal);
 
         dataDays += 1;
@@ -2106,7 +2102,7 @@ window.addEventListener('error', function(e){
       }),{kcal:0,p:0,c:0,f:0});
 
       const block=document.createElement('details');
-      block.open = (mealKey === $('mealSlot')?.value);
+      block.open = (mealKey === $('mealSlot').value);
 
       const sum=document.createElement('summary');
       sum.className='groupSummary';
@@ -2355,6 +2351,7 @@ window.addEventListener('error', function(e){
 
     renderFoodPicker(foods);
     renderAddFoodList(foods);
+    try{ renderRecentFoods(foods); const f=foodById(foods,$('foodPick').value); if(f) applyQtyModeForFood(f);}catch(e){}
     renderFoodsList(foods);
 
     const logs=loadLogs(activeDayKey).items;
@@ -2551,7 +2548,6 @@ window.addEventListener('error', function(e){
     $('qty').value='';
     $('foodSearch').value='';
     $('foodSearch').focus();
-    try{ pushRecent(f.id); }catch(e){}
     renderAll();
   };
 
@@ -2830,6 +2826,92 @@ window.addEventListener('error', function(e){
     }
   }, 20000);
 
+
+  // ===== Fase 1/2 UX helpers =====
+  const RECENT_KEY='mc_recent_foods';
+  const loadRecent=()=>{ try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');}catch{return [];} };
+  const saveRecent=(arr)=>localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0,8)));
+  const pushRecent=(id)=>{ if(!id) return; const a=loadRecent().filter(x=>x!==id); a.unshift(id); saveRecent(a); };
+
+  const renderRecentFoods=(foods)=>{
+    const box=$('recentFoods'); if(!box) return;
+    const ids=loadRecent();
+    const items=ids.map(id=>foodById(foods,id)).filter(Boolean);
+    if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+    box.style.display='flex'; box.innerHTML='';
+    items.forEach(f=>{
+      const b=document.createElement('button');
+      b.type='button'; b.className='chip'; b.textContent=f.name;
+      b.onclick=()=>{ $('foodPick').value=f.id; applyQtyModeForFood(f); $('qty')?.focus(); };
+      box.appendChild(b);
+    });
+  };
+
+  const setUnitButtons=(mode)=>{
+    const g=$('btnUnitG'), u=$('btnUnitU'); if(!g||!u) return;
+    g.classList.toggle('active', mode==='g');
+    u.classList.toggle('active', mode==='unit');
+  };
+
+  const applyQtyModeForFood=(f)=>{
+    if(!f) return;
+    const hasUnit = (f.unitGrams!==null && f.unitGrams!==undefined);
+    const mode = hasUnit ? 'unit' : 'g';
+    $('qtyType').value = mode;
+    setUnitButtons(mode);
+    // bloqueo total + UX: ocultar el botón que no aplica
+    const g=$('btnUnitG'), u=$('btnUnitU');
+    if(g&&u){
+      if(hasUnit){ g.style.display='none'; u.style.display='flex'; u.disabled=true; }
+      else { u.style.display='none'; g.style.display='flex'; g.disabled=true; }
+    }
+    // defaults
+    $('qty').value = hasUnit ? '1' : '100';
+  };
+
+  // Mantener coherencia al cambiar selección
+  $('foodPick')?.addEventListener('change', ()=>{
+    const foods=loadFoodsMerged();
+    const f=foodById(foods,$('foodPick').value);
+    if(f) applyQtyModeForFood(f);
+  });
+
+  // Guardar recientes al añadir
+  const _addItem = $('addItem')?.onclick;
+  if(_addItem){
+    $('addItem').onclick=()=>{
+      const foods=loadFoodsMerged();
+      const f=foodById(foods,$('foodPick').value);
+      _addItem();
+      if(f) pushRecent(f.id);
+      renderRecentFoods(loadFoodsMerged());
+    };
+  }
+
+  // Mini sticky actualiza desde renderDayStatus
+  const _renderDayStatus = renderDayStatus;
+  renderDayStatus = (goal,eaten)=>{
+    _renderDayStatus(goal,eaten);
+    try{
+      const tdee = computeTDEE(loadProfile(), loadDay(currentDateKey()));
+      const diffP = Math.round(goal.p - eaten.p);
+      const bal = Math.round(eaten.kcal - tdee);
+      const el=$('miniStickyStatus'), c=$('miniStickyContent');
+      if(el&&c){
+        c.innerHTML = `
+          <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
+          <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
+          <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
+        `;
+      }
+    }catch(e){}
+  };
+  window.addEventListener('scroll', ()=>{
+    const el=$('miniStickyStatus'); if(!el) return;
+    el.style.display = (window.scrollY>220) ? 'block' : 'none';
+  });
+  // ===== End helpers =====
+
   // Init
   migrateIfNeeded();
   ensureFoodsStores();
@@ -2870,86 +2952,6 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
-
-
-  // ===== Mini Sticky Status =====
-  const _miniEl = document.getElementById('miniStickyStatus');
-  const _miniC = document.getElementById('miniStickyContent');
-  const updateMiniSticky = (goal, eaten, tdee)=>{
-    if(!_miniEl || !_miniC || !goal || !eaten) return;
-    const diffK = Math.round(goal.goalKcal - (Number(eaten.kcal)||0));
-    const diffP = Math.round(goal.p - (Number(eaten.p)||0));
-    const bal = (typeof tdee==='number') ? Math.round((Number(eaten.kcal)||0) - tdee) : null; // + = superávit
-    _miniC.innerHTML = `
-      <div>🔥 ${Math.round(Number(eaten.kcal)||0)} / ${Math.round(goal.goalKcal)}</div>
-      <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
-      <div>⚖️ ${bal===null?'—':(bal>0?('+'+bal):bal)} kcal</div>
-    `;
-  };
-  window.addEventListener('scroll', ()=>{
-    if(!_miniEl) return;
-    _miniEl.style.display = (window.scrollY>220) ? 'block' : 'none';
-  });
-  // ===== End Mini Sticky Status =====
-
-
-  // ===== Add tab UX: unidades bloqueadas, stepper, recientes =====
-  const $ = (id)=>document.getElementById(id);
-
-  const RECENT_KEY='mc_recent_foods';
-  const loadRecent=()=>{ try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');}catch{return [];} };
-  const saveRecent=(arr)=>localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0,8)));
-  const pushRecent=(id)=>{ if(!id) return; const a=loadRecent().filter(x=>x!==id); a.unshift(id); saveRecent(a); };
-
-  const renderRecentFoods=(foods)=>{
-    const box=$('recentFoods'); if(!box) return;
-    const ids=loadRecent();
-    const items=ids.map(id=>foodById(foods,id)).filter(Boolean);
-    if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
-    box.style.display='flex'; box.innerHTML='';
-    items.forEach(f=>{
-      const b=document.createElement('button');
-      b.type='button'; b.className='chip'; b.textContent=f.name;
-      b.onclick=()=>{ $('foodPick').value=f.id; try{ applyQtyModeForFood(f); }catch(e){} $('qty')?.focus(); };
-      box.appendChild(b);
-    });
-  };
-
-  const setUnitButtons=(mode)=>{
-    const g=$('btnUnitG'), u=$('btnUnitU'); if(!g||!u) return;
-    g.classList.toggle('active', mode==='g');
-    u.classList.toggle('active', mode==='unit');
-  };
-
-  const applyQtyModeForFood=(f)=>{
-    if(!f) return;
-    const hasUnit = (f.unitGrams!==null && f.unitGrams!==undefined);
-    const mode = hasUnit ? 'unit' : 'g';
-    $('qtyType').value = mode;
-    setUnitButtons(mode);
-    // bloqueo total
-    $('btnUnitG').disabled = hasUnit;
-    $('btnUnitU').disabled = !hasUnit;
-    // defaults
-    $('qty').value = hasUnit ? '1' : '100';
-  };
-
-  // click on unit buttons (solo para feedback visual; bloqueo total)
-  $('btnUnitG')?.addEventListener('click', ()=> setUnitButtons('g'));
-  $('btnUnitU')?.addEventListener('click', ()=> setUnitButtons('unit'));
-
-  // On renderAll, refresh recent list and apply mode to selected
-  const _renderAll = renderAll;
-  renderAll = ()=>{
-    _renderAll();
-    try{
-      const foods=loadFoodsMerged();
-      renderRecentFoods(foods);
-      const f=foodById(foods,$('foodPick')?.value);
-      if(f) applyQtyModeForFood(f);
-    }catch(e){}
-  };
-  // ===== End Add tab UX =====
 
 </script>
 </body>
