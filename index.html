@@ -2799,7 +2799,7 @@ window.addEventListener('error', function(e){
   if('serviceWorker' in navigator){
     window.addEventListener('load', async ()=>{
       try{
-        const reg = await navigator.serviceWorker.register('sw.js');
+        const reg = await navigator.serviceWorker.register('sw.js',{ updateViaCache: 'none' }).then(r=>{ try{ r.update(); }catch(e){} });
         if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
 
         reg.addEventListener('updatefound', ()=>{
