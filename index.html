@@ -38,9 +38,10 @@
     .seg button{flex:1;min-width:120px}
     .seg button.active{outline:2px solid var(--acc);border-color:transparent;}
     /* Ventana móvil: chips días */
-    .weekChips{display:flex;gap:8px;overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px;}
+    /* Week chips: 7 botones centrados y encajados (sin que el último se salga) */
+    .weekChips{display:flex;gap:6px;overflow:visible; padding-bottom:4px;}
     .weekChips::-webkit-scrollbar{display:none;}
-    .weekChips button{flex:0 0 auto;min-width:44px;height:40px;padding:8px 12px;border-radius:14px;}
+    .weekChips button{flex:1 1 0;min-width:0;height:40px;padding:8px 8px;border-radius:14px;}
     .weekChips button.activeDay{background:linear-gradient(180deg,rgba(38,208,124,.42),rgba(38,208,124,.18));border-color:rgba(38,208,124,.65);}
 
     /* iOS: alinear inputs de hora y selects */
@@ -132,7 +133,7 @@
       .tabs button{padding:9px;border-radius:13px;}
 
       /* Chips de ventana móvil: evitar que el día se salga */
-      .weekChips button{min-width:48px;height:44px;padding:6px 8px;font-size:13px;white-space:normal;line-height:1.05;}
+      .weekChips button{min-width:0;height:44px;padding:6px 6px;font-size:13px;white-space:normal;line-height:1.05;}
       #weekChips .miniBtn{display:flex;flex-direction:column;justify-content:center;align-items:center;}
 
       /* Inputs/selects algo más compactos */
@@ -192,12 +193,17 @@
 
     /* iOS anti-zoom on inputs */
     input, select, textarea, button { font-size:16px; }
-    /* Mini sticky day status */
-    .miniSticky{position:fixed;top:0;left:0;right:0;z-index:220;
-      padding:8px 12px;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
-      border-bottom:1px solid #1d2330;}
-    .miniStickyContent{display:flex;justify-content:space-between;gap:10px;
-      font-size:13px; font-variant-numeric: tabular-nums;}
+    /* FAB resumen diario (más moderno y sin problemas con el notch) */
+    .fabStatus{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);
+      z-index:220;display:flex;gap:10px;align-items:center;
+      padding:10px 12px;background:rgba(10,14,20,.92);backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.10);border-radius:999px;
+      box-shadow:0 14px 34px rgba(0,0,0,.45);
+      font-variant-numeric: tabular-nums;}
+    .fabStatus .item{display:flex;align-items:baseline;gap:6px;white-space:nowrap;}
+    .fabStatus .k{font-size:13px;opacity:.9;}
+    .fabStatus .v{font-size:14px;font-weight:800;}
+    .fabStatus .sep{width:1px;height:18px;background:rgba(255,255,255,.12);}
     /* Add tab UX */
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
@@ -211,8 +217,12 @@
 
 <body>
 
-  <div id="miniStickyStatus" class="miniSticky" style="display:none;">
-    <div id="miniStickyContent" class="miniStickyContent"></div>
+  <div id="fabStatus" class="fabStatus" style="display:none;">
+    <div class="item"><span class="k">🔥</span><span class="v" id="fabK">—</span></div>
+    <span class="sep"></span>
+    <div class="item"><span class="k">🥩</span><span class="v" id="fabP">—</span></div>
+    <div class="item"><span class="k">🍚</span><span class="v" id="fabC">—</span></div>
+    <div class="item"><span class="k">🥑</span><span class="v" id="fabF">—</span></div>
   </div>
 
   <h1>MacroControlAPP</h1>
@@ -602,7 +612,7 @@
 
         <label>Buscar</label>
         <input id="foodSearch" placeholder="Escribe para filtrar..." />
-        <div id="recentFoods" class="recentFoods" style="display:none;"></div>
+        <!-- (Eliminado) Lista rápida bajo buscar: generaba ruido y no aportaba -->
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
         <label>Lista (toca para seleccionar)</label>
@@ -864,25 +874,27 @@ window.addEventListener('error', function(e){
     t.addEventListener('mouseleave', cancel);
   };
 
-  // Mini sticky (evitar código fuera del HTML)
-  const updateMiniSticky = (goal,eaten)=>{
+  // FAB resumen diario (kcal + macros). Siempre visible en pantallas principales.
+  const updateFabStatus = (goal,eaten)=>{
     try{
-      const el=$('miniStickyStatus'), c=$('miniStickyContent');
-      if(!el||!c||!goal||!eaten) return;
-      const diffP = Math.round(goal.p - eaten.p);
-      const bal = Math.round(eaten.kcal - (goal.tdee||0));
-      c.innerHTML = `
-        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
-        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
-        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
-      `;
+      const wrap=$('fabStatus');
+      if(!wrap || !goal || !eaten) return;
+      // mostrar solo en pantallas principales
+      const tab = (typeof state!=='undefined' && state && state.tab) ? state.tab : 'day';
+      wrap.style.display = (tab==='day' || tab==='add') ? 'flex' : 'none';
+
+      const remK = Math.round((goal.goalKcal||0) - (eaten.kcal||0));
+      const remP = Math.round((goal.p||0) - (eaten.p||0));
+      const remC = Math.round((goal.c||0) - (eaten.c||0));
+      const remF = Math.round((goal.f||0) - (eaten.f||0));
+
+      const kEl=$('fabK'), pEl=$('fabP'), cEl=$('fabC'), fEl=$('fabF');
+      if(kEl) kEl.textContent = `${remK>=0?remK:('-'+Math.abs(remK))}`;
+      if(pEl) pEl.textContent = `${remP>=0?('+'+remP):('-'+Math.abs(remP))}`;
+      if(cEl) cEl.textContent = `${remC>=0?('+'+remC):('-'+Math.abs(remC))}`;
+      if(fEl) fEl.textContent = `${remF>=0?('+'+remF):('-'+Math.abs(remF))}`;
     }catch(e){}
   };
-
-  window.addEventListener('scroll', ()=>{
-    const el=$('miniStickyStatus'); if(!el) return;
-    el.style.display = (window.scrollY>220) ? 'block' : 'none';
-  });
 
   const round=(n,d=0)=>{const p=10**d; return Math.round((Number(n)||0)*p)/p;};
   const todayKey=()=>{
@@ -2147,16 +2159,17 @@ window.addEventListener('error', function(e){
   };
   
 
-  const renderBalanceBar=(tdee, eatenKcal)=>{
+  // Balance vs objetivo del día (incluye el déficit seleccionado). Cuando el día está "cuadrado" tiende a 0.
+  const renderBalanceBar=(goalKcal, eatenKcal)=>{
     const elText = $('balanceText');
     const dot = $('balDot');
     if(!elText || !dot) return;
-    const diff = Math.round((tdee - eatenKcal)); // positivo = déficit, negativo = superávit
-    const label = diff>0 ? `Déficit real: -${diff} kcal` : (diff<0 ? `Superávit real: +${Math.abs(diff)} kcal` : 'Equilibrio: 0 kcal');
+    const diff = Math.round((Number(eatenKcal)||0) - (Number(goalKcal)||0)); // + = te pasas vs objetivo, - = te falta
+    const label = diff>0 ? `Balance vs objetivo: +${diff} kcal` : (diff<0 ? `Balance vs objetivo: -${Math.abs(diff)} kcal` : 'Balance vs objetivo: 0 kcal');
     elText.textContent = label;
 
     const cap = 800;
-    const clamped = Math.max(-cap, Math.min(cap, -diff)); // izquierda = déficit (diff positivo) => -diff negativo
+    const clamped = Math.max(-cap, Math.min(cap, diff)); // izquierda = te falta, derecha = te pasas
     const pct = ((clamped + cap) / (2*cap)) * 100;
     dot.style.left = `calc(${pct}% - 7px)`;
   };
@@ -2165,7 +2178,8 @@ window.addEventListener('error', function(e){
 
   const renderDayStatus=(goal,eaten)=>{
     renderMacroBars(goal,eaten);
-    renderBalanceBar(goal.tdee||0, Number(eaten.kcal)||0);
+    renderBalanceBar(goal.goalKcal||goal.tdee||0, Number(eaten.kcal)||0);
+    updateFabStatus(goal,eaten);
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
