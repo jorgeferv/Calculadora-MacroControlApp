@@ -181,12 +181,11 @@
     .unitToggle{display:flex;gap:8px;align-items:center;margin-top:6px;}
     .unitToggle .miniBtn{min-width:54px}
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
-    .qtyWrap{display:flex;align-items:center;gap:8px;margin-top:6px;}
-    .qtyBtns{display:flex;gap:6px;}
-    .qtyBtns .miniBtn{min-width:56px}
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
 
+
+    input, select, textarea { font-size: 16px; }
 </style>
 </head>
 
@@ -579,17 +578,7 @@
             <button type="button" class="miniBtn" id="btnUnitG">g</button>
             <button type="button" class="miniBtn" id="btnUnitU">ud</button>
           </div>
-          <div class="qtyWrap">
-            <div class="qtyBtns">
-              <button type="button" class="miniBtn" id="qtyM2">-50</button>
-              <button type="button" class="miniBtn" id="qtyM1">-10</button>
-            </div>
-            <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
-            <div class="qtyBtns">
-              <button type="button" class="miniBtn" id="qtyP1">+10</button>
-              <button type="button" class="miniBtn" id="qtyP2">+50</button>
-            </div>
-          </div>
+          <input id="qty" type="number" inputmode="decimal" placeholder="Ej: 200" />
         </div>
 
         <button class="primary" id="addItem" type="button">Añadir</button>
@@ -2941,27 +2930,7 @@ function freezeDayIfNeeded(dateKey, summary){
     $('btnUnitU').disabled = !hasUnit;
     // defaults
     $('qty').value = hasUnit ? '1' : '100';
-    // stepper labels
-    if(hasUnit){
-      $('qtyM2').textContent='-1'; $('qtyM1').textContent='-1';
-      $('qtyP1').textContent='+1'; $('qtyP2').textContent='+1';
-    }else{
-      $('qtyM2').textContent='-50'; $('qtyM1').textContent='-10';
-      $('qtyP1').textContent='+10'; $('qtyP2').textContent='+50';
-    }
   };
-
-  const stepQty=(delta)=>{
-    const mode=$('qtyType').value;
-    const cur=Number($('qty').value||0);
-    const next=Math.max(0, cur + delta);
-    $('qty').value = (mode==='unit') ? String(Math.round(next)) : String(next);
-  };
-
-  $('qtyM1')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?-1:-10));
-  $('qtyM2')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?-1:-50));
-  $('qtyP1')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?+1:+10));
-  $('qtyP2')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?+1:+50));
 
   // click on unit buttons (solo para feedback visual; bloqueo total)
   $('btnUnitG')?.addEventListener('click', ()=> setUnitButtons('g'));
