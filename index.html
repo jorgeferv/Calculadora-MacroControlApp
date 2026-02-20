@@ -2532,7 +2532,8 @@ window.addEventListener('error', function(e){
     rolloverIfNeeded();
     renderWeekChips();
 
-    const foods=loadFoodsMerged();
+    const foods=loadFoodsMerged({ includeHidden:false });
+    const foodsForDrawer=loadFoodsMerged({ includeHidden: isDev() });
 
     const storedMode=loadMode();
     if(!modeDraft) modeDraft = {...storedMode};
