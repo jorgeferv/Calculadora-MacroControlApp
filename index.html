@@ -147,6 +147,27 @@
     .barFill.bad{background:rgba(255,70,70,.85);}
     .barSub{margin-top:6px;font-size:12px;color:var(--muted);}
 
+
+    /* Balance bar */
+    .balTrack{position:relative;height:14px;border-radius:999px;background:#0b0e13;border:1px solid #242a36;margin-top:10px;overflow:hidden;}
+    .balZero{position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.18);}
+    .balDot{position:absolute;top:50%;transform:translateY(-50%);width:14px;height:14px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(102,179,255,.15);}
+    .balScale{display:flex;justify-content:space-between;margin-top:6px;font-size:12px;}
+
+
+    /* Registro visual por comidas */
+    details{border-radius:16px;}
+    details > summary.groupSummary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 12px;border:1px solid #232a38;border-radius:16px;background:rgba(12,15,20,.55);}
+    details[open] > summary.groupSummary{border-bottom-left-radius:10px;border-bottom-right-radius:10px;}
+    summary.groupSummary::-webkit-details-marker{display:none;}
+    .groupSummary small{opacity:.85}
+    .groupWrap{padding:10px 10px 6px;border:1px solid #232a38;border-top:none;border-bottom-left-radius:16px;border-bottom-right-radius:16px;background:rgba(10,12,18,.35);}
+    .item{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+    .item:last-child{border-bottom:none;}
+
+
+    #foodsControlBox > summary{padding:2px 0;}
+
 </style>
 </head>
 
@@ -165,16 +186,21 @@
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <div class="card" style="margin-bottom:12px;">
-        <label>Control</label>
-        <div class="seg">
+      <details class="card" id="foodsControlBox" style="margin-bottom:12px;" >
+  <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+    <b>Control</b>
+    <span class="muted">Importar/Exportar</span>
+  </summary>
+  <div style="margin-top:10px;">
+<div class="seg">
           <button id="exportFoods" type="button">Exportar JSON</button>
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
-        </div>
+        </div>  </div>
+</details>
       </div>
 
       <div class="card" style="margin-bottom:12px;">
@@ -423,7 +449,25 @@
 
         </div>
 
-        <div class="hr"></div>
+          <div class="card" id="adviceCard" style="margin-top:12px;">
+            <div class="row" style="align-items:center;justify-content:space-between;">
+              <b>🔎 Recomendación</b>
+              <span class="muted" id="adviceHint">—</span>
+            </div>
+            <div id="macroAdviceText" style="margin-top:8px;line-height:1.35;">—</div>
+          </div>
+
+          <div class="card" id="balanceCard" style="margin-top:12px;">
+            <b>⚖️ Balance energético</b>
+            <div class="muted" style="margin-top:4px;" id="balanceText">—</div>
+            <div class="balTrack" aria-label="Balance energético">
+              <div class="balZero"></div>
+              <div class="balDot" id="balDot"></div>
+            </div>
+            <div class="balScale muted"><span>-800</span><span>0</span><span>+800</span></div>
+          </div>
+
+<div class="hr"></div>
 
         <div class="kpi">
           <div class="box"><div class="num" id="goalKcal">—</div><div class="lbl">Objetivo kcal</div></div>
@@ -435,23 +479,7 @@
         <div class="hr"></div>
 
         <div class="kpi">
-          <div class="box"><div class="num" id="goalP">—</div><div class="lbl">P objetivo</div></div>
-          <div class="box macroBox" id="eatenPBox">
-            <div class="num" id="eatenP">—</div><div class="lbl">P consumida</div>
-            <div class="macroBadge" id="pBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
-          </div>
-
-          <div class="box"><div class="num" id="goalC">—</div><div class="lbl">C objetivo</div></div>
-          <div class="box macroBox" id="eatenCBox">
-            <div class="num" id="eatenC">—</div><div class="lbl">C consumidos</div>
-            <div class="macroBadge" id="cBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
-          </div>
-
-          <div class="box"><div class="num" id="goalF">—</div><div class="lbl">F objetivo</div></div>
-          <div class="box macroBox" id="eatenFBox">
-            <div class="num" id="eatenF">—</div><div class="lbl">F consumidas</div>
-            <div class="macroBadge" id="fBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
-          </div>
+          
         </div>
 
         <div class="hr"></div>
@@ -1701,13 +1729,13 @@ window.addEventListener('error', function(e){
     $('eatenKcal').textContent=round(eaten.kcal);
     $('remKcal').textContent=round(goal.goalKcal - eaten.kcal);
 
-    $('goalP').textContent=goal.p;
-    $('goalC').textContent=goal.c;
-    $('goalF').textContent=goal.f;
+    const elGoalP=$('goalP'); if(elGoalP) elGoalP.textContent=goal.p;
+    const elGoalC=$('goalC'); if(elGoalC) elGoalC.textContent=goal.c;
+    const elGoalF=$('goalF'); if(elGoalF) elGoalF.textContent=goal.f;
 
-    $('eatenP').textContent=round(eaten.p,1);
-    $('eatenC').textContent=round(eaten.c,1);
-    $('eatenF').textContent=round(eaten.f,1);
+    const elEP=$('eatenP'); if(elEP) elEP.textContent=round(eaten.p,1);
+    const elEC=$('eatenC'); if(elEC) elEC.textContent=round(eaten.c,1);
+    const elEF=$('eatenF'); if(elEF) elEF.textContent=round(eaten.f,1);
   };
 
   
@@ -1718,8 +1746,12 @@ window.addEventListener('error', function(e){
     fillEl.classList.add(state);
     fillEl.style.width = `${Math.max(0, Math.min(120, pct))}%`; // allow slight overfill up to 120%
   };
-  const macroDeltaLabel=(goal, eaten, margin, unit)=>{
+  const macroDeltaLabel=(goal, eaten, margin, unit, macroName, minVal)=>{
     const diff = goal - eaten;
+    if(macroName==='fat' && minVal>0 && eaten < (minVal-0.5)){
+      const need = (minVal - eaten);
+      return {state:'bad', text:`Bajo mínimo: faltan ${fmt1(need)} g`};
+    }
     if(diff > margin) return {state:'mid', text:`Faltan ${unit==='kcal'?Math.round(diff):fmt1(diff)} ${unit}`};
     if(Math.abs(diff) <= margin) return {state:'good', text:'En rango'};
     return {state:'bad', text:`Exceso +${unit==='kcal'?Math.round(Math.abs(diff)):fmt1(Math.abs(diff))} ${unit}`};
@@ -1733,7 +1765,10 @@ window.addEventListener('error', function(e){
     const kcalMargin = gK*0.03;
     const pMargin = 5;
     const fMargin = 5;
-    const cMargin = 10;
+    const cMargin = 15;
+
+    const w = Number(($('weight')&&$('weight').value)||0);
+    const minFat = w>0 ? (0.8*w) : 0; // mínimo fisiológico recomendado
 
     // values
     $('barPVal').textContent = `${fmt1(eP)} / ${fmt1(gP)} g`;
@@ -1742,10 +1777,10 @@ window.addEventListener('error', function(e){
     $('barKVal').textContent = `${Math.round(eK)} / ${Math.round(gK)} kcal`;
 
     // subs + state
-    const pS = macroDeltaLabel(gP,eP,pMargin,'g');
-    const fS = macroDeltaLabel(gF,eF,fMargin,'g');
-    const cS = macroDeltaLabel(gC,eC,cMargin,'g');
-    const kS = macroDeltaLabel(gK,eK,kcalMargin,'kcal');
+    const pS = macroDeltaLabel(gP,eP,pMargin,'g','protein',0);
+    const fS = macroDeltaLabel(gF,eF,fMargin,'g','fat',minFat);
+    const cS = macroDeltaLabel(gC,eC,cMargin,'g','carb',0);
+    const kS = macroDeltaLabel(gK,eK,kcalMargin,'kcal','kcal',0);
 
     $('barPSub').textContent = pS.text;
     $('barFSub').textContent = fS.text;
@@ -1762,11 +1797,56 @@ window.addEventListener('error', function(e){
     setFill($('barFFill'), fS.state, fPct);
     setFill($('barCFill'), cS.state, cPct);
     setFill($('barKFill'), kS.state, kPct);
+
+    // Advice (prioridad: proteína -> kcal -> carbos, grasas solo si bajo mínimo)
+    const remK = gK - eK;
+    const remP = gP - eP;
+    const remF = gF - eF;
+    const remC = gC - eC;
+
+    let advice = '';
+    if(fS.text.startsWith('Bajo mínimo')){
+      advice = `Sube grasas: ${fS.text}.`;
+    } else if(remP > pMargin){
+      advice = `Mete proteína: faltan ${fmt1(remP)} g. Mantén el resto.`;
+    } else if(remK > kcalMargin){
+      advice = `Te faltan ${Math.round(remK)} kcal. Sube hidratos (y algo de proteína si apetece).`;
+    } else if(remK < -kcalMargin){
+      advice = `Vas pasado de calorías (+${Math.round(Math.abs(remK))} kcal). Baja hidratos/grasas en la próxima comida.`;
+    } else if(cS.state==='mid'){
+      advice = `Ajusta hidratos: faltan ${fmt1(Math.max(0,remC))} g (aprox.).`;
+    } else if(pS.state==='bad' || cS.state==='bad' || fS.state==='bad'){
+      advice = `Toca recortar: revisa el macro en rojo para volver a rango.`;
+    } else {
+      advice = 'No cambies nada. Sigue el plan.';
+    }
+    const advEl = $('macroAdviceText');
+    if(advEl) advEl.textContent = advice;
+    const hintEl = $('adviceHint');
+    if(hintEl) hintEl.textContent = 'Auto';
+
   };
-  // ===== End Macro Bars updater =====
+  
+
+  const renderBalanceBar=(tdee, eatenKcal)=>{
+    const elText = $('balanceText');
+    const dot = $('balDot');
+    if(!elText || !dot) return;
+    const diff = Math.round((tdee - eatenKcal)); // positivo = déficit, negativo = superávit
+    const label = diff>0 ? `Déficit real: -${diff} kcal` : (diff<0 ? `Superávit real: +${Math.abs(diff)} kcal` : 'Equilibrio: 0 kcal');
+    elText.textContent = label;
+
+    const cap = 800;
+    const clamped = Math.max(-cap, Math.min(cap, -diff)); // izquierda = déficit (diff positivo) => -diff negativo
+    const pct = ((clamped + cap) / (2*cap)) * 100;
+    dot.style.left = `calc(${pct}% - 7px)`;
+  };
+
+// ===== End Macro Bars updater =====
 
   const renderDayStatus=(goal,eaten)=>{
     renderMacroBars(goal,eaten);
+    renderBalanceBar(goal.tdee||0, Number(eaten.kcal)||0);
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
