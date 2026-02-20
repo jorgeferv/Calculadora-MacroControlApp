@@ -168,10 +168,34 @@
 
     #foodsControlBox > summary{padding:2px 0;}
 
+
+    /* Mini sticky day status */
+    .miniSticky{position:fixed;top:0;left:0;right:0;z-index:220;
+      padding:8px 12px;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
+      border-bottom:1px solid #1d2330;}
+    .miniStickyContent{display:flex;justify-content:space-between;gap:10px;
+      font-size:13px; font-variant-numeric: tabular-nums;}
+
+
+    /* Add tab controls */
+    .unitToggle{display:flex;gap:8px;align-items:center;margin-top:6px;}
+    .unitToggle .miniBtn{min-width:54px}
+    .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
+    .qtyWrap{display:flex;align-items:center;gap:8px;margin-top:6px;}
+    .qtyBtns{display:flex;gap:6px;}
+    .qtyBtns .miniBtn{min-width:56px}
+    .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
+    .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
+
 </style>
 </head>
 
 <body>
+
+  <div id="miniStickyStatus" class="miniSticky" style="display:none;">
+    <div id="miniStickyContent" class="miniStickyContent"></div>
+  </div>
+
   <h1>MacroControlAPP</h1>
   <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
   <div class="muted" style="margin-bottom:12px;">
@@ -533,6 +557,7 @@
 
         <label>Buscar</label>
         <input id="foodSearch" placeholder="Escribe para filtrar..." />
+        <div id="recentFoods" class="recentFoods" style="display:none;"></div>
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
         <label>Lista (toca para seleccionar)</label>
@@ -546,12 +571,25 @@
 
         <label>Cantidad</label>
         <div class="two">
-          <select id="qtyType">
-            <option value="g" selected>gramos</option>
-            <option value="unit">unidades</option>
-            <option value="ml">ml</option>
+          <select id="qtyType" style="display:none;">
+            <option value="g" selected>g</option>
+            <option value="unit">ud</option>
           </select>
-          <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
+          <div class="unitToggle" id="unitToggle">
+            <button type="button" class="miniBtn" id="btnUnitG">g</button>
+            <button type="button" class="miniBtn" id="btnUnitU">ud</button>
+          </div>
+          <div class="qtyWrap">
+            <div class="qtyBtns">
+              <button type="button" class="miniBtn" id="qtyM2">-50</button>
+              <button type="button" class="miniBtn" id="qtyM1">-10</button>
+            </div>
+            <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
+            <div class="qtyBtns">
+              <button type="button" class="miniBtn" id="qtyP1">+10</button>
+              <button type="button" class="miniBtn" id="qtyP2">+50</button>
+            </div>
+          </div>
         </div>
 
         <button class="primary" id="addItem" type="button">Añadir</button>
@@ -749,7 +787,8 @@ window.addEventListener('error', function(e){
 
       const b=document.createElement('button');
       b.type='button';
-      b.textContent=d.label;
+      const dayNum = new Date(d.key+'T00:00:00').getDate();
+      b.innerHTML = `<div>${d.label}</div><div style="font-size:11px;opacity:.65;">${dayNum}</div>`;
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
@@ -770,7 +809,7 @@ window.addEventListener('error', function(e){
   const normalizeFood = (f)=>({
     id: String(f.id||'').trim(),
     name: String(f.name||'').trim(),
-    baseUnit: f.baseUnit==='100ml'?'100ml':(f.baseUnit==='unit'?'unit':'100g'),
+    baseUnit: (f.baseUnit==='unit'?'unit':'100g'),
     kcal: Number(f.kcal)||0,
     p: Number(f.p)||0,
     c: Number(f.c)||0,
@@ -983,6 +1022,7 @@ window.addEventListener('error', function(e){
 
   const computeGoal=(profile, day, modeStored)=>{
     const tdee = computeTDEE(profile, day);
+    window.__lastTDEE = tdee;
     const lvl = getLevel(modeStored.modeKey, modeStored.levelKey);
 
     let goalKcal = tdee + (lvl?.adj ?? 0);
@@ -1657,6 +1697,7 @@ window.addEventListener('error', function(e){
   // ======= RENDER FOODS (drawer + add tab) =======
   const renderFoodPicker=(foods)=>{
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
+    if(q.length < 2){ list.innerHTML = '<div class="muted">Escribe 2 letras para buscar…</div>'; return; }
     const sel=$('foodPick'); sel.innerHTML='';
     foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
@@ -1671,6 +1712,7 @@ window.addEventListener('error', function(e){
     if(!list) return;
     list.innerHTML='';
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
+    if(q.length < 2){ list.innerHTML = '<div class="muted">Escribe 2 letras para buscar…</div>'; return; }
     const filtered = foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
@@ -1686,7 +1728,8 @@ window.addEventListener('error', function(e){
                      <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
       d.onclick=()=>{
         $('foodPick').value = f.id;
-        // scroll a cantidad (mejor UX)
+        // aplicar modo según alimento (bloqueo total)
+        try{ applyQtyModeForFood(f); }catch(e){}
         $('qty')?.focus();
       };
       list.appendChild(d);
@@ -1845,6 +1888,7 @@ window.addEventListener('error', function(e){
 // ===== End Macro Bars updater =====
 
   const renderDayStatus=(goal,eaten)=>{
+    try{ updateMiniSticky(goal, eaten, window.__lastTDEE); }catch(e){}
     renderMacroBars(goal,eaten);
     renderBalanceBar(goal.tdee||0, Number(eaten.kcal)||0);
 
@@ -1912,6 +1956,7 @@ window.addEventListener('error', function(e){
       const eaten = sumMacros(items);
       const day = normalizeDayForKey(settingsAll, k, storedMode.modeKey);
       const tdee = computeTDEE(profile, day);
+    window.__lastTDEE = tdee;
       const goal = computeGoal(profile, day, storedMode);
       real += (tdee - eaten.kcal);
       planned += (tdee - goal.goalKcal);
@@ -1974,6 +2019,7 @@ window.addEventListener('error', function(e){
         const day = normalizeDayForKey(settingsAll, k, modeKey);
 
         const tdee = computeTDEE(profile, day);
+    window.__lastTDEE = tdee;
         deficitSum += (tdee - eaten.kcal);
 
         dataDays += 1;
@@ -2071,7 +2117,7 @@ window.addEventListener('error', function(e){
       }),{kcal:0,p:0,c:0,f:0});
 
       const block=document.createElement('details');
-      block.open = true;
+      block.open = (mealKey === $('mealSlot')?.value);
 
       const sum=document.createElement('summary');
       sum.className='groupSummary';
@@ -2514,6 +2560,9 @@ window.addEventListener('error', function(e){
 
     saveLogs(activeDayKey, logs);
     $('qty').value='';
+    $('foodSearch').value='';
+    $('foodSearch').focus();
+    try{ pushRecent(f.id); }catch(e){}
     renderAll();
   };
 
@@ -2832,6 +2881,104 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
+
+
+  // ===== Mini Sticky Status =====
+  const _miniEl = document.getElementById('miniStickyStatus');
+  const _miniC = document.getElementById('miniStickyContent');
+  const updateMiniSticky = (goal, eaten, tdee)=>{
+    if(!_miniEl || !_miniC || !goal || !eaten) return;
+    const diffK = Math.round(goal.goalKcal - (Number(eaten.kcal)||0));
+    const diffP = Math.round(goal.p - (Number(eaten.p)||0));
+    const bal = (typeof tdee==='number') ? Math.round((Number(eaten.kcal)||0) - tdee) : null; // + = superávit
+    _miniC.innerHTML = `
+      <div>🔥 ${Math.round(Number(eaten.kcal)||0)} / ${Math.round(goal.goalKcal)}</div>
+      <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
+      <div>⚖️ ${bal===null?'—':(bal>0?('+'+bal):bal)} kcal</div>
+    `;
+  };
+  window.addEventListener('scroll', ()=>{
+    if(!_miniEl) return;
+    _miniEl.style.display = (window.scrollY>220) ? 'block' : 'none';
+  });
+  // ===== End Mini Sticky Status =====
+
+
+  // ===== Add tab UX: unidades bloqueadas, stepper, recientes =====
+  const RECENT_KEY='mc_recent_foods';
+  const loadRecent=()=>{ try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');}catch{return [];} };
+  const saveRecent=(arr)=>localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0,8)));
+  const pushRecent=(id)=>{ if(!id) return; const a=loadRecent().filter(x=>x!==id); a.unshift(id); saveRecent(a); };
+
+  const renderRecentFoods=(foods)=>{
+    const box=$('recentFoods'); if(!box) return;
+    const ids=loadRecent();
+    const items=ids.map(id=>foodById(foods,id)).filter(Boolean);
+    if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+    box.style.display='flex'; box.innerHTML='';
+    items.forEach(f=>{
+      const b=document.createElement('button');
+      b.type='button'; b.className='chip'; b.textContent=f.name;
+      b.onclick=()=>{ $('foodPick').value=f.id; try{ applyQtyModeForFood(f); }catch(e){} $('qty')?.focus(); };
+      box.appendChild(b);
+    });
+  };
+
+  const setUnitButtons=(mode)=>{
+    const g=$('btnUnitG'), u=$('btnUnitU'); if(!g||!u) return;
+    g.classList.toggle('active', mode==='g');
+    u.classList.toggle('active', mode==='unit');
+  };
+
+  const applyQtyModeForFood=(f)=>{
+    if(!f) return;
+    const hasUnit = (f.unitGrams!==null && f.unitGrams!==undefined);
+    const mode = hasUnit ? 'unit' : 'g';
+    $('qtyType').value = mode;
+    setUnitButtons(mode);
+    // bloqueo total
+    $('btnUnitG').disabled = hasUnit;
+    $('btnUnitU').disabled = !hasUnit;
+    // defaults
+    $('qty').value = hasUnit ? '1' : '100';
+    // stepper labels
+    if(hasUnit){
+      $('qtyM2').textContent='-1'; $('qtyM1').textContent='-1';
+      $('qtyP1').textContent='+1'; $('qtyP2').textContent='+1';
+    }else{
+      $('qtyM2').textContent='-50'; $('qtyM1').textContent='-10';
+      $('qtyP1').textContent='+10'; $('qtyP2').textContent='+50';
+    }
+  };
+
+  const stepQty=(delta)=>{
+    const mode=$('qtyType').value;
+    const cur=Number($('qty').value||0);
+    const next=Math.max(0, cur + delta);
+    $('qty').value = (mode==='unit') ? String(Math.round(next)) : String(next);
+  };
+
+  $('qtyM1')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?-1:-10));
+  $('qtyM2')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?-1:-50));
+  $('qtyP1')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?+1:+10));
+  $('qtyP2')?.addEventListener('click', ()=> stepQty($('qtyType').value==='unit'?+1:+50));
+
+  // click on unit buttons (solo para feedback visual; bloqueo total)
+  $('btnUnitG')?.addEventListener('click', ()=> setUnitButtons('g'));
+  $('btnUnitU')?.addEventListener('click', ()=> setUnitButtons('unit'));
+
+  // On renderAll, refresh recent list and apply mode to selected
+  const _renderAll = renderAll;
+  renderAll = ()=>{
+    _renderAll();
+    try{
+      const foods=loadFoodsMerged();
+      renderRecentFoods(foods);
+      const f=foodById(foods,$('foodPick')?.value);
+      if(f) applyQtyModeForFood(f);
+    }catch(e){}
+  };
+  // ===== End Add tab UX =====
 
 </script>
 </body>
