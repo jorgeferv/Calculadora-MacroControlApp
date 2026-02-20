@@ -782,7 +782,7 @@ window.addEventListener('error', function(e){
   // =========================
   const DEV_MODE_KEY = 'mc_dev_mode_v1';
   const DEV_HIDDEN_KEY = 'mc_foods_hidden_v1'; // para ocultar foodsRoot sin tocarlos
-  const DEV_PIN = atob('MjU4MA=='); // 2580 (cambia si quieres)
+  const DEV_PIN = atob('MDk1NA=='); // 0954
 
   const isDev = ()=> localStorage.getItem(DEV_MODE_KEY)==='1';
   const setDev = (on)=>{
@@ -1613,29 +1613,63 @@ window.addEventListener('error', function(e){
   };
   // ======= ESTADO =======
   const computeDayStatus=(goal,eaten)=>{
-    const kcalRatio = goal.goalKcal>0 ? eaten.kcal/goal.goalKcal : 0;
-    const pRatio = goal.p>0 ? eaten.p/goal.p : 0;
+    // Estado consistente con la filosofía:
+    // - Mandan las calorías (déficit). Si kcal están en rango, el día "cuenta".
+    // - Proteína es prioridad. Si P está cubierta, el día puede ser BUENO aunque C/F estén desbalanceados.
+    const gK = Number(goal.goalKcal)||0;
+    const eK = Number(eaten.kcal)||0;
+    const gP = Number(goal.p)||0;
+    const eP = Number(eaten.p)||0;
+    const gF = Number(goal.f)||0;
+    const eF = Number(eaten.f)||0;
+    const gC = Number(goal.c)||0;
+    const eC = Number(eaten.c)||0;
+
+    const tolKcal = Math.max(100, gK*0.03);
+    const kcalDiff = eK - gK; // + pasado
+
+    const w = Number(($('weight')&&$('weight').value)||0);
+    const minPhysFat = w>0 ? (0.6*w) : 0;
+
+    const proteinOk = (gP<=0) ? true : (eP >= (gP - 5));
+    const fatPhysOk = (minPhysFat<=0) ? true : (eF >= (minPhysFat - 0.1));
+    const energyOk = Math.abs(kcalDiff) <= tolKcal;
+
+    // "Perfecto" exige que los 3 macros estén razonablemente cerca (tolerancias simples)
+    const perfect = energyOk && proteinOk && fatPhysOk &&
+      (Math.abs(eC - gC) <= 15) && (Math.abs(eF - gF) <= 5) && (Math.abs(eP - gP) <= 10);
 
     let state='ok';
-    if(kcalRatio<=1.05 && pRatio>=0.90) state='good';
-    else if(kcalRatio<=1.12 && pRatio>=0.75) state='ok';
-    else state='bad';
+    let label='REGULAR';
 
-    const kcalPct = Math.round(kcalRatio*100);
-    const pPct = Math.round(pRatio*100);
-
-    let label = state==='good'?'BUENO':(state==='ok'?'REGULAR':'MALO');
-    let detail = `Calorías: ${kcalPct}% del objetivo · Proteína: ${pPct}% del objetivo`;
-
-    if(state==='bad'){
-      if(kcalRatio>1.12) detail += ' · Prioriza proteína magra y evita hidratos extra.';
-      else detail += ' · Te falta proteína: mete un bloque proteico ya.';
-    } else if(state==='ok'){
-      if(pRatio<0.9) detail += ' · Aún falta proteína: sube P en la próxima comida.';
-      else detail += ' · Controlado: ajusta fino con proteína y grasas.';
+    if(!energyOk){
+      state='bad';
+      label='REVISAR';
+    } else if(proteinOk && fatPhysOk){
+      state='good';
+      label = perfect ? 'PERFECTO' : 'BUENO';
     } else {
-      detail += ' · Bien ejecutado.';
+      state='ok';
+      label='MEJORABLE';
     }
+
+    const bits=[];
+    const kcalSigned = `${(Math.round(kcalDiff)>0?'+':'')}${Math.round(kcalDiff)} kcal`;
+    bits.push(energyOk ? 'Energía: OK' : `Energía: ${kcalSigned}`);
+    if(!proteinOk) bits.push('Proteína: baja');
+    else bits.push('Proteína: OK');
+    if(!fatPhysOk) bits.push('Grasa: muy baja');
+
+    // Macro balance (solo si energía OK)
+    if(energyOk){
+      const notes=[];
+      if(eF < (gF - 6)) notes.push('F baja');
+      if(eC > (gC + 20)) notes.push('C alta');
+      if(notes.length) bits.push(`Macros: ${notes.join(' · ')}`);
+      else bits.push('Macros: OK');
+    }
+
+    const detail = bits.join(' · ');
     return {state,label,detail};
   };
 
@@ -2068,27 +2102,42 @@ window.addEventListener('error', function(e){
     setFill($('barCFill'), cS.state, cPct);
     setFill($('barKFill'), kS.state, kPct);
 
-    // Advice (prioridad: proteína -> kcal -> carbos, grasas solo si bajo mínimo)
-    const remK = gK - eK;
+    // Advice coherente:
+    // 1) MANDAN LAS CALORÍAS (déficit). Si kcal están en rango, NO se recomienda recortar/añadir, solo re-balanceo.
+    // 2) Prioridad: cubrir proteína (si falta) -> respetar grasa mínima fisiológica -> el resto se ajusta.
+    const tolKcal = Math.max(100, gK*0.03);
+    const kcalDiff = eK - gK; // + = pasado
     const remP = gP - eP;
     const remF = gF - eF;
     const remC = gC - eC;
+    const carbExcess = eC - gC;
+
+    const minPhysFat = w>0 ? (0.6*w) : 0; // umbral mínimo (prueba contigo; no es para usuario final)
+    const fatBelowMinPhys = (minPhysFat>0) && (eF < (minPhysFat - 0.1));
 
     let advice = '';
-    if(fS.text.startsWith('Bajo mínimo')){
-      advice = `Sube grasas: ${fS.text}.`;
+    if(fatBelowMinPhys){
+      advice = `Sube grasas: estás por debajo del mínimo (${fmt1(minPhysFat)} g).`;
     } else if(remP > pMargin){
-      advice = `Mete proteína: faltan ${fmt1(remP)} g. Mantén el resto.`;
-    } else if(remK > kcalMargin){
-      advice = `Te faltan ${Math.round(remK)} kcal. Sube hidratos (y algo de proteína si apetece).`;
-    } else if(remK < -kcalMargin){
-      advice = `Vas pasado de calorías (+${Math.round(Math.abs(remK))} kcal). Baja hidratos/grasas en la próxima comida.`;
-    } else if(cS.state==='mid'){
-      advice = `Ajusta hidratos: faltan ${fmt1(Math.max(0,remC))} g (aprox.).`;
-    } else if(pS.state==='bad' || cS.state==='bad' || fS.state==='bad'){
-      advice = `Toca recortar: revisa el macro en rojo para volver a rango.`;
+      advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Mantén calorías.`;
+    } else if(kcalDiff < -tolKcal){
+      advice = `Te faltan ${Math.round(Math.abs(kcalDiff))} kcal. Sube hidratos (y algo de grasa si te apetece).`;
+    } else if(kcalDiff > tolKcal){
+      advice = `Vas pasado de calorías (+${Math.round(kcalDiff)} kcal). Recorta hidratos/grasas en la próxima comida.`;
     } else {
-      advice = 'No cambies nada. Sigue el plan.';
+      // kcal OK: solo re-balanceo si quieres afinar
+      if(remF > fMargin && carbExcess > cMargin){
+        // swap kcal: grasa 9 kcal/g vs carbo 4 kcal/g
+        const swapF = Math.round(remF);
+        const swapC = Math.round((swapF*9)/4);
+        advice = `Calorías OK. Rebalanceo: sube grasas ~${swapF} g y baja carbo ~${swapC} g.`;
+      } else if(remF > fMargin){
+        advice = `Calorías OK. Si quieres afinar, mete algo más de grasas (+${fmt1(remF)} g aprox.).`;
+      } else if(carbExcess > cMargin){
+        advice = `Calorías OK. Si quieres afinar, baja hidratos en la próxima comida.`;
+      } else {
+        advice = 'No cambies nada. Sigue el plan.';
+      }
     }
     const advEl = $('macroAdviceText');
     if(advEl) advEl.textContent = advice;
