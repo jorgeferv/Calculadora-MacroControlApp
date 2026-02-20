@@ -2890,6 +2890,28 @@ window.addEventListener('error', function(e){
   }
   // ===== Fase 1/2 UX helpers =====
 
+
+  // Mini sticky (estado rápido)
+  const updateMiniSticky = (goal,eaten)=>{
+    try{
+      const el=$('miniStickyStatus'), c=$('miniStickyContent');
+      if(!el||!c||!goal||!eaten) return;
+      const diffP = Math.round(goal.p - eaten.p);
+      const bal = Math.round((Number(eaten.kcal)||0) - (Number(goal.tdee)||0));
+      c.innerHTML = `
+        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
+        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
+        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
+      `;
+    }catch(e){}
+  };
+
+  window.addEventListener('scroll', ()=>{
+    const el=$('miniStickyStatus'); if(!el) return;
+    el.style.display = (window.scrollY>220) ? 'block' : 'none';
+  });
+
+
   // Init
   migrateIfNeeded();
   ensureFoodsStores();
@@ -2933,24 +2955,4 @@ function freezeDayIfNeeded(dateKey, summary){
 
 </script>
 </body>
-</html
-
-  const updateMiniSticky = (goal,eaten)=>{
-    try{
-      const el=$('miniStickyStatus'), c=$('miniStickyContent');
-      if(!el||!c||!goal||!eaten) return;
-      const diffP = Math.round(goal.p - eaten.p);
-      const bal = Math.round(eaten.kcal - (goal.tdee||0));
-      c.innerHTML = `
-        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
-        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
-        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
-      `;
-    }catch(e){}
-  };
-  window.addEventListener('scroll', ()=>{
-    const el=$('miniStickyStatus'); if(!el) return;
-    el.style.display = (window.scrollY>220) ? 'block' : 'none';
-  });
-
->
+</html>
