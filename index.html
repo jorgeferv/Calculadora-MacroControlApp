@@ -89,7 +89,7 @@
     .groupSummary b{font-size:13px;}
     .groupSummary small{color:var(--muted);}
     .groupWrap{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
-    .miniBtn{width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
+    .miniBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
 
     /* Macro status (P/C/F consumido) */
     .macroBox.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
@@ -133,45 +133,22 @@
     .pill.bad{border-color:rgba(255,77,77,.35); background:rgba(255,77,77,.08);}
     .pill.mid{border-color:rgba(255,193,7,.28); background:rgba(255,193,7,.07);}
 
-  
-    /* Macro progress bars (V2) */
-    .macroBars{margin-top:12px;display:flex;flex-direction:column;gap:10px;}
-    .barRow{padding:10px 10px 8px;border:1px solid #232a38;border-radius:14px;background:rgba(12,15,20,.55);}
-    .barHead{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-    .barLabel{font-weight:700;letter-spacing:.2px;}
-    .barVal{font-variant-numeric:tabular-nums;color:var(--text);opacity:.95}
-    .barTrack{height:10px;border-radius:999px;background:#0b0e13;border:1px solid #242a36;overflow:hidden;margin-top:8px;}
-    .barFill{height:100%;width:0%;border-radius:999px;transition:width .25s ease;}
-    .barFill.good{background:rgba(0,255,120,.85);}
-    .barFill.mid{background:rgba(255,200,0,.85);}
-    .barFill.bad{background:rgba(255,70,70,.85);}
-    .barSub{margin-top:6px;font-size:12px;color:var(--muted);}
-
-
-    /* Balance bar */
-    .balTrack{position:relative;height:14px;border-radius:999px;background:#0b0e13;border:1px solid #242a36;margin-top:10px;overflow:hidden;}
-    .balZero{position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.18);}
-    .balDot{position:absolute;top:50%;transform:translateY(-50%);width:14px;height:14px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(102,179,255,.15);}
-    .balScale{display:flex;justify-content:space-between;margin-top:6px;font-size:12px;}
-
-
-    /* Registro visual por comidas */
-    details{border-radius:16px;}
-    details > summary.groupSummary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 12px;border:1px solid #232a38;border-radius:16px;background:rgba(12,15,20,.55);}
-    details[open] > summary.groupSummary{border-bottom-left-radius:10px;border-bottom-right-radius:10px;}
-    summary.groupSummary::-webkit-details-marker{display:none;}
-    .groupSummary small{opacity:.85}
-    .groupWrap{padding:10px 10px 6px;border:1px solid #232a38;border-top:none;border-bottom-left-radius:16px;border-bottom-right-radius:16px;background:rgba(10,12,18,.35);}
-    .item{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);}
-    .item:last-child{border-bottom:none;}
-
-
-    #foodsControlBox > summary{padding:2px 0;}
-
-</style>
+  </style>
 </head>
 
 <body>
+<div id="miniStickyStatus" style="
+position:fixed;top:0;left:0;right:0;
+background:rgba(10,14,20,.95);
+backdrop-filter:blur(6px);
+padding:8px 12px;
+display:none;
+z-index:200;
+font-size:13px;
+border-bottom:1px solid #1d2330;">
+  <div id="miniStickyContent" style="display:flex;justify-content:space-between;"></div>
+</div>
+
   <h1>MacroControlAPP</h1>
   <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
   <div class="muted" style="margin-bottom:12px;">
@@ -186,21 +163,16 @@
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <details class="card" id="foodsControlBox" style="margin-bottom:12px;" >
-  <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-    <b>Control</b>
-    <span class="muted">Importar/Exportar</span>
-  </summary>
-  <div style="margin-top:10px;">
-<div class="seg">
+      <div class="card" style="margin-bottom:12px;">
+        <label>Control</label>
+        <div class="seg">
           <button id="exportFoods" type="button">Exportar JSON</button>
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
-        </div>  </div>
-</details>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:12px;">
@@ -235,14 +207,14 @@
           <button type="button" class="tagBtn" data-tag="fat">Grasa</button>
         </div>
         <div class="seg" style="gap:6px;margin-top:8px;">
-          <button type="button" class="tagBtn" data-tag="desayuno_ok">🥣 Desayuno</button>
-          <button type="button" class="tagBtn" data-tag="comida_ok">🍗 Comida</button>
-          <button type="button" class="tagBtn" data-tag="merienda_ok">🍎 Merienda</button>
-          <button type="button" class="tagBtn" data-tag="cena_ok">🌙 Cena</button>
+          <button type="button" class="tagBtn" data-tag="desayuno_ok">Desayuno</button>
+          <button type="button" class="tagBtn" data-tag="comida_ok">Comida</button>
+          <button type="button" class="tagBtn" data-tag="merienda_ok">Merienda</button>
+          <button type="button" class="tagBtn" data-tag="cena_ok">Cena</button>
         </div>
         <div class="seg" style="gap:6px;margin-top:8px;">
-          <button type="button" class="tagBtn" data-tag="pre_ok">⚡ Pre</button>
-          <button type="button" class="tagBtn" data-tag="post_ok">✅ Post</button>
+          <button type="button" class="tagBtn" data-tag="pre_ok">Pre</button>
+          <button type="button" class="tagBtn" data-tag="post_ok">Post</button>
         </div>
 
         <div id="tagsTextBlock" style="display:none;">
@@ -414,30 +386,6 @@
           <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
           <button id="openStats" type="button" class="delBtn" style="position:absolute;top:12px;right:12px;" title="Ver estadísticas">📊</button>
           <div class="muted" id="dayStatusDetail" style="margin-top:6px;">—</div>
-
-          <div id="macroBars" class="macroBars" aria-label="Progreso de macros">
-            <div class="barRow" data-m="p">
-              <div class="barHead"><span class="barLabel">🥩 Proteína</span><span class="barVal" id="barPVal">—</span></div>
-              <div class="barTrack"><div class="barFill" id="barPFill"></div></div>
-              <div class="barSub" id="barPSub">—</div>
-            </div>
-            <div class="barRow" data-m="f">
-              <div class="barHead"><span class="barLabel">🧈 Grasas</span><span class="barVal" id="barFVal">—</span></div>
-              <div class="barTrack"><div class="barFill" id="barFFill"></div></div>
-              <div class="barSub" id="barFSub">—</div>
-            </div>
-            <div class="barRow" data-m="c">
-              <div class="barHead"><span class="barLabel">🍚 Carbohidratos</span><span class="barVal" id="barCVal">—</span></div>
-              <div class="barTrack"><div class="barFill" id="barCFill"></div></div>
-              <div class="barSub" id="barCSub">—</div>
-            </div>
-            <div class="barRow" data-m="kcal">
-              <div class="barHead"><span class="barLabel">🔥 Calorías</span><span class="barVal" id="barKVal">—</span></div>
-              <div class="barTrack"><div class="barFill" id="barKFill"></div></div>
-              <div class="barSub" id="barKSub">—</div>
-            </div>
-          </div>
-
           <div class="chipRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
             <div class="pill" id="def7Chip">Déficit 7d: <b id="def7Val">—</b></div>
             <div class="pill" id="def15Chip">15d: <b id="def15Val">—</b></div>
@@ -449,25 +397,7 @@
 
         </div>
 
-          <div class="card" id="adviceCard" style="margin-top:12px;">
-            <div class="row" style="align-items:center;justify-content:space-between;">
-              <b>🔎 Recomendación</b>
-              <span class="muted" id="adviceHint">—</span>
-            </div>
-            <div id="macroAdviceText" style="margin-top:8px;line-height:1.35;">—</div>
-          </div>
-
-          <div class="card" id="balanceCard" style="margin-top:12px;">
-            <b>⚖️ Balance energético</b>
-            <div class="muted" style="margin-top:4px;" id="balanceText">—</div>
-            <div class="balTrack" aria-label="Balance energético">
-              <div class="balZero"></div>
-              <div class="balDot" id="balDot"></div>
-            </div>
-            <div class="balScale muted"><span>-800</span><span>0</span><span>+800</span></div>
-          </div>
-
-<div class="hr"></div>
+        <div class="hr"></div>
 
         <div class="kpi">
           <div class="box"><div class="num" id="goalKcal">—</div><div class="lbl">Objetivo kcal</div></div>
@@ -479,7 +409,23 @@
         <div class="hr"></div>
 
         <div class="kpi">
-          
+          <div class="box"><div class="num" id="goalP">—</div><div class="lbl">P objetivo</div></div>
+          <div class="box macroBox" id="eatenPBox">
+            <div class="num" id="eatenP">—</div><div class="lbl">P consumida</div>
+            <div class="macroBadge" id="pBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
+          </div>
+
+          <div class="box"><div class="num" id="goalC">—</div><div class="lbl">C objetivo</div></div>
+          <div class="box macroBox" id="eatenCBox">
+            <div class="num" id="eatenC">—</div><div class="lbl">C consumidos</div>
+            <div class="macroBadge" id="cBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
+          </div>
+
+          <div class="box"><div class="num" id="goalF">—</div><div class="lbl">F objetivo</div></div>
+          <div class="box macroBox" id="eatenFBox">
+            <div class="num" id="eatenF">—</div><div class="lbl">F consumidas</div>
+            <div class="macroBadge" id="fBadge"><span class="dot ok"></span><b>—</b><span>—</span></div>
+          </div>
         </div>
 
         <div class="hr"></div>
@@ -521,12 +467,12 @@
   <section id="screen-add" style="display:none;">
     <div class="row">
       <div class="card">
-        <label>🍗 Comida</label>
+        <label>Comida</label>
         <select id="mealSlot">
-          <option value="desayuno">🥣 Desayuno</option>
-          <option value="comida" selected>🍗 Comida</option>
-          <option value="merienda">🍎 Merienda</option>
-          <option value="cena">🌙 Cena</option>
+          <option value="desayuno">Desayuno</option>
+          <option value="comida" selected>Comida</option>
+          <option value="merienda">Merienda</option>
+          <option value="cena">Cena</option>
           <option value="post_entreno">Post-entreno</option>
           <option value="pre_entreno">Pre-entreno</option>
         </select>
@@ -549,7 +495,7 @@
           <select id="qtyType">
             <option value="g" selected>gramos</option>
             <option value="unit">unidades</option>
-            <option value="ml">ml</option>
+            
           </select>
           <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
         </div>
@@ -749,7 +695,10 @@ window.addEventListener('error', function(e){
 
       const b=document.createElement('button');
       b.type='button';
-      b.textContent=d.label;
+      
+      const dayNum = new Date(d.key+'T00:00:00').getDate();
+      b.innerHTML = `<div>${d.label}</div><div style="font-size:11px;opacity:.65;">${dayNum}</div>`;
+    
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
@@ -770,7 +719,7 @@ window.addEventListener('error', function(e){
   const normalizeFood = (f)=>({
     id: String(f.id||'').trim(),
     name: String(f.name||'').trim(),
-    baseUnit: f.baseUnit==='100ml'?'100ml':(f.baseUnit==='unit'?'unit':'100g'),
+    baseUnit: (f.baseUnit==='unit'?'unit':'100g'),
     kcal: Number(f.kcal)||0,
     p: Number(f.p)||0,
     c: Number(f.c)||0,
@@ -1671,7 +1620,13 @@ window.addEventListener('error', function(e){
     if(!list) return;
     list.innerHTML='';
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
+    
+    if(q.length < 2){
+      list.innerHTML='';
+      return;
+    }
     const filtered = foods
+    
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
@@ -1729,125 +1684,16 @@ window.addEventListener('error', function(e){
     $('eatenKcal').textContent=round(eaten.kcal);
     $('remKcal').textContent=round(goal.goalKcal - eaten.kcal);
 
-    const elGoalP=$('goalP'); if(elGoalP) elGoalP.textContent=goal.p;
-    const elGoalC=$('goalC'); if(elGoalC) elGoalC.textContent=goal.c;
-    const elGoalF=$('goalF'); if(elGoalF) elGoalF.textContent=goal.f;
+    $('goalP').textContent=goal.p;
+    $('goalC').textContent=goal.c;
+    $('goalF').textContent=goal.f;
 
-    const elEP=$('eatenP'); if(elEP) elEP.textContent=round(eaten.p,1);
-    const elEC=$('eatenC'); if(elEC) elEC.textContent=round(eaten.c,1);
-    const elEF=$('eatenF'); if(elEF) elEF.textContent=round(eaten.f,1);
+    $('eatenP').textContent=round(eaten.p,1);
+    $('eatenC').textContent=round(eaten.c,1);
+    $('eatenF').textContent=round(eaten.f,1);
   };
-
-  
-  // ===== Macro Bars updater =====
-  const fmt1=(x)=> (Math.round(x*10)/10).toString();
-  const setFill=(fillEl,state,pct)=>{
-    fillEl.classList.remove('good','mid','bad');
-    fillEl.classList.add(state);
-    fillEl.style.width = `${Math.max(0, Math.min(120, pct))}%`; // allow slight overfill up to 120%
-  };
-  const macroDeltaLabel=(goal, eaten, margin, unit, macroName, minVal)=>{
-    const diff = goal - eaten;
-    if(macroName==='fat' && minVal>0 && eaten < (minVal-0.5)){
-      const need = (minVal - eaten);
-      return {state:'bad', text:`Bajo mínimo: faltan ${fmt1(need)} g`};
-    }
-    if(diff > margin) return {state:'mid', text:`Faltan ${unit==='kcal'?Math.round(diff):fmt1(diff)} ${unit}`};
-    if(Math.abs(diff) <= margin) return {state:'good', text:'En rango'};
-    return {state:'bad', text:`Exceso +${unit==='kcal'?Math.round(Math.abs(diff)):fmt1(Math.abs(diff))} ${unit}`};
-  };
-  const renderMacroBars=(goal,eaten)=>{
-    const gK=Number(goal.goalKcal)||0, eK=Number(eaten.kcal)||0;
-    const gP=Number(goal.p)||0, eP=Number(eaten.p)||0;
-    const gF=Number(goal.f)||0, eF=Number(eaten.f)||0;
-    const gC=Number(goal.c)||0, eC=Number(eaten.c)||0;
-
-    const kcalMargin = gK*0.03;
-    const pMargin = 5;
-    const fMargin = 5;
-    const cMargin = 15;
-
-    const w = Number(($('weight')&&$('weight').value)||0);
-    const minFat = w>0 ? (0.8*w) : 0; // mínimo fisiológico recomendado
-
-    // values
-    $('barPVal').textContent = `${fmt1(eP)} / ${fmt1(gP)} g`;
-    $('barFVal').textContent = `${fmt1(eF)} / ${fmt1(gF)} g`;
-    $('barCVal').textContent = `${fmt1(eC)} / ${fmt1(gC)} g`;
-    $('barKVal').textContent = `${Math.round(eK)} / ${Math.round(gK)} kcal`;
-
-    // subs + state
-    const pS = macroDeltaLabel(gP,eP,pMargin,'g','protein',0);
-    const fS = macroDeltaLabel(gF,eF,fMargin,'g','fat',minFat);
-    const cS = macroDeltaLabel(gC,eC,cMargin,'g','carb',0);
-    const kS = macroDeltaLabel(gK,eK,kcalMargin,'kcal','kcal',0);
-
-    $('barPSub').textContent = pS.text;
-    $('barFSub').textContent = fS.text;
-    $('barCSub').textContent = cS.text;
-    $('barKSub').textContent = kS.text;
-
-    // fill % (cap at 100 for goal, but allow up to 120 to show excess)
-    const pPct = gP>0 ? (eP/gP)*100 : 0;
-    const fPct = gF>0 ? (eF/gF)*100 : 0;
-    const cPct = gC>0 ? (eC/gC)*100 : 0;
-    const kPct = gK>0 ? (eK/gK)*100 : 0;
-
-    setFill($('barPFill'), pS.state, pPct);
-    setFill($('barFFill'), fS.state, fPct);
-    setFill($('barCFill'), cS.state, cPct);
-    setFill($('barKFill'), kS.state, kPct);
-
-    // Advice (prioridad: proteína -> kcal -> carbos, grasas solo si bajo mínimo)
-    const remK = gK - eK;
-    const remP = gP - eP;
-    const remF = gF - eF;
-    const remC = gC - eC;
-
-    let advice = '';
-    if(fS.text.startsWith('Bajo mínimo')){
-      advice = `Sube grasas: ${fS.text}.`;
-    } else if(remP > pMargin){
-      advice = `Mete proteína: faltan ${fmt1(remP)} g. Mantén el resto.`;
-    } else if(remK > kcalMargin){
-      advice = `Te faltan ${Math.round(remK)} kcal. Sube hidratos (y algo de proteína si apetece).`;
-    } else if(remK < -kcalMargin){
-      advice = `Vas pasado de calorías (+${Math.round(Math.abs(remK))} kcal). Baja hidratos/grasas en la próxima comida.`;
-    } else if(cS.state==='mid'){
-      advice = `Ajusta hidratos: faltan ${fmt1(Math.max(0,remC))} g (aprox.).`;
-    } else if(pS.state==='bad' || cS.state==='bad' || fS.state==='bad'){
-      advice = `Toca recortar: revisa el macro en rojo para volver a rango.`;
-    } else {
-      advice = 'No cambies nada. Sigue el plan.';
-    }
-    const advEl = $('macroAdviceText');
-    if(advEl) advEl.textContent = advice;
-    const hintEl = $('adviceHint');
-    if(hintEl) hintEl.textContent = 'Auto';
-
-  };
-  
-
-  const renderBalanceBar=(tdee, eatenKcal)=>{
-    const elText = $('balanceText');
-    const dot = $('balDot');
-    if(!elText || !dot) return;
-    const diff = Math.round((tdee - eatenKcal)); // positivo = déficit, negativo = superávit
-    const label = diff>0 ? `Déficit real: -${diff} kcal` : (diff<0 ? `Superávit real: +${Math.abs(diff)} kcal` : 'Equilibrio: 0 kcal');
-    elText.textContent = label;
-
-    const cap = 800;
-    const clamped = Math.max(-cap, Math.min(cap, -diff)); // izquierda = déficit (diff positivo) => -diff negativo
-    const pct = ((clamped + cap) / (2*cap)) * 100;
-    dot.style.left = `calc(${pct}% - 7px)`;
-  };
-
-// ===== End Macro Bars updater =====
 
   const renderDayStatus=(goal,eaten)=>{
-    renderMacroBars(goal,eaten);
-    renderBalanceBar(goal.tdee||0, Number(eaten.kcal)||0);
-
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
     box.classList.remove('good','ok','bad');
@@ -2071,7 +1917,7 @@ window.addEventListener('error', function(e){
       }),{kcal:0,p:0,c:0,f:0});
 
       const block=document.createElement('details');
-      block.open = true;
+      block.open = false;
 
       const sum=document.createElement('summary');
       sum.className='groupSummary';
@@ -2513,7 +2359,7 @@ window.addEventListener('error', function(e){
     });
 
     saveLogs(activeDayKey, logs);
-    $('qty').value='';
+    $('qty').value=''; $('foodSearch').value=''; $('foodSearch').focus();
     renderAll();
   };
 
@@ -2799,39 +2645,27 @@ window.addEventListener('error', function(e){
   renderAll();
 })();
 
+const mini = document.getElementById('miniStickyStatus');
+const miniContent = document.getElementById('miniStickyContent');
 
-// ===== Daily Ledger System (90 days) =====
-const LEDGER_KEY = 'mc_daily_ledger';
-const LEDGER_LIMIT = 90;
+const updateMiniSticky = (goal,eaten)=>{
+  if(!goal || !eaten) return;
+  const diffK = Math.round(goal.goalKcal - eaten.kcal);
+  const diffP = Math.round(goal.p - eaten.p);
+  miniContent.innerHTML = `
+    <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
+    <div>🥩 ${diffP>=0?'-':''}${diffP}g</div>
+    <div>⚖️ ${diffK>=0?'-':''}${diffK} kcal</div>
+  `;
+};
 
-function loadLedger(){
-  return JSON.parse(localStorage.getItem(LEDGER_KEY) || "[]");
-}
-
-function saveLedger(data){
-  localStorage.setItem(LEDGER_KEY, JSON.stringify(data));
-}
-
-function addDayToLedger(summary){
-  let ledger = loadLedger();
-  ledger = ledger.filter(d => d.dateKey !== summary.dateKey);
-  ledger.push(summary);
-  ledger.sort((a,b)=> a.dateKey.localeCompare(b.dateKey));
-  if(ledger.length > LEDGER_LIMIT){
-    ledger = ledger.slice(-LEDGER_LIMIT);
+window.addEventListener('scroll', ()=>{
+  if(window.scrollY > 250){
+    mini.style.display='block';
+  } else {
+    mini.style.display='none';
   }
-  saveLedger(ledger);
-}
-
-// Call this when day closes or when renderAll runs on past day
-function freezeDayIfNeeded(dateKey, summary){
-  const today = new Date().toISOString().slice(0,10);
-  if(dateKey < today){
-    addDayToLedger(summary);
-  }
-}
-// ===== End Ledger System =====
-
+});
 
 </script>
 </body>
