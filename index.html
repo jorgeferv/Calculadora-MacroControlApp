@@ -1697,7 +1697,7 @@ window.addEventListener('error', function(e){
   // ======= RENDER FOODS (drawer + add tab) =======
   const renderFoodPicker=(foods)=>{
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
-    if(q.length < 2){ list.innerHTML = '<div class="muted">Escribe 2 letras para buscar…</div>'; return; }
+    if(q.length < 2){ const sel=$('foodPick'); if(sel){ sel.innerHTML = '<option value="">Escribe 2 letras…</option>'; } return; }
     const sel=$('foodPick'); sel.innerHTML='';
     foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
