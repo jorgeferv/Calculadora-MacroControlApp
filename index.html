@@ -89,7 +89,8 @@
     .groupSummary b{font-size:13px;}
     .groupSummary small{color:var(--muted);}
     .groupWrap{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
-    .miniBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
+    .miniBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;
+width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
 
     /* Macro status (P/C/F consumido) */
     .macroBox.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
@@ -133,22 +134,32 @@
     .pill.bad{border-color:rgba(255,77,77,.35); background:rgba(255,77,77,.08);}
     .pill.mid{border-color:rgba(255,193,7,.28); background:rgba(255,193,7,.07);}
 
-  </style>
+  
+    /* Add tab UX */
+    #addFoodScroller.hidden{display:none;}
+    .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
+    .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
+    .unitToggle{display:flex;gap:8px;align-items:center;justify-content:flex-start;}
+    .unitToggle .miniBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;
+min-width:46px}
+    .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.8);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
+    .qtyWrap{display:flex;gap:8px;align-items:center;}
+    .qtyWrap input{flex:1;min-width:0;}
+    .qtyBtns{display:flex;gap:6px;}
+    .qtyBtns .miniBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;
+min-width:54px}
+    /* Registro por comidas: tarjetas más visuales */
+    details{border:1px solid #232a38;border-radius:16px;background:rgba(12,15,20,.55);margin:10px 0;}
+    summary.groupSummary{list-style:none;cursor:pointer;padding:12px 12px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    summary.groupSummary::-webkit-details-marker{display:none;}
+    details[open] summary.groupSummary{border-bottom:1px solid #232a38;border-bottom-left-radius:0;border-bottom-right-radius:0;}
+    .logItem{padding:10px 12px;border-bottom:1px solid #1d2330;display:flex;justify-content:space-between;gap:10px;}
+    .logItem:last-child{border-bottom:none;}
+
+</style>
 </head>
 
 <body>
-<div id="miniStickyStatus" style="
-position:fixed;top:0;left:0;right:0;
-background:rgba(10,14,20,.95);
-backdrop-filter:blur(6px);
-padding:8px 12px;
-display:none;
-z-index:200;
-font-size:13px;
-border-bottom:1px solid #1d2330;">
-  <div id="miniStickyContent" style="display:flex;justify-content:space-between;"></div>
-</div>
-
   <h1>MacroControlAPP</h1>
   <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
   <div class="muted" style="margin-bottom:12px;">
@@ -479,10 +490,11 @@ border-bottom:1px solid #1d2330;">
 
         <label>Buscar</label>
         <input id="foodSearch" placeholder="Escribe para filtrar..." />
+        <div id="recentFoods" class="recentFoods" aria-label="Recientes" style="display:none;"></div>
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
         <label>Lista (toca para seleccionar)</label>
-        <div class="foodListScroller" style="max-height:46vh;">
+        <div class="foodListScroller" id="addFoodScroller" style="max-height:46vh;">
           <div class="list" id="addFoodList"></div>
         </div>
         <div class="hint">Se filtra con el buscador. El alimento seleccionado queda arriba en “Producto”.</div>
@@ -492,11 +504,14 @@ border-bottom:1px solid #1d2330;">
 
         <label>Cantidad</label>
         <div class="two">
-          <select id="qtyType">
-            <option value="g" selected>gramos</option>
-            <option value="unit">unidades</option>
-            
+          <select id="qtyType" style="display:none;">
+            <option value="g" selected>g</option>
+            <option value="unit">ud</option>
           </select>
+          <div class="unitToggle" id="unitToggle">
+            <button type="button" class="miniBtn" id="btnUnitG">g</button>
+            <button type="button" class="miniBtn" id="btnUnitU">ud</button>
+          </div>
           <input id="qty" type="number" inputmode="numeric" placeholder="Ej: 200" />
         </div>
 
@@ -695,10 +710,8 @@ window.addEventListener('error', function(e){
 
       const b=document.createElement('button');
       b.type='button';
-      
       const dayNum = new Date(d.key+'T00:00:00').getDate();
       b.innerHTML = `<div>${d.label}</div><div style="font-size:11px;opacity:.65;">${dayNum}</div>`;
-    
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
@@ -1620,13 +1633,7 @@ window.addEventListener('error', function(e){
     if(!list) return;
     list.innerHTML='';
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
-    
-    if(q.length < 2){
-      list.innerHTML='';
-      return;
-    }
     const filtered = foods
-    
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
@@ -1917,7 +1924,7 @@ window.addEventListener('error', function(e){
       }),{kcal:0,p:0,c:0,f:0});
 
       const block=document.createElement('details');
-      block.open = false;
+      block.open = true;
 
       const sum=document.createElement('summary');
       sum.className='groupSummary';
@@ -2166,6 +2173,10 @@ window.addEventListener('error', function(e){
 
     renderFoodPicker(foods);
     renderAddFoodList(foods);
+    renderRecentFoods(foods);
+    const sel=foodById(foods,$('foodPick')?.value);
+    if(sel) applyQtyModeForFood(sel);
+
     renderFoodsList(foods);
 
     const logs=loadLogs(activeDayKey).items;
@@ -2359,7 +2370,7 @@ window.addEventListener('error', function(e){
     });
 
     saveLogs(activeDayKey, logs);
-    $('qty').value=''; $('foodSearch').value=''; $('foodSearch').focus();
+    $('qty').value='';
     renderAll();
   };
 
@@ -2645,27 +2656,122 @@ window.addEventListener('error', function(e){
   renderAll();
 })();
 
-const mini = document.getElementById('miniStickyStatus');
-const miniContent = document.getElementById('miniStickyContent');
+  // ===== Add tab UX helpers (recientes, unidades, stepper) =====
+  const RECENT_KEY = 'mc_recent_foods';
+  const loadRecent=()=>{ try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');}catch{return [];} };
+  const saveRecent=(arr)=>localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0,8)));
+  const pushRecent=(id)=>{
+    if(!id) return;
+    const arr = loadRecent().filter(x=>x!==id);
+    arr.unshift(id);
+    saveRecent(arr);
+  };
+  const renderRecentFoods=(foods)=>{
+    const box=$('recentFoods'); if(!box) return;
+    const rec=loadRecent();
+    const items=rec.map(id=>foodById(foods,id)).filter(Boolean);
+    if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+    box.style.display='flex'; box.innerHTML='';
+    items.forEach(f=>{
+      const b=document.createElement('button');
+      b.type='button'; b.className='chip';
+      b.textContent=f.name;
+      b.onclick=()=>{ $('foodPick').value=f.id; applyQtyModeForFood(f); $('qty')?.focus(); };
+      box.appendChild(b);
+    });
+  };
 
-const updateMiniSticky = (goal,eaten)=>{
-  if(!goal || !eaten) return;
-  const diffK = Math.round(goal.goalKcal - eaten.kcal);
-  const diffP = Math.round(goal.p - eaten.p);
-  miniContent.innerHTML = `
-    <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
-    <div>🥩 ${diffP>=0?'-':''}${diffP}g</div>
-    <div>⚖️ ${diffK>=0?'-':''}${diffK} kcal</div>
-  `;
-};
+  const setUnitButtons=(mode)=>{
+    const g=$('btnUnitG'), u=$('btnUnitU');
+    if(!g||!u) return;
+    g.classList.toggle('active', mode==='g');
+    u.classList.toggle('active', mode==='unit');
+  };
 
-window.addEventListener('scroll', ()=>{
-  if(window.scrollY > 250){
-    mini.style.display='block';
-  } else {
-    mini.style.display='none';
-  }
-});
+  const applyQtyModeForFood=(f)=>{
+    if(!f) return;
+    const hasUnit = (f.unitGrams!==null && f.unitGrams!==undefined);
+    const mode = hasUnit ? 'unit' : 'g';
+    $('qtyType').value = mode;
+    setUnitButtons(mode);
+    // bloqueo total
+    $('btnUnitG').disabled = hasUnit;
+    $('btnUnitU').disabled = !hasUnit;
+    // defaults
+    $('qty').value = hasUnit ? '1' : '100';
+    // stepper labels
+    if(hasUnit){
+      $('qtyM2').textContent='-1'; $('qtyM1').textContent='-1';
+      $('qtyP1').textContent='+1'; $('qtyP2').textContent='+1';
+    }else{
+      $('qtyM2').textContent='-50'; $('qtyM1').textContent='-10';
+      $('qtyP1').textContent='+10'; $('qtyP2').textContent='+50';
+    }
+  };
+
+  const stepQty=(delta)=>{
+    const mode=$('qtyType').value;
+    const cur=Number($('qty').value||0);
+    const next=Math.max(0, cur + delta);
+    $('qty').value = (mode==='unit') ? String(Math.round(next)) : String(next);
+  };
+
+  $('btnUnitG')?.addEventListener('click', ()=>{ /* bloqueado si no procede */ });
+  $('btnUnitU')?.addEventListener('click', ()=>{ /* bloqueado si no procede */ });
+
+  $('qtyM1')?.addEventListener('click', ()=>{ stepQty($('qtyType').value==='unit'?-1:-10); });
+  $('qtyM2')?.addEventListener('click', ()=>{ stepQty($('qtyType').value==='unit'?-1:-50); });
+  $('qtyP1')?.addEventListener('click', ()=>{ stepQty($('qtyType').value==='unit'?+1:+10); });
+  $('qtyP2')?.addEventListener('click', ()=>{ stepQty($('qtyType').value==='unit'?+1:+50); });
+
+  // Hide list until search >=2 chars
+  const renderAddFoodList_original = renderAddFoodList;
+  renderAddFoodList = (foods)=>{
+    const q = ($('foodSearch')?.value || '').trim();
+    const sc=$('addFoodScroller');
+    if(q.length < 2){
+      if(sc) sc.classList.add('hidden');
+      const list=$('addFoodList'); if(list) list.innerHTML='';
+      return;
+    }
+    if(sc) sc.classList.remove('hidden');
+    renderAddFoodList_original(foods);
+  };
+
+  // Hook applyQtyMode on selection changes
+  $('foodPick')?.addEventListener('change', ()=>{
+    const foods=loadFoodsMerged();
+    const f=foodById(foods,$('foodPick').value);
+    applyQtyModeForFood(f);
+  });
+
+  // Reset add fields after add
+  const addItemHandler = $('addItem')?.onclick;
+  $('addItem').onclick=()=>{
+    addItemHandler();
+    const foods=loadFoodsMerged();
+    const f=foodById(foods,$('foodPick').value);
+    pushRecent(f?.id);
+    $('foodSearch').value='';
+    $('qty').value='';
+    $('foodSearch').focus();
+    renderRecentFoods(foods);
+    renderAddFoodList(foods);
+    renderRecentFoods(foods);
+    const sel=foodById(foods,$('foodPick')?.value);
+    if(sel) applyQtyModeForFood(sel);
+
+  };
+
+  // Clear creator fields after saving food
+  const saveFoodHandler = $('saveFood')?.onclick;
+  $('saveFood').onclick=()=>{
+    saveFoodHandler();
+    // limpiar campos principales para crear en serie
+    ['f_id','f_name','f_kcal','f_p','f_c','f_f','f_unitGrams'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+    $('f_id')?.focus();
+  };
+  // ===== End Add tab UX helpers =====
 
 </script>
 </body>
