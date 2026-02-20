@@ -118,6 +118,27 @@
     #saveFood{ margin-top:12px; }
 
     .searchRow{display:flex;gap:8px;align-items:center;}
+
+    /* --- Ajustes móviles (iPhone) --- */
+    input[type="time"]{max-width:100%;}
+    .card{overflow:hidden;}
+
+    @media (max-width: 430px){
+      body{padding:12px;padding-bottom:88px;padding-top:calc(env(safe-area-inset-top) + 12px);}
+      .card{padding:10px;border-radius:13px;}
+      h1{font-size:17px;}
+      .num{font-size:17px;}
+      .tabs{padding:9px 10px;padding-bottom:calc(9px + env(safe-area-inset-bottom));}
+      .tabs button{padding:9px;border-radius:13px;}
+
+      /* Chips de ventana móvil: evitar que el día se salga */
+      .weekChips button{min-width:48px;height:44px;padding:6px 8px;font-size:13px;white-space:normal;line-height:1.05;}
+      #weekChips .miniBtn{display:flex;flex-direction:column;justify-content:center;align-items:center;}
+
+      /* Inputs/selects algo más compactos */
+      input,select,button,textarea{border-radius:12px;padding:9px;font-size:16px;}
+      input[type="time"], select{min-height:46px;height:46px;}
+    }
     .searchRow input{flex:1;}
     .foodListScroller{max-height:48vh; overflow:auto; -webkit-overflow-scrolling:touch; padding-right:2px;}
   
