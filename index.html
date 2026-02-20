@@ -2894,6 +2894,8 @@ function freezeDayIfNeeded(dateKey, summary){
 
 
   // ===== Add tab UX: unidades bloqueadas, stepper, recientes =====
+  const $ = (id)=>document.getElementById(id);
+
   const RECENT_KEY='mc_recent_foods';
   const loadRecent=()=>{ try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');}catch{return [];} };
   const saveRecent=(arr)=>localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0,8)));
