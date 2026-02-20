@@ -2360,6 +2360,7 @@ window.addEventListener('error', function(e){
 
     renderTotals(goal,eaten);
     renderDayStatus(goal,eaten);
+    try{ updateMiniSticky(goal,eaten); }catch(e){}
     renderHistoryChips(profile, storedMode);
 
     // Guidance por desviación acumulada 7d
@@ -2887,30 +2888,7 @@ window.addEventListener('error', function(e){
       renderRecentFoods(loadFoodsMerged());
     };
   }
-
-  // Mini sticky actualiza desde renderDayStatus
-  const _renderDayStatus = renderDayStatus;
-  renderDayStatus = (goal,eaten)=>{
-    _renderDayStatus(goal,eaten);
-    try{
-      const tdee = computeTDEE(loadProfile(), loadDay(currentDateKey()));
-      const diffP = Math.round(goal.p - eaten.p);
-      const bal = Math.round(eaten.kcal - tdee);
-      const el=$('miniStickyStatus'), c=$('miniStickyContent');
-      if(el&&c){
-        c.innerHTML = `
-          <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
-          <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
-          <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
-        `;
-      }
-    }catch(e){}
-  };
-  window.addEventListener('scroll', ()=>{
-    const el=$('miniStickyStatus'); if(!el) return;
-    el.style.display = (window.scrollY>220) ? 'block' : 'none';
-  });
-  // ===== End helpers =====
+  // ===== Fase 1/2 UX helpers =====
 
   // Init
   migrateIfNeeded();
@@ -2955,4 +2933,24 @@ function freezeDayIfNeeded(dateKey, summary){
 
 </script>
 </body>
-</html>
+</html
+
+  const updateMiniSticky = (goal,eaten)=>{
+    try{
+      const el=$('miniStickyStatus'), c=$('miniStickyContent');
+      if(!el||!c||!goal||!eaten) return;
+      const diffP = Math.round(goal.p - eaten.p);
+      const bal = Math.round(eaten.kcal - (goal.tdee||0));
+      c.innerHTML = `
+        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
+        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
+        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
+      `;
+    }catch(e){}
+  };
+  window.addEventListener('scroll', ()=>{
+    const el=$('miniStickyStatus'); if(!el) return;
+    el.style.display = (window.scrollY>220) ? 'block' : 'none';
+  });
+
+>
