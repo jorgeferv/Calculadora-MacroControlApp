@@ -133,7 +133,21 @@
     .pill.bad{border-color:rgba(255,77,77,.35); background:rgba(255,77,77,.08);}
     .pill.mid{border-color:rgba(255,193,7,.28); background:rgba(255,193,7,.07);}
 
-  </style>
+  
+    /* Macro progress bars (V2) */
+    .macroBars{margin-top:12px;display:flex;flex-direction:column;gap:10px;}
+    .barRow{padding:10px 10px 8px;border:1px solid #232a38;border-radius:14px;background:rgba(12,15,20,.55);}
+    .barHead{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .barLabel{font-weight:700;letter-spacing:.2px;}
+    .barVal{font-variant-numeric:tabular-nums;color:var(--text);opacity:.95}
+    .barTrack{height:10px;border-radius:999px;background:#0b0e13;border:1px solid #242a36;overflow:hidden;margin-top:8px;}
+    .barFill{height:100%;width:0%;border-radius:999px;transition:width .25s ease;}
+    .barFill.good{background:rgba(0,255,120,.85);}
+    .barFill.mid{background:rgba(255,200,0,.85);}
+    .barFill.bad{background:rgba(255,70,70,.85);}
+    .barSub{margin-top:6px;font-size:12px;color:var(--muted);}
+
+</style>
 </head>
 
 <body>
@@ -195,14 +209,14 @@
           <button type="button" class="tagBtn" data-tag="fat">Grasa</button>
         </div>
         <div class="seg" style="gap:6px;margin-top:8px;">
-          <button type="button" class="tagBtn" data-tag="desayuno_ok">Desayuno</button>
-          <button type="button" class="tagBtn" data-tag="comida_ok">Comida</button>
-          <button type="button" class="tagBtn" data-tag="merienda_ok">Merienda</button>
-          <button type="button" class="tagBtn" data-tag="cena_ok">Cena</button>
+          <button type="button" class="tagBtn" data-tag="desayuno_ok">🥣 Desayuno</button>
+          <button type="button" class="tagBtn" data-tag="comida_ok">🍗 Comida</button>
+          <button type="button" class="tagBtn" data-tag="merienda_ok">🍎 Merienda</button>
+          <button type="button" class="tagBtn" data-tag="cena_ok">🌙 Cena</button>
         </div>
         <div class="seg" style="gap:6px;margin-top:8px;">
-          <button type="button" class="tagBtn" data-tag="pre_ok">Pre</button>
-          <button type="button" class="tagBtn" data-tag="post_ok">Post</button>
+          <button type="button" class="tagBtn" data-tag="pre_ok">⚡ Pre</button>
+          <button type="button" class="tagBtn" data-tag="post_ok">✅ Post</button>
         </div>
 
         <div id="tagsTextBlock" style="display:none;">
@@ -374,6 +388,30 @@
           <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
           <button id="openStats" type="button" class="delBtn" style="position:absolute;top:12px;right:12px;" title="Ver estadísticas">📊</button>
           <div class="muted" id="dayStatusDetail" style="margin-top:6px;">—</div>
+
+          <div id="macroBars" class="macroBars" aria-label="Progreso de macros">
+            <div class="barRow" data-m="p">
+              <div class="barHead"><span class="barLabel">🥩 Proteína</span><span class="barVal" id="barPVal">—</span></div>
+              <div class="barTrack"><div class="barFill" id="barPFill"></div></div>
+              <div class="barSub" id="barPSub">—</div>
+            </div>
+            <div class="barRow" data-m="f">
+              <div class="barHead"><span class="barLabel">🧈 Grasas</span><span class="barVal" id="barFVal">—</span></div>
+              <div class="barTrack"><div class="barFill" id="barFFill"></div></div>
+              <div class="barSub" id="barFSub">—</div>
+            </div>
+            <div class="barRow" data-m="c">
+              <div class="barHead"><span class="barLabel">🍚 Carbohidratos</span><span class="barVal" id="barCVal">—</span></div>
+              <div class="barTrack"><div class="barFill" id="barCFill"></div></div>
+              <div class="barSub" id="barCSub">—</div>
+            </div>
+            <div class="barRow" data-m="kcal">
+              <div class="barHead"><span class="barLabel">🔥 Calorías</span><span class="barVal" id="barKVal">—</span></div>
+              <div class="barTrack"><div class="barFill" id="barKFill"></div></div>
+              <div class="barSub" id="barKSub">—</div>
+            </div>
+          </div>
+
           <div class="chipRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
             <div class="pill" id="def7Chip">Déficit 7d: <b id="def7Val">—</b></div>
             <div class="pill" id="def15Chip">15d: <b id="def15Val">—</b></div>
@@ -455,12 +493,12 @@
   <section id="screen-add" style="display:none;">
     <div class="row">
       <div class="card">
-        <label>Comida</label>
+        <label>🍗 Comida</label>
         <select id="mealSlot">
-          <option value="desayuno">Desayuno</option>
-          <option value="comida" selected>Comida</option>
-          <option value="merienda">Merienda</option>
-          <option value="cena">Cena</option>
+          <option value="desayuno">🥣 Desayuno</option>
+          <option value="comida" selected>🍗 Comida</option>
+          <option value="merienda">🍎 Merienda</option>
+          <option value="cena">🌙 Cena</option>
           <option value="post_entreno">Post-entreno</option>
           <option value="pre_entreno">Pre-entreno</option>
         </select>
@@ -1672,7 +1710,64 @@ window.addEventListener('error', function(e){
     $('eatenF').textContent=round(eaten.f,1);
   };
 
+  
+  // ===== Macro Bars updater =====
+  const fmt1=(x)=> (Math.round(x*10)/10).toString();
+  const setFill=(fillEl,state,pct)=>{
+    fillEl.classList.remove('good','mid','bad');
+    fillEl.classList.add(state);
+    fillEl.style.width = `${Math.max(0, Math.min(120, pct))}%`; // allow slight overfill up to 120%
+  };
+  const macroDeltaLabel=(goal, eaten, margin, unit)=>{
+    const diff = goal - eaten;
+    if(diff > margin) return {state:'mid', text:`Faltan ${unit==='kcal'?Math.round(diff):fmt1(diff)} ${unit}`};
+    if(Math.abs(diff) <= margin) return {state:'good', text:'En rango'};
+    return {state:'bad', text:`Exceso +${unit==='kcal'?Math.round(Math.abs(diff)):fmt1(Math.abs(diff))} ${unit}`};
+  };
+  const renderMacroBars=(goal,eaten)=>{
+    const gK=Number(goal.goalKcal)||0, eK=Number(eaten.kcal)||0;
+    const gP=Number(goal.p)||0, eP=Number(eaten.p)||0;
+    const gF=Number(goal.f)||0, eF=Number(eaten.f)||0;
+    const gC=Number(goal.c)||0, eC=Number(eaten.c)||0;
+
+    const kcalMargin = gK*0.03;
+    const pMargin = 5;
+    const fMargin = 5;
+    const cMargin = 10;
+
+    // values
+    $('barPVal').textContent = `${fmt1(eP)} / ${fmt1(gP)} g`;
+    $('barFVal').textContent = `${fmt1(eF)} / ${fmt1(gF)} g`;
+    $('barCVal').textContent = `${fmt1(eC)} / ${fmt1(gC)} g`;
+    $('barKVal').textContent = `${Math.round(eK)} / ${Math.round(gK)} kcal`;
+
+    // subs + state
+    const pS = macroDeltaLabel(gP,eP,pMargin,'g');
+    const fS = macroDeltaLabel(gF,eF,fMargin,'g');
+    const cS = macroDeltaLabel(gC,eC,cMargin,'g');
+    const kS = macroDeltaLabel(gK,eK,kcalMargin,'kcal');
+
+    $('barPSub').textContent = pS.text;
+    $('barFSub').textContent = fS.text;
+    $('barCSub').textContent = cS.text;
+    $('barKSub').textContent = kS.text;
+
+    // fill % (cap at 100 for goal, but allow up to 120 to show excess)
+    const pPct = gP>0 ? (eP/gP)*100 : 0;
+    const fPct = gF>0 ? (eF/gF)*100 : 0;
+    const cPct = gC>0 ? (eC/gC)*100 : 0;
+    const kPct = gK>0 ? (eK/gK)*100 : 0;
+
+    setFill($('barPFill'), pS.state, pPct);
+    setFill($('barFFill'), fS.state, fPct);
+    setFill($('barCFill'), cS.state, cPct);
+    setFill($('barKFill'), kS.state, kPct);
+  };
+  // ===== End Macro Bars updater =====
+
   const renderDayStatus=(goal,eaten)=>{
+    renderMacroBars(goal,eaten);
+
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
     box.classList.remove('good','ok','bad');
@@ -2624,28 +2719,39 @@ window.addEventListener('error', function(e){
   renderAll();
 })();
 
-// ===== Macro Status Evaluation =====
-function evaluateMacroStatus(goal, eaten, margin){
-  const diff = goal - eaten;
-  if(diff > margin) return {state:'faltan', value: diff};
-  if(Math.abs(diff) <= margin) return {state:'ok', value: 0};
-  return {state:'exceso', value: Math.abs(diff)};
+
+// ===== Daily Ledger System (90 days) =====
+const LEDGER_KEY = 'mc_daily_ledger';
+const LEDGER_LIMIT = 90;
+
+function loadLedger(){
+  return JSON.parse(localStorage.getItem(LEDGER_KEY) || "[]");
 }
 
-function renderMacroStatus(goalKcal, eatenKcal, goalP, eatenP, goalF, eatenF, goalC, eatenC){
-  const kcalMargin = goalKcal * 0.03;
-  const pMargin = 5;
-  const fMargin = 5;
-  const cMargin = 10;
-
-  const kcalStatus = evaluateMacroStatus(goalKcal, eatenKcal, kcalMargin);
-  const pStatus = evaluateMacroStatus(goalP, eatenP, pMargin);
-  const fStatus = evaluateMacroStatus(goalF, eatenF, fMargin);
-  const cStatus = evaluateMacroStatus(goalC, eatenC, cMargin);
-
-  console.log('Macro Status:', kcalStatus, pStatus, fStatus, cStatus);
+function saveLedger(data){
+  localStorage.setItem(LEDGER_KEY, JSON.stringify(data));
 }
-// ===== End Macro Status Evaluation =====
+
+function addDayToLedger(summary){
+  let ledger = loadLedger();
+  ledger = ledger.filter(d => d.dateKey !== summary.dateKey);
+  ledger.push(summary);
+  ledger.sort((a,b)=> a.dateKey.localeCompare(b.dateKey));
+  if(ledger.length > LEDGER_LIMIT){
+    ledger = ledger.slice(-LEDGER_LIMIT);
+  }
+  saveLedger(ledger);
+}
+
+// Call this when day closes or when renderAll runs on past day
+function freezeDayIfNeeded(dateKey, summary){
+  const today = new Date().toISOString().slice(0,10);
+  if(dateKey < today){
+    addDayToLedger(summary);
+  }
+}
+// ===== End Ledger System =====
+
 
 </script>
 </body>
