@@ -203,7 +203,7 @@
   <div class="drawerBack" id="drawerBack">
     <div class="drawer">
       <div class="drawerTop">
-        <b>Alimentos</b>
+        <b id="drawerTitle">Alimentos</b><span id="devBadge" class="pill" style="display:none; margin-left:auto;">DEV</span>
         <button class="iconBtn" id="closeDrawer" type="button">Cerrar</button>
       </div>
 
@@ -214,6 +214,9 @@
     <span class="muted">Importar/Exportar</span>
   </summary>
   <div style="margin-top:10px;">
+
+<div id="devLockedHint" class="muted" style="margin-top:6px;">Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.</div>
+<div id="devControlActions" style="display:none;">
 <div class="seg">
           <button id="exportFoods" type="button">Exportar JSON</button>
           <button id="importFoodsBtn" type="button">Importar JSON</button>
@@ -221,7 +224,28 @@
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
-        </div>  </div>
+        </div>
+        <div id="devBackupBlock" style="margin-top:12px; display:none;">
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b>Backup rápido (DEV)</b>
+            <span class="muted">Estado completo</span>
+          </div>
+          <div class="seg">
+            <button id="exportBackup" type="button">Exportar backup</button>
+            <button id="importBackupBtn" type="button">Importar backup</button>
+          </div>
+          <div class="seg" style="margin-top:8px;">
+            <button id="restoreLastBackup" type="button">Restaurar último</button>
+            <button id="makeBackupNow" type="button">Guardar copia</button>
+          </div>
+          <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
+          <div class="muted" style="margin-top:8px;">
+            Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
+          </div>
+        </div>
+</div>
+  </div>
 </details>
       </div>
 
@@ -274,6 +298,8 @@
         </div>
 
         <button class="primary" id="saveFood" type="button">Guardar alimento</button>
+        <button class="danger" id="deleteFood" type="button" style="margin-top:8px;display:none;">Eliminar alimento</button>
+        <button id="toggleHideFood" type="button" style="margin-top:8px;display:none;">Ocultar / Mostrar (root)</button>
         <div style="height:12px;"></div>
         <div class="muted" style="margin-top:8px;">
           Lo guardado aquí se almacena como “usuario” y se conserva aunque actualices el código.
@@ -643,10 +669,14 @@ window.addEventListener('error', function(e){
   // STORAGE KEYS (estables)
   // =========================
   const LS = {
-    mode: 'mc_mode_v9',
-    settings: 'mc_settings_v9',
-    logs: 'mc_logs_v9',
-    lastDate: 'mc_lastDate_v9',
+    mode: 'mc_mode',
+    modeLegacy: 'mc_mode_v9',
+    settings: 'mc_settings',
+    settingsLegacy: 'mc_settings_v9',
+    logs: 'mc_logs',
+    logsLegacy: 'mc_logs_v9',
+    lastDate: 'mc_lastDate',
+    lastDateLegacy: 'mc_lastDate_v9',
     profile: 'mc_profile',
     foodsRoot: 'mc_foods_root',
     foodsUser: 'mc_foods_user',
@@ -656,14 +686,22 @@ window.addEventListener('error', function(e){
   // =========================
   // DATA VERSIONING (migraciones seguras)
   // =========================
-  const DATA_VERSION = 1;
+  const DATA_VERSION = 2;
   const LS_VERSION_KEY = 'mc_data_version';
 
   const migrateIfNeeded = ()=>{
     const cur = Number(localStorage.getItem(LS_VERSION_KEY) || 0);
     if(cur === DATA_VERSION) return;
-    // Migraciones futuras: aquí.
-    // Por ahora: garantizar estructuras base sin romper datos existentes.
+
+    // v2: claves estables (sin _v9) + copia desde legacy si existe (para no perder historial tras actualizar).
+    try{
+      if(!localStorage.getItem(LS.mode) && localStorage.getItem(LS.modeLegacy)) localStorage.setItem(LS.mode, localStorage.getItem(LS.modeLegacy));
+      if(!localStorage.getItem(LS.settings) && localStorage.getItem(LS.settingsLegacy)) localStorage.setItem(LS.settings, localStorage.getItem(LS.settingsLegacy));
+      if(!localStorage.getItem(LS.logs) && localStorage.getItem(LS.logsLegacy)) localStorage.setItem(LS.logs, localStorage.getItem(LS.logsLegacy));
+      if(!localStorage.getItem(LS.lastDate) && localStorage.getItem(LS.lastDateLegacy)) localStorage.setItem(LS.lastDate, localStorage.getItem(LS.lastDateLegacy));
+    }catch(_){}
+
+    // Garantizar estructuras base sin romper datos existentes.
     try{
       const logs = loadJSON(LS.logs, {});
       if(typeof logs !== 'object' || Array.isArray(logs)) saveJSON(LS.logs, {});
@@ -718,6 +756,113 @@ window.addEventListener('error', function(e){
 
   // ======= HELPERS =======
   const $=id=>document.getElementById(id);
+  // =========================
+  // DEV MODE (bloquea acciones peligrosas)
+  // =========================
+  const DEV_MODE_KEY = 'mc_dev_mode_v1';
+  const DEV_HIDDEN_KEY = 'mc_foods_hidden_v1'; // para ocultar foodsRoot sin tocarlos
+  const DEV_PIN = atob('MjU4MA=='); // 2580 (cambia si quieres)
+
+  const isDev = ()=> localStorage.getItem(DEV_MODE_KEY)==='1';
+  const setDev = (on)=>{
+    localStorage.setItem(DEV_MODE_KEY, on ? '1' : '0');
+    applyDevUI();
+  };
+
+  const loadHiddenIds = ()=> loadJSON(DEV_HIDDEN_KEY, []);
+  const saveHiddenIds = (arr)=> saveJSON(DEV_HIDDEN_KEY, Array.isArray(arr)?arr:[]);
+  const isHiddenId = (id)=> loadHiddenIds().includes(id);
+  const toggleHiddenId = (id)=>{
+    const cur = loadHiddenIds();
+    const next = cur.includes(id) ? cur.filter(x=>x!==id) : [...cur, id];
+    saveHiddenIds(next);
+  };
+
+  const applyDevUI = ()=>{
+    const dev = isDev();
+    const badge = $('devBadge');
+    if(badge) badge.style.display = dev ? 'inline-flex' : 'none';
+
+    const ctrlActions = $('devControlActions');
+    const ctrlHint = $('devLockedHint');
+    if(ctrlActions) ctrlActions.style.display = dev ? '' : 'none';
+    if(ctrlHint) ctrlHint.style.display = dev ? 'none' : '';
+
+    const backupBlock = $('devBackupBlock');
+    if(backupBlock) backupBlock.style.display = dev ? '' : 'none';
+
+    const delBtn = $('deleteFood');
+    const hideBtn = $('toggleHideFood');
+    if(delBtn) delBtn.style.display = dev ? '' : 'none';
+    if(hideBtn) hideBtn.style.display = dev ? '' : 'none';
+
+    // Guardar alimento: solo dev
+    const saveBtn = $('saveFood');
+    if(saveBtn) saveBtn.disabled = !dev;
+  };
+
+  const promptDevUnlock = ()=>{
+    const pin = prompt('Modo desarrollador\n\nIntroduce PIN:');
+    if(pin===null) return;
+    if(String(pin).trim() === DEV_PIN){
+      setDev(true);
+      alert('Modo desarrollador ACTIVADO.');
+      renderAll();
+    } else {
+      alert('PIN incorrecto.');
+    }
+  };
+
+  const lockDev = ()=>{
+    if(confirm('¿Desactivar modo desarrollador?')){
+      setDev(false);
+      alert('Modo desarrollador DESACTIVADO.');
+      renderAll();
+    }
+  };
+
+  const bindDevLongPress = ()=>{
+    const t = $('drawerTitle');
+    if(!t) return;
+    let timer=null;
+    const start = ()=>{
+      clearTimeout(timer);
+      timer = setTimeout(()=>{
+        // toggle con seguridad
+        if(isDev()) lockDev();
+        else promptDevUnlock();
+      }, 1200);
+    };
+    const cancel = ()=>{ clearTimeout(timer); timer=null; };
+
+    t.addEventListener('touchstart', start, {passive:true});
+    t.addEventListener('touchend', cancel);
+    t.addEventListener('touchcancel', cancel);
+    t.addEventListener('mousedown', start);
+    t.addEventListener('mouseup', cancel);
+    t.addEventListener('mouseleave', cancel);
+  };
+
+  // Mini sticky (evitar código fuera del HTML)
+  const updateMiniSticky = (goal,eaten)=>{
+    try{
+      const el=$('miniStickyStatus'), c=$('miniStickyContent');
+      if(!el||!c||!goal||!eaten) return;
+      const diffP = Math.round(goal.p - eaten.p);
+      const bal = Math.round(eaten.kcal - (goal.tdee||0));
+      c.innerHTML = `
+        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
+        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
+        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
+      `;
+    }catch(e){}
+  };
+
+  window.addEventListener('scroll', ()=>{
+    const el=$('miniStickyStatus'); if(!el) return;
+    el.style.display = (window.scrollY>220) ? 'block' : 'none';
+  });
+
   const round=(n,d=0)=>{const p=10**d; return Math.round((Number(n)||0)*p)/p;};
   const todayKey=()=>{
     const d=new Date();
@@ -785,8 +930,36 @@ window.addEventListener('error', function(e){
     });
   };
 
-  const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}}; 
-  const saveJSON=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
+  const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
+
+  // Backup rápido (anti-pérdida al actualizar / recargar)
+  const BACKUP_LAST_KEY = 'mc_backup_last';
+  const snapshotState = ()=>{
+    // No incluimos foodsRoot (viene del código / json). Solo datos de usuario.
+    return {
+      ts: Date.now(),
+      dataVersion: DATA_VERSION,
+      mode: loadJSON(LS.mode, null),
+      settings: loadJSON(LS.settings, null),
+      logs: loadJSON(LS.logs, null),
+      lastDate: loadJSON(LS.lastDate, null),
+      profile: loadJSON(LS.profile, null),
+      foodsUser: loadJSON(LS.foodsUser, null),
+      foodsHidden: loadJSON(DEV_HIDDEN_KEY, null),
+      devMode: localStorage.getItem(DEV_MODE_KEY) || '0'
+    };
+  };
+
+  const saveBackupLast = ()=>{
+    try{ localStorage.setItem(BACKUP_LAST_KEY, JSON.stringify(snapshotState())); }catch(_){}
+  };
+
+  const saveJSON=(k,o)=>{
+    localStorage.setItem(k,JSON.stringify(o));
+    if(k===LS.mode || k===LS.settings || k===LS.logs || k===LS.lastDate || k===LS.profile || k===LS.foodsUser || k===DEV_HIDDEN_KEY){
+      saveBackupLast();
+    }
+  };
   const getLevel=(mk,lk)=>(LEVELS[mk]||[]).find(x=>x.key===lk) || (LEVELS[mk]||[])[0];
   const daysSince = (ts)=>{
     if(!ts) return 9999;
@@ -859,7 +1032,7 @@ window.addEventListener('error', function(e){
     saveJSON(LS.foodsRoot, Array.from(rootMap.values()));
   };
 
-  const loadFoodsMerged = ()=>{
+  const loadFoodsMerged = (opts={})=>{
     ensureFoodsStores();
     const root = loadJSON(LS.foodsRoot, []).map(normalizeFood);
     const user = loadJSON(LS.foodsUser, []).map(normalizeFood);
@@ -872,7 +1045,11 @@ window.addEventListener('error', function(e){
     const map=new Map();
     root.forEach(f=>map.set(f.id,f));
     user.forEach(f=>map.set(f.id,f));
-    return Array.from(map.values());
+    const merged = Array.from(map.values());
+    const includeHidden = !!opts.includeHidden;
+    if(includeHidden) return merged;
+    const hidden = new Set(loadHiddenIds());
+    return merged.filter(f=>!hidden.has(f.id));
   };
 
   const upsertFoodFromApp = (foodObj)=>{
@@ -1726,6 +1903,12 @@ window.addEventListener('error', function(e){
 
   const renderFoodsList=(foods)=>{
     const list=$('foodsList'); list.innerHTML='';
+    const dev = isDev();
+    // Para saber si un alimento es "usuario"
+    const userArr = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    const userSet = new Set(userArr.map(x=>x.id));
+    const hiddenSet = new Set(loadHiddenIds());
+
     const q = ($('foodsSearch')?.value || '').trim().toLowerCase();
     foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
@@ -1733,9 +1916,44 @@ window.addEventListener('error', function(e){
       .sort((a,b)=>a.name.localeCompare(b.name,'es'))
       .forEach(f=>{
         const d=document.createElement('div'); d.className='item';
-        d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id} · ${f.baseUnit}${f.unitGrams?` · ${f.unitGrams}g/u`:''}</small><br><small>${(f.tags||[]).join(', ')}</small></div>
-                     <div class="right"><b>${f.kcal}</b><small> kcal</small><br><small>P ${f.p} · C ${f.c} · F ${f.f}</small></div>`;
+        d.innerHTML = `<div><b>${f.name}</b>${hiddenSet.has(f.id)?'<br><small class="muted">[OCULTO]</small>':''}<br><small>${f.id} · ${f.baseUnit}${f.unitGrams?` · ${f.unitGrams}g/u`:''}</small><br><small>${(f.tags||[]).join(', ')}</small></div>
+                     <div class="right" style="display:flex;align-items:center;gap:10px;">
+                       <div style="text-align:right;">
+                         <b>${f.kcal}</b><small> kcal</small><br><small>P ${f.p} · C ${f.c} · F ${f.f}</small>
+                       </div>
+                       ${dev ? `
+                         ${userSet.has(f.id) ? `<button class="delBtn" data-act="del" title="Eliminar (usuario)">🗑</button>` : `<button class="delBtn" data-act="hide" title="${hiddenSet.has(f.id)?'Mostrar':'Ocultar'} (root)">👁</button>`}
+                       ` : ``}
+                     </div>`;
+
+        const actBtn = d.querySelector('[data-act]');
+        if(actBtn){
+          actBtn.onclick=(ev)=>{
+            ev.stopPropagation();
+            if(!dev) return;
+            const act = actBtn.getAttribute('data-act');
+            if(act==='del'){
+              if(confirm(`¿Eliminar "${f.name}" (usuario)?`)){
+                const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+                saveJSON(LS.foodsUser, currentUser.filter(x=>x.id!==f.id));
+                // si estaba en hidden, también lo limpiamos
+                const h = loadHiddenIds();
+                if(h.includes(f.id)) saveHiddenIds(h.filter(x=>x!==f.id));
+                renderAll();
+              }
+            } else if(act==='hide'){
+              // ocultar/mostrar root sin tocar archivo
+              toggleHiddenId(f.id);
+              renderAll();
+            }
+          };
+        }
         d.onclick=()=>{
+          if(!dev){
+            try{ navigator.clipboard?.writeText(f.id); }catch(_){ }
+            alert(`ID copiado: ${f.id}`);
+            return;
+          }
           $('f_id').value=f.id;
           $('f_name').value=f.name;
           $('f_baseUnit').value=f.baseUnit;
@@ -2253,7 +2471,10 @@ window.addEventListener('error', function(e){
           const u=m[2].toLowerCase();
           const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
 
-          const foods=loadFoodsMerged();
+          const foods=loadFoodsMerged({ includeHidden:false });
+
+    // para gestión en drawer (dev puede ver ocultos)
+    const foodsForDrawer = loadFoodsMerged({ includeHidden: isDev() });
           const f=foodById(foods,it.foodId);
           if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
 
@@ -2352,7 +2573,7 @@ window.addEventListener('error', function(e){
     renderFoodPicker(foods);
     renderAddFoodList(foods);
     try{ renderRecentFoods(foods); const f=foodById(foods,$('foodPick').value); if(f) applyQtyModeForFood(f);}catch(e){}
-    renderFoodsList(foods);
+    renderFoodsList(foodsForDrawer);
 
     const logs=loadLogs(activeDayKey).items;
     const eaten=sumMacros(logs);
@@ -2408,6 +2629,7 @@ window.addEventListener('error', function(e){
     });
 
     refreshTagButtons();
+    applyDevUI();
   };
 
   // ======= ACTIONS =======
@@ -2713,7 +2935,44 @@ window.addEventListener('error', function(e){
     renderAll();
   };
 
-  $('exportFoods').onclick=()=>{
+  
+  // Eliminar alimento (solo usuario) + ocultar/mostrar root (dev)
+  $('deleteFood').onclick=()=>{
+    if(!isDev()){ alert('Bloqueado.'); return; }
+    const id=$('f_id').value.trim();
+    if(!id){ alert('Selecciona un alimento.'); return; }
+    if(!confirm(`¿Eliminar "${id}" del usuario?`)) return;
+
+    const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    const exists = currentUser.some(x=>x.id===id);
+    if(!exists){
+      alert('Este alimento es del núcleo (root). Para quitarlo, usa “Ocultar / Mostrar (root)”.');
+      return;
+    }
+    saveJSON(LS.foodsUser, currentUser.filter(x=>x.id!==id));
+    // limpiar form
+    ['f_id','f_name','f_kcal','f_p','f_c','f_f','f_unitGrams','f_tags'].forEach(k=>{ const el=$(k); if(el) el.value=''; });
+    alert('Eliminado.');
+    renderAll();
+  };
+
+  $('toggleHideFood').onclick=()=>{
+    if(!isDev()){ alert('Bloqueado.'); return; }
+    const id=$('f_id').value.trim();
+    if(!id){ alert('Selecciona un alimento.'); return; }
+
+    // si es usuario, mejor eliminar
+    const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    if(currentUser.some(x=>x.id===id)){
+      alert('Este alimento es de usuario. Usa “Eliminar alimento”.');
+      return;
+    }
+
+    toggleHiddenId(id);
+    alert(isHiddenId(id) ? 'Ocultado (root).' : 'Visible (root).');
+    renderAll();
+  };
+$('exportFoods').onclick=()=>{
     const foods=loadFoodsMerged();
     const blob=new Blob([JSON.stringify(foods,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
@@ -2744,6 +3003,69 @@ window.addEventListener('error', function(e){
     };
     r.readAsText(file);
   };
+
+  // Backup rápido (DEV): export/import estado completo (perfil + settings + logs + foods usuario)
+  const applyBackupState = (state)=>{
+    if(!state || typeof state!=='object') throw new Error('Backup inválido');
+    if(state.mode!=null) saveJSON(LS.mode, state.mode);
+    if(state.settings!=null) saveJSON(LS.settings, state.settings);
+    if(state.logs!=null) saveJSON(LS.logs, state.logs);
+    if(state.lastDate!=null) saveJSON(LS.lastDate, state.lastDate);
+    if(state.profile!=null) saveJSON(LS.profile, state.profile);
+    if(state.foodsUser!=null) saveJSON(LS.foodsUser, state.foodsUser);
+    if(state.foodsHidden!=null) saveJSON(DEV_HIDDEN_KEY, state.foodsHidden);
+    if(state.devMode!=null) localStorage.setItem(DEV_MODE_KEY, String(state.devMode));
+    saveBackupLast();
+  };
+
+  const makeBackupFilename = ()=>{
+    const d=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    return `macrocontrol_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  };
+
+  $('exportBackup') && ($('exportBackup').onclick=()=>{
+    try{
+      const blob=new Blob([JSON.stringify(snapshotState(),null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=makeBackupFilename(); a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){ alert('No se pudo exportar el backup.'); }
+  });
+
+  $('makeBackupNow') && ($('makeBackupNow').onclick=()=>{
+    saveBackupLast();
+    alert('Copia guardada (local).');
+  });
+
+  $('restoreLastBackup') && ($('restoreLastBackup').onclick=()=>{
+    try{
+      const raw=localStorage.getItem(BACKUP_LAST_KEY);
+      if(!raw) return alert('No hay backup local.');
+      const state=JSON.parse(raw);
+      if(!confirm('Restaurar el último backup local reemplazará tus datos actuales. ¿Continuar?')) return;
+      applyBackupState(state);
+      alert('Backup restaurado.');
+      renderAll();
+    }catch(e){ alert('No se pudo restaurar el backup.'); }
+  });
+
+  $('importBackupBtn') && ($('importBackupBtn').onclick=()=>$('importBackupFile').click());
+  $('importBackupFile') && ($('importBackupFile').onchange=(ev)=>{
+    const file=ev.target.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const state=JSON.parse(r.result);
+        if(!confirm('Importar backup reemplazará tus datos actuales. ¿Continuar?')) return;
+        applyBackupState(state);
+        alert('Backup importado.');
+        renderAll();
+      }catch(e){ alert('Backup inválido o corrupto.'); }
+    };
+    r.readAsText(file);
+    ev.target.value='';
+  });
 
 
 
@@ -2890,36 +3212,14 @@ window.addEventListener('error', function(e){
   }
   // ===== Fase 1/2 UX helpers =====
 
-
-  // Mini sticky (estado rápido)
-  const updateMiniSticky = (goal,eaten)=>{
-    try{
-      const el=$('miniStickyStatus'), c=$('miniStickyContent');
-      if(!el||!c||!goal||!eaten) return;
-      const diffP = Math.round(goal.p - eaten.p);
-      const bal = Math.round((Number(eaten.kcal)||0) - (Number(goal.tdee)||0));
-      c.innerHTML = `
-        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
-        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
-        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
-      `;
-    }catch(e){}
-  };
-
-  window.addEventListener('scroll', ()=>{
-    const el=$('miniStickyStatus'); if(!el) return;
-    el.style.display = (window.scrollY>220) ? 'block' : 'none';
-  });
-
-
   // Init
   migrateIfNeeded();
   ensureFoodsStores();
   rolloverIfNeeded();
+  bindDevLongPress();
+  applyDevUI();
   renderAll();
 })();
-
-
 // ===== Daily Ledger System (90 days) =====
 const LEDGER_KEY = 'mc_daily_ledger';
 const LEDGER_LIMIT = 90;
