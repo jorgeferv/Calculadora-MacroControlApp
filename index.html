@@ -171,12 +171,6 @@
 
     /* iOS anti-zoom on inputs */
     input, select, textarea, button { font-size:16px; }
-    /* Mini sticky day status */
-    .miniSticky{position:fixed;top:0;left:0;right:0;z-index:220;
-      padding:8px 12px;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);
-      border-bottom:1px solid #1d2330;}
-    .miniStickyContent{display:flex;justify-content:space-between;gap:10px;
-      font-size:13px; font-variant-numeric: tabular-nums;}
     /* Add tab UX */
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
@@ -185,9 +179,6 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
-
-    .devOnly{display:none;}
-    .devOnly.devOn{display:block;}
 </style>
 </head>
 
@@ -206,7 +197,7 @@
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <details class="card devOnly" id="foodsControlBox" style="margin-bottom:12px;" >
+      <details class="card" id="foodsControlBox" style="margin-bottom:12px;;display:none;" >
   <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
     <b>Control</b>
     <span class="muted">Importar/Exportar</span>
@@ -217,6 +208,18 @@
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
+<div class="hr" style="margin:12px 0;"></div>
+<b>Motor (Rules Engine)</b>
+<div class="seg" style="margin-top:8px;">
+  <button id="exportRules" type="button">Exportar reglas</button>
+  <button id="importRulesBtn" type="button">Importar reglas</button>
+</div>
+<input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
+<div class="seg" style="margin-top:8px;">
+  <button id="resetRules" type="button">Restaurar reglas</button>
+</div>
+<div class="muted" style="margin-top:8px;">Las reglas se guardan en el móvil y afectan a Macros OK.</div>
+
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
         </div>  </div>
@@ -505,14 +508,24 @@
         <div class="hr"></div>
 
         <!-- MACROS OK -->
-        <label>Macros OK (sugerencia)</label>
-        <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
-        <div class="list" id="macrosOkList"></div>
-        <div class="seg">
-          <button id="macrosOkGen" type="button">Macros OK</button>
-          <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
-        </div>
-        <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
+<details id="macrosOkDetails">
+  <summary class="groupSummary">
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <b>Macros OK</b>
+      <small class="muted" id="macrosOkSummary">Cerrado</small>
+    </div>
+    <span class="muted">▾</span>
+  </summary>
+  <div class="groupWrap">
+    <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
+    <div class="list" id="macrosOkList"></div>
+    <div class="seg">
+      <button id="macrosOkGen" type="button">Macros OK</button>
+      <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
+    </div>
+    <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
+  </div>
+</details>
 
         <div class="hr"></div>
 
@@ -778,7 +791,8 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
+      b.onclick=()=>{ activeDayKey=d.key; renderAll();
+    updateMacrosOkSummary(); };
       wrap.appendChild(b);
     });
   };
@@ -2241,6 +2255,7 @@ window.addEventListener('error', function(e){
             currentMacrosOk.items.splice(idx,1);
             recalcMacrosOkTotals();
             renderMacrosOk();
+    updateMacrosOkSummary();
             return;
           }
 
@@ -2358,8 +2373,7 @@ window.addEventListener('error', function(e){
 
     renderTotals(goal,eaten);
     renderDayStatus(goal,eaten);
-    try{ updateMiniSticky(goal,eaten); }catch(e){}
-    renderHistoryChips(profile, storedMode);
+renderHistoryChips(profile, storedMode);
 
     // Guidance por desviación acumulada 7d
     const guidance = computeDeficitGuidance(profile, storedMode);
@@ -2684,7 +2698,117 @@ window.addEventListener('error', function(e){
     renderAll();
   };
 
-  // CRUD alimentos
+  // ===== Dev Mode (PIN) + Rules Engine =====
+const MC_DEV_PIN = '0954';
+const LS_DEV = 'mc_dev_enabled';
+const LS_RULES = 'mc_rules_engine';
+
+function isDev(){ return localStorage.getItem(LS_DEV)==='1'; }
+
+function setDev(on){
+  localStorage.setItem(LS_DEV, on ? '1' : '0');
+  const box = $('foodsControlBox');
+  if(box) box.style.display = on ? 'block' : 'none';
+}
+
+// Long-press on "Alimentos" title to unlock dev tools
+(function bindDevUnlock(){
+  const title = $('foodsTitle');
+  if(!title) return;
+  let t=null;
+  const start=()=>{
+    clearTimeout(t);
+    t=setTimeout(()=>{
+      const pin = prompt('PIN desarrollador:');
+      if(pin===null) return;
+      if(String(pin).trim()===MC_DEV_PIN){
+        setDev(true);
+        alert('Modo desarrollador activado.');
+      }else{
+        alert('PIN incorrecto.');
+      }
+    }, 650);
+  };
+  const end=()=>{ clearTimeout(t); t=null; };
+  title.addEventListener('touchstart', start, {passive:true});
+  title.addEventListener('touchend', end, {passive:true});
+  title.addEventListener('touchcancel', end, {passive:true});
+  title.addEventListener('mousedown', start);
+  title.addEventListener('mouseup', end);
+  title.addEventListener('mouseleave', end);
+})();
+
+function loadRules(){
+  try{
+    const raw = localStorage.getItem(LS_RULES);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || obj.schemaVersion !== 1) return null;
+    return obj;
+  }catch(e){ return null; }
+}
+
+function saveRules(obj){
+  localStorage.setItem(LS_RULES, JSON.stringify(obj));
+}
+
+function resetRules(){
+  localStorage.removeItem(LS_RULES);
+}
+
+function updateMacrosOkSummary(){
+  try{
+    const s = $('macrosOkSummary');
+    if(!s) return;
+    if(currentMacrosOk?.items?.length){
+      const kcal = Math.round(currentMacrosOk.items.reduce((a,x)=>a+(x.kcal||0),0));
+      s.textContent = `${currentMacrosOk.items.length} ítems · ${kcal} kcal`;
+    }else{
+      s.textContent = 'Cerrado';
+    }
+  }catch(e){}
+}
+
+// Bind rules import/export buttons (DEV only)
+function bindRulesUI(){
+  const exp = $('exportRules');
+  const impBtn = $('importRulesBtn');
+  const impFile = $('importRulesFile');
+  const reset = $('resetRules');
+  if(exp) exp.onclick = ()=>{
+    const r = loadRules();
+    if(!r){ alert('No hay reglas cargadas.'); return; }
+    const blob=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='rules_engine.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+  if(impBtn && impFile){
+    impBtn.onclick=()=>impFile.click();
+    impFile.onchange=(ev)=>{
+      const file=ev.target.files[0]; if(!file) return;
+      const fr=new FileReader();
+      fr.onload=()=>{
+        try{
+          const obj=JSON.parse(fr.result);
+          if(!obj || obj.schemaVersion!==1) throw new Error('schemaVersion inválido');
+          saveRules(obj);
+          alert('Reglas importadas.');
+        }catch(e){
+          alert('Reglas inválidas: '+(e?.message||e));
+        }
+      };
+      fr.readAsText(file);
+    };
+  }
+  if(reset) reset.onclick=()=>{
+    resetRules();
+    alert('Reglas restauradas (por defecto).');
+  };
+}
+// ===== End Dev Mode + Rules Engine =====
+
+// CRUD alimentos
   $('saveFood').onclick=()=>{
     const id=$('f_id').value.trim();
     const name=$('f_name').value.trim();
@@ -2893,6 +3017,8 @@ window.addEventListener('error', function(e){
   ensureFoodsStores();
   rolloverIfNeeded();
   renderAll();
+  setDev(isDev());
+  bindRulesUI();
 })();
 
 
@@ -2929,52 +3055,6 @@ function freezeDayIfNeeded(dateKey, summary){
 // ===== End Ledger System =====
 
 
-
-// ===== Dev Mode (locked) =====
-const DEV_PIN = '0954';
-function isDev(){
-  return localStorage.getItem('mc_dev') === '1';
-}
-function setDev(on){
-  localStorage.setItem('mc_dev', on ? '1' : '0');
-  applyDevUI();
-}
-function applyDevUI(){
-  document.querySelectorAll('.devOnly').forEach(el=>{
-    if(isDev()) el.classList.add('devOn');
-    else el.classList.remove('devOn');
-  });
-}
-(function initDevActivation(){
-  let pressTimer=null;
-  const title = document.getElementById('foodsTitle');
-  if(!title) return;
-  const start = (e)=>{
-    if(pressTimer) clearTimeout(pressTimer);
-    pressTimer = setTimeout(()=>{
-      const pin = prompt('PIN desarrollador');
-      if(pin===null) return;
-      if(pin.trim()===DEV_PIN){
-        setDev(true);
-        alert('Modo desarrollador activado');
-      }else{
-        alert('PIN incorrecto');
-      }
-    }, 650);
-  };
-  const cancel = ()=>{ if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } };
-  title.addEventListener('touchstart', start);
-  title.addEventListener('touchend', cancel);
-  title.addEventListener('touchmove', cancel);
-  title.addEventListener('mousedown', start);
-  title.addEventListener('mouseup', cancel);
-  title.addEventListener('mouseleave', cancel);
-})();
-document.addEventListener('DOMContentLoaded', applyDevUI);
-applyDevUI();
-// ===== End Dev Mode =====
-
 </script>
 </body>
-
 </html>
