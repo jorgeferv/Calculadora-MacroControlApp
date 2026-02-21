@@ -81,6 +81,15 @@
     details{background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
     summary{cursor:pointer;color:var(--text);font-weight:700;list-style:none;}
     summary::-webkit-details-marker{display:none;}
+    /* Panel plegable Macros OK (pantalla principal) */
+    .detailsPanel > summary{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    #macrosOkSummaryLine{font-weight:600;font-size:12px;white-space:nowrap;}
+
     .hint{color:var(--muted);font-size:12px;line-height:1.35;margin-top:6px;}
 
     .groupSummary{
@@ -566,14 +575,20 @@
         <div class="hr"></div>
 
         <!-- MACROS OK -->
-        <label>Macros OK (sugerencia)</label>
-        <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
-        <div class="list" id="macrosOkList"></div>
-        <div class="seg">
-          <button id="macrosOkGen" type="button">Macros OK</button>
-          <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
-        </div>
-        <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
+        <details id="macrosOkPanel" class="detailsPanel">
+          <summary>
+            <span>Macros OK · Modo plan</span>
+            <span class="muted" id="macrosOkSummaryLine">—</span>
+          </summary>
+
+          <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
+          <div class="list" id="macrosOkList"></div>
+          <div class="seg">
+            <button id="macrosOkGen" type="button">Macros OK</button>
+            <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
+          </div>
+          <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
+        </details>
 
         <div class="hr"></div>
 
@@ -2800,6 +2815,14 @@ window.addEventListener('error', function(e){
     renderRec(currentRec);
 
     renderMacrosOk();
+    // resumen en cabecera del panel Macros OK
+    const _sumEl = $('macrosOkSummaryLine');
+    if(_sumEl){
+      const _rem = $('remKcal')?.textContent || '—';
+      const _n = currentMacrosOk?.items?.length || 0;
+      _sumEl.textContent = _n ? `${_n} ítems · ${_rem} kcal` : 'Sin sugerencia';
+    }
+
     // lock day (solo consulta) si es pasado
     /* lock day */
     const lockables = document.querySelectorAll('#screen-day input, #screen-day select, #screen-day textarea, #screen-day button, #screen-add input, #screen-add select, #screen-add textarea, #screen-add button');
@@ -3442,6 +3465,16 @@ $('exportFoods').onclick=()=>{
   rolloverIfNeeded();
   bindDevLongPress();
   applyDevUI();
+
+  // Panel plegable Macros OK (recordar estado)
+  const _macPanel = $('macrosOkPanel');
+  if(_macPanel){
+    _macPanel.open = localStorage.getItem('mc_ui_macrosOkOpen') === '1';
+    _macPanel.addEventListener('toggle', ()=>{
+      localStorage.setItem('mc_ui_macrosOkOpen', _macPanel.open ? '1' : '0');
+    });
+  }
+
   renderAll();
 })();
 // ===== Daily Ledger System (90 days) =====
