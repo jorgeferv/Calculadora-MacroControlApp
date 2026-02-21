@@ -38,9 +38,10 @@
     .seg button{flex:1;min-width:120px}
     .seg button.active{outline:2px solid var(--acc);border-color:transparent;}
     /* Ventana móvil: chips días */
-    .weekChips{display:flex;gap:8px;overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px;}
+    /* Week chips: 7 botones centrados y encajados (sin que el último se salga) */
+    .weekChips{display:flex;gap:6px;overflow:visible; padding-bottom:4px;}
     .weekChips::-webkit-scrollbar{display:none;}
-    .weekChips button{flex:0 0 auto;min-width:44px;height:40px;padding:8px 12px;border-radius:14px;}
+    .weekChips button{flex:1 1 0;min-width:0;height:40px;padding:8px 8px;border-radius:14px;}
     .weekChips button.activeDay{background:linear-gradient(180deg,rgba(38,208,124,.42),rgba(38,208,124,.18));border-color:rgba(38,208,124,.65);}
 
     /* iOS: alinear inputs de hora y selects */
@@ -80,6 +81,15 @@
     details{background:#0c0f14;border:1px solid #2a3242;border-radius:12px;padding:10px;}
     summary{cursor:pointer;color:var(--text);font-weight:700;list-style:none;}
     summary::-webkit-details-marker{display:none;}
+    /* Panel plegable Macros OK (pantalla principal) */
+    .detailsPanel > summary{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    #macrosOkSummaryLine{font-weight:600;font-size:12px;white-space:nowrap;}
+
     .hint{color:var(--muted);font-size:12px;line-height:1.35;margin-top:6px;}
 
     .groupSummary{
@@ -118,6 +128,27 @@
     #saveFood{ margin-top:12px; }
 
     .searchRow{display:flex;gap:8px;align-items:center;}
+
+    /* --- Ajustes móviles (iPhone) --- */
+    input[type="time"]{max-width:100%;}
+    .card{overflow:hidden;}
+
+    @media (max-width: 430px){
+      body{padding:12px;padding-bottom:88px;padding-top:calc(env(safe-area-inset-top) + 12px);}
+      .card{padding:10px;border-radius:13px;}
+      h1{font-size:17px;}
+      .num{font-size:17px;}
+      .tabs{padding:9px 10px;padding-bottom:calc(9px + env(safe-area-inset-bottom));}
+      .tabs button{padding:9px;border-radius:13px;}
+
+      /* Chips de ventana móvil: evitar que el día se salga */
+      .weekChips button{min-width:0;height:44px;padding:6px 6px;font-size:13px;white-space:normal;line-height:1.05;}
+      #weekChips .miniBtn{display:flex;flex-direction:column;justify-content:center;align-items:center;}
+
+      /* Inputs/selects algo más compactos */
+      input,select,button,textarea{border-radius:12px;padding:9px;font-size:16px;}
+      input[type="time"], select{min-height:46px;height:46px;}
+    }
     .searchRow input{flex:1;}
     .foodListScroller{max-height:48vh; overflow:auto; -webkit-overflow-scrolling:touch; padding-right:2px;}
   
@@ -183,7 +214,10 @@
 </head>
 
 <body>
-<h1>MacroControlAPP</h1>
+
+  
+
+  <h1>MacroControlAPP</h1>
   <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
   <div class="muted" style="margin-bottom:12px;">
     </div>
@@ -192,37 +226,68 @@
   <div class="drawerBack" id="drawerBack">
     <div class="drawer">
       <div class="drawerTop">
-        <b id="foodsTitle">Alimentos</b>
+        <b id="drawerTitle">Alimentos</b><span id="devBadge" class="pill" style="display:none; margin-left:auto;">DEV</span>
         <button class="iconBtn" id="closeDrawer" type="button">Cerrar</button>
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <details class="card" id="foodsControlBox" style="margin-bottom:12px;;display:none;" >
+      <details class="card" id="foodsControlBox" style="margin-bottom:12px;" >
   <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
     <b>Control</b>
     <span class="muted">Importar/Exportar</span>
   </summary>
   <div style="margin-top:10px;">
+
+<div id="devLockedHint" class="muted" style="margin-top:6px;">Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.</div>
+<div id="devControlActions" style="display:none;">
 <div class="seg">
           <button id="exportFoods" type="button">Exportar JSON</button>
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
-<div class="hr" style="margin:12px 0;"></div>
-<b>Motor (Rules Engine)</b>
-<div class="seg" style="margin-top:8px;">
-  <button id="exportRules" type="button">Exportar reglas</button>
-  <button id="importRulesBtn" type="button">Importar reglas</button>
-</div>
-<input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
-<div class="seg" style="margin-top:8px;">
-  <button id="resetRules" type="button">Restaurar reglas</button>
-</div>
-<div class="muted" style="margin-top:8px;">Las reglas se guardan en el móvil y afectan a Macros OK.</div>
-
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
-        </div>  </div>
+        </div>
+        <div id="devBackupBlock" style="margin-top:12px; display:none;">
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b>Backup rápido (DEV)</b>
+            <span class="muted">Estado completo</span>
+          </div>
+          <div class="seg">
+            <button id="exportBackup" type="button">Exportar backup</button>
+            <button id="importBackupBtn" type="button">Importar backup</button>
+          </div>
+          <div class="seg" style="margin-top:8px;">
+            <button id="restoreLastBackup" type="button">Restaurar último</button>
+            <button id="makeBackupNow" type="button">Guardar copia</button>
+          </div>
+          <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
+          <div class="muted" style="margin-top:8px;">
+            Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
+          </div>
+        </div>
+
+        <div id="devRulesBlock" style="margin-top:12px; display:none;">
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b>Rules Engine (DEV)</b>
+            <span class="muted">Maridajes & caps</span>
+          </div>
+          <div class="seg">
+            <button id="exportRules" type="button">Exportar reglas</button>
+            <button id="importRulesBtn" type="button">Importar reglas</button>
+          </div>
+          <div class="seg" style="margin-top:8px;">
+            <button id="resetRules" type="button">Restaurar por defecto</button>
+          </div>
+          <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
+          <div class="muted" style="margin-top:8px;">
+            Consejo: exporta, edita el JSON y reimporta. Si el archivo es inválido, se ignora.
+          </div>
+        </div>
+</div>
+  </div>
 </details>
       </div>
 
@@ -234,7 +299,7 @@
         <label>Unidad base</label>
         <select id="f_baseUnit">
           <option value="100g" selected>por 100 g</option>
-          <option value="100ml">por 100 ml</option>
+          <option value="100ml" disabled>por 100 ml (legacy)</option>
           <option value="unit">por unidad</option>
         </select>
 
@@ -275,6 +340,8 @@
         </div>
 
         <button class="primary" id="saveFood" type="button">Guardar alimento</button>
+        <button class="danger" id="deleteFood" type="button" style="margin-top:8px;display:none;">Eliminar alimento</button>
+        <button id="toggleHideFood" type="button" style="margin-top:8px;display:none;">Ocultar / Mostrar (root)</button>
         <div style="height:12px;"></div>
         <div class="muted" style="margin-top:8px;">
           Lo guardado aquí se almacena como “usuario” y se conserva aunque actualices el código.
@@ -508,24 +575,20 @@
         <div class="hr"></div>
 
         <!-- MACROS OK -->
-<details id="macrosOkDetails">
-  <summary class="groupSummary">
-    <div style="display:flex;flex-direction:column;gap:2px;">
-      <b>Macros OK</b>
-      <small class="muted" id="macrosOkSummary">Cerrado</small>
-    </div>
-    <span class="muted">▾</span>
-  </summary>
-  <div class="groupWrap">
-    <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
-    <div class="list" id="macrosOkList"></div>
-    <div class="seg">
-      <button id="macrosOkGen" type="button">Macros OK</button>
-      <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
-    </div>
-    <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
-  </div>
-</details>
+        <details id="macrosOkPanel" class="detailsPanel">
+          <summary>
+            <span>Cuadrar Día · Modo plan</span>
+            <span class="muted" id="macrosOkSummaryLine">—</span>
+          </summary>
+
+          <div class="muted" id="macrosOkContext">Pulsa “Cuadrar Día” para cuadrar los slots pendientes (respetando lo ya registrado).</div>
+          <div class="list" id="macrosOkList"></div>
+          <div class="seg">
+            <button id="macrosOkGen" type="button">Cuadrar Día</button>
+            <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
+          </div>
+          <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
+        </details>
 
         <div class="hr"></div>
 
@@ -566,7 +629,16 @@
 
         <label>Buscar</label>
         <input id="foodSearch" placeholder="Escribe para filtrar..." />
-        <div id="recentFoods" class="recentFoods" style="display:none;"></div>
+        <div id="addStatusBar" class="addStatusBar">
+          <div class="row">
+            <div class="pill"><span class="k">🔥</span><span class="v" id="addRemK">—</span></div>
+            <div class="pill"><span class="k">🥩</span><span class="v" id="addRemP">—</span></div>
+            <div class="pill"><span class="k">🍚</span><span class="v" id="addRemC">—</span></div>
+            <div class="pill"><span class="k">🥑</span><span class="v" id="addRemF">—</span></div>
+          </div>
+        </div>
+
+        <!-- (Eliminado) Lista rápida bajo buscar: generaba ruido y no aportaba -->
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
         <label>Lista (toca para seleccionar)</label>
@@ -654,11 +726,16 @@ window.addEventListener('error', function(e){
   // STORAGE KEYS (estables)
   // =========================
   const LS = {
-    mode: 'mc_mode_v9',
-    settings: 'mc_settings_v9',
-    logs: 'mc_logs_v9',
-    lastDate: 'mc_lastDate_v9',
+    mode: 'mc_mode',
+    modeLegacy: 'mc_mode_v9',
+    settings: 'mc_settings',
+    settingsLegacy: 'mc_settings_v9',
+    logs: 'mc_logs',
+    logsLegacy: 'mc_logs_v9',
+    lastDate: 'mc_lastDate',
+    lastDateLegacy: 'mc_lastDate_v9',
     profile: 'mc_profile',
+    rulesEngine: 'mc_rules_engine',
     foodsRoot: 'mc_foods_root',
     foodsUser: 'mc_foods_user',
     foodsLegacy: 'mc_foods_v8'
@@ -667,14 +744,22 @@ window.addEventListener('error', function(e){
   // =========================
   // DATA VERSIONING (migraciones seguras)
   // =========================
-  const DATA_VERSION = 1;
+  const DATA_VERSION = 2;
   const LS_VERSION_KEY = 'mc_data_version';
 
   const migrateIfNeeded = ()=>{
     const cur = Number(localStorage.getItem(LS_VERSION_KEY) || 0);
     if(cur === DATA_VERSION) return;
-    // Migraciones futuras: aquí.
-    // Por ahora: garantizar estructuras base sin romper datos existentes.
+
+    // v2: claves estables (sin _v9) + copia desde legacy si existe (para no perder historial tras actualizar).
+    try{
+      if(!localStorage.getItem(LS.mode) && localStorage.getItem(LS.modeLegacy)) localStorage.setItem(LS.mode, localStorage.getItem(LS.modeLegacy));
+      if(!localStorage.getItem(LS.settings) && localStorage.getItem(LS.settingsLegacy)) localStorage.setItem(LS.settings, localStorage.getItem(LS.settingsLegacy));
+      if(!localStorage.getItem(LS.logs) && localStorage.getItem(LS.logsLegacy)) localStorage.setItem(LS.logs, localStorage.getItem(LS.logsLegacy));
+      if(!localStorage.getItem(LS.lastDate) && localStorage.getItem(LS.lastDateLegacy)) localStorage.setItem(LS.lastDate, localStorage.getItem(LS.lastDateLegacy));
+    }catch(_){}
+
+    // Garantizar estructuras base sin romper datos existentes.
     try{
       const logs = loadJSON(LS.logs, {});
       if(typeof logs !== 'object' || Array.isArray(logs)) saveJSON(LS.logs, {});
@@ -729,6 +814,118 @@ window.addEventListener('error', function(e){
 
   // ======= HELPERS =======
   const $=id=>document.getElementById(id);
+  // =========================
+  // DEV MODE (bloquea acciones peligrosas)
+  // =========================
+  const DEV_MODE_KEY = 'mc_dev_mode_v1';
+  const DEV_HIDDEN_KEY = 'mc_foods_hidden_v1'; // para ocultar foodsRoot sin tocarlos
+  const DEV_PIN = atob('MDk1NA=='); // 0954
+
+  const isDev = ()=> localStorage.getItem(DEV_MODE_KEY)==='1';
+  const setDev = (on)=>{
+    localStorage.setItem(DEV_MODE_KEY, on ? '1' : '0');
+    applyDevUI();
+  };
+
+  const loadHiddenIds = ()=> loadJSON(DEV_HIDDEN_KEY, []);
+  const saveHiddenIds = (arr)=> saveJSON(DEV_HIDDEN_KEY, Array.isArray(arr)?arr:[]);
+  const isHiddenId = (id)=> loadHiddenIds().includes(id);
+  const toggleHiddenId = (id)=>{
+    const cur = loadHiddenIds();
+    const next = cur.includes(id) ? cur.filter(x=>x!==id) : [...cur, id];
+    saveHiddenIds(next);
+  };
+
+  const applyDevUI = ()=>{
+    const dev = isDev();
+    const badge = $('devBadge');
+    if(badge) badge.style.display = dev ? 'inline-flex' : 'none';
+
+    const ctrlActions = $('devControlActions');
+    const ctrlHint = $('devLockedHint');
+    if(ctrlActions) ctrlActions.style.display = dev ? '' : 'none';
+    if(ctrlHint) ctrlHint.style.display = dev ? 'none' : '';
+
+    const backupBlock = $('devBackupBlock');
+    if(backupBlock) backupBlock.style.display = dev ? '' : 'none';
+
+    const rulesBlock = $('devRulesBlock');
+    if(rulesBlock) rulesBlock.style.display = dev ? '' : 'none';
+
+    const delBtn = $('deleteFood');
+    const hideBtn = $('toggleHideFood');
+    if(delBtn) delBtn.style.display = dev ? '' : 'none';
+    if(hideBtn) hideBtn.style.display = dev ? '' : 'none';
+
+    // Guardar alimento: solo dev
+    const saveBtn = $('saveFood');
+    if(saveBtn) saveBtn.disabled = !dev;
+  };
+
+  const promptDevUnlock = ()=>{
+    const pin = prompt('Modo desarrollador\n\nIntroduce PIN:');
+    if(pin===null) return;
+    if(String(pin).trim() === DEV_PIN){
+      setDev(true);
+      alert('Modo desarrollador ACTIVADO.');
+      renderAll();
+    } else {
+      alert('PIN incorrecto.');
+    }
+  };
+
+  const lockDev = ()=>{
+    if(confirm('¿Desactivar modo desarrollador?')){
+      setDev(false);
+      alert('Modo desarrollador DESACTIVADO.');
+      renderAll();
+    }
+  };
+
+  const bindDevLongPress = ()=>{
+    const t = $('drawerTitle');
+    if(!t) return;
+    let timer=null;
+    const start = ()=>{
+      clearTimeout(timer);
+      timer = setTimeout(()=>{
+        // toggle con seguridad
+        if(isDev()) lockDev();
+        else promptDevUnlock();
+      }, 1200);
+    };
+    const cancel = ()=>{ clearTimeout(timer); timer=null; };
+
+    t.addEventListener('touchstart', start, {passive:true});
+    t.addEventListener('touchend', cancel);
+    t.addEventListener('touchcancel', cancel);
+    t.addEventListener('mousedown', start);
+    t.addEventListener('mouseup', cancel);
+    t.addEventListener('mouseleave', cancel);
+  };
+
+  // Barra de estado en Añadir (kcal + macros)e en pantallas principales.
+  const updateAddStatusBar = (goal,eaten)=>{
+    try{
+      const wrap=$('addStatusBar');
+      if(!wrap || !goal || !eaten) return;
+      const tab = (typeof state!=='undefined' && state && state.tab) ? state.tab : 'day';
+      // Solo en pantalla Añadir
+      wrap.style.display = (tab==='add') ? 'block' : 'none';
+
+      const remK = Math.round((goal.goalKcal||0) - (eaten.kcal||0));
+      const remP = Math.round((goal.p||0) - (eaten.p||0));
+      const remC = Math.round((goal.c||0) - (eaten.c||0));
+      const remF = Math.round((goal.f||0) - (eaten.f||0));
+
+      const kEl=$('addRemK'), pEl=$('addRemP'), cEl=$('addRemC'), fEl=$('addRemF');
+      if(kEl) kEl.textContent = `${remK>=0?remK:('-'+Math.abs(remK))}`;
+      if(pEl) pEl.textContent = `${remP>=0?('+'+remP):('-'+Math.abs(remP))}`;
+      if(cEl) cEl.textContent = `${remC>=0?('+'+remC):('-'+Math.abs(remC))}`;
+      if(fEl) fEl.textContent = `${remF>=0?('+'+remF):('-'+Math.abs(remF))}`;
+    }catch(e){}
+  };
+
   const round=(n,d=0)=>{const p=10**d; return Math.round((Number(n)||0)*p)/p;};
   const todayKey=()=>{
     const d=new Date();
@@ -791,14 +988,85 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ activeDayKey=d.key; renderAll();
-    updateMacrosOkSummary(); };
+      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
     });
   };
 
-  const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}}; 
-  const saveJSON=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
+  const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
+
+  // =========================
+  // RULES ENGINE (maridajes/caps) - configurable via JSON (DEV)
+  // =========================
+  const DEFAULT_RULES_ENGINE = {
+    schemaVersion: 1,
+    constraintsHard: {
+      kcalToleranceBlock: 80,
+      kcalToleranceDay: 100,
+      proteinPerBlock: { min: 20, maxNormal: 45, maxPost: 50 },
+      fatPerBlock: { min: 5, maxPre: 15, maxPost: 20, maxNeutral: 25 },
+      carbPerBlock: { min: 0, maxPre: 90, maxPost: 120, maxNeutral: 140 },
+      maxItemsPerBlock: 3,
+      prefer2ItemsPerBlock: true
+    },
+    policy: {
+      energyIsKing: true,
+      proteinPriority: true,
+      carbsAroundTraining: true,
+      carbsAreLever: true,
+      fatIsFloorNotTarget: true
+    },
+    contexts: {
+      PRE: { priorityOrder: ['P','C','F'], capsOverride: { fatMax: 15 } },
+      POST: { priorityOrder: ['P','C','F'], capsOverride: { proteinMax: 50, fatMax: 20 } },
+      NEUTRAL: { priorityOrder: ['P','F','C'], capsOverride: { fatMax: 25 } }
+    }
+  };
+
+  const validateRulesEngine = (obj)=>{
+    if(!obj || typeof obj!=='object' || Array.isArray(obj)) throw new Error('Rules Engine inválido');
+    const sv = Number(obj.schemaVersion);
+    if(!Number.isFinite(sv) || sv < 1) throw new Error('schemaVersion inválido');
+    if(!obj.constraintsHard || typeof obj.constraintsHard!=='object') throw new Error('Falta constraintsHard');
+    if(!obj.contexts || typeof obj.contexts!=='object') throw new Error('Falta contexts');
+    return obj;
+  };
+
+  const loadRulesEngine = ()=>{
+    const r = loadJSON(LS.rulesEngine, null);
+    if(!r) return DEFAULT_RULES_ENGINE;
+    try{ return validateRulesEngine(r); }catch(_){ return DEFAULT_RULES_ENGINE; }
+  };
+
+  // Backup rápido (anti-pérdida al actualizar / recargar)
+  const BACKUP_LAST_KEY = 'mc_backup_last';
+  const snapshotState = ()=>{
+    // No incluimos foodsRoot (viene del código / json). Solo datos de usuario.
+    return {
+      ts: Date.now(),
+      dataVersion: DATA_VERSION,
+      mode: loadJSON(LS.mode, null),
+      settings: loadJSON(LS.settings, null),
+      logs: loadJSON(LS.logs, null),
+      lastDate: loadJSON(LS.lastDate, null),
+      profile: loadJSON(LS.profile, null),
+      rulesEngine: loadJSON(LS.rulesEngine, null),
+      foodsUser: loadJSON(LS.foodsUser, null),
+      foodsHidden: loadJSON(DEV_HIDDEN_KEY, null),
+      devMode: localStorage.getItem(DEV_MODE_KEY) || '0'
+    };
+  };
+
+  const saveBackupLast = ()=>{
+    try{ localStorage.setItem(BACKUP_LAST_KEY, JSON.stringify(snapshotState())); }catch(_){}
+  };
+
+  const saveJSON=(k,o)=>{
+    localStorage.setItem(k,JSON.stringify(o));
+    if(k===LS.mode || k===LS.settings || k===LS.logs || k===LS.lastDate || k===LS.profile || k===LS.foodsUser || k===LS.rulesEngine || k===DEV_HIDDEN_KEY){
+      saveBackupLast();
+    }
+  };
   const getLevel=(mk,lk)=>(LEVELS[mk]||[]).find(x=>x.key===lk) || (LEVELS[mk]||[])[0];
   const daysSince = (ts)=>{
     if(!ts) return 9999;
@@ -871,7 +1139,7 @@ window.addEventListener('error', function(e){
     saveJSON(LS.foodsRoot, Array.from(rootMap.values()));
   };
 
-  const loadFoodsMerged = ()=>{
+  const loadFoodsMerged = (opts={})=>{
     ensureFoodsStores();
     const root = loadJSON(LS.foodsRoot, []).map(normalizeFood);
     const user = loadJSON(LS.foodsUser, []).map(normalizeFood);
@@ -884,7 +1152,11 @@ window.addEventListener('error', function(e){
     const map=new Map();
     root.forEach(f=>map.set(f.id,f));
     user.forEach(f=>map.set(f.id,f));
-    return Array.from(map.values());
+    const merged = Array.from(map.values());
+    const includeHidden = !!opts.includeHidden;
+    if(includeHidden) return merged;
+    const hidden = new Set(loadHiddenIds());
+    return merged.filter(f=>!hidden.has(f.id));
   };
 
   const upsertFoodFromApp = (foodObj)=>{
@@ -1215,6 +1487,10 @@ window.addEventListener('error', function(e){
   // Objetivo: cuadrar SOLO lo que falta en el día, respetando lo ya registrado.
   // Post-entreno es opcional y solo entra si (WOD > 0) o (Calorías activas > 0). NEAT NO afecta.
   const planMacrosOk=(foods, goal, logs, day)=>{
+    const rules = loadRulesEngine();
+    const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
+    const ctxConf = rules?.contexts || DEFAULT_RULES_ENGINE.contexts;
+
     const baseSlots = ['desayuno','comida','merienda','cena'];
 
     const postActive = ((Number(day?.wod)||0) > 0) || ((Number(day?.cardioKcal)||0) > 0);
@@ -1279,6 +1555,31 @@ window.addEventListener('error', function(e){
     const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
     const round5 = (x)=> Math.round(x/5)*5;
 
+    const ctxForSlot = (slot)=>{
+      if(slot==='post_entreno') return 'POST';
+      if(slot==='pre_entreno') return 'PRE';
+      return 'NEUTRAL';
+    };
+
+    const capsForCtx = (ctx)=>{
+      const base = {
+        pMin: Number(hard?.proteinPerBlock?.min ?? 20),
+        pMax: Number((ctx==='POST') ? (hard?.proteinPerBlock?.maxPost ?? 50) : (hard?.proteinPerBlock?.maxNormal ?? 45)),
+        fMin: Number(hard?.fatPerBlock?.min ?? 5),
+        fMax: Number(ctx==='PRE' ? (hard?.fatPerBlock?.maxPre ?? 15) : (ctx==='POST' ? (hard?.fatPerBlock?.maxPost ?? 20) : (hard?.fatPerBlock?.maxNeutral ?? 25))),
+        cMin: Number(hard?.carbPerBlock?.min ?? 0),
+        cMax: Number(ctx==='PRE' ? (hard?.carbPerBlock?.maxPre ?? 90) : (ctx==='POST' ? (hard?.carbPerBlock?.maxPost ?? 120) : (hard?.carbPerBlock?.maxNeutral ?? 140))),
+        maxItems: Number(hard?.maxItemsPerBlock ?? 3)
+      };
+      const ov = (ctxConf && ctxConf[ctx] && ctxConf[ctx].capsOverride) ? ctxConf[ctx].capsOverride : null;
+      if(ov){
+        if(Number.isFinite(Number(ov.proteinMax))) base.pMax = Number(ov.proteinMax);
+        if(Number.isFinite(Number(ov.fatMax))) base.fMax = Number(ov.fatMax);
+        if(Number.isFinite(Number(ov.carbMax))) base.cMax = Number(ov.carbMax);
+      }
+      return base;
+    };
+
     const qtyForMacro = (food, macroKey, target)=>{
       // target en gramos de macro; devuelve qty (g o units) aproximada
       const per = macroFor(food, 'g', 100);
@@ -1308,6 +1609,8 @@ window.addEventListener('error', function(e){
     };
 
     const buildSlot = (slot, rem, slotsLeft)=>{
+      const ctx = ctxForSlot(slot);
+      const caps = capsForCtx(ctx);
       // target kcal para este slot
       const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
 
@@ -1320,7 +1623,8 @@ window.addEventListener('error', function(e){
 
       // 1) Proteína base
       const pFood = proteins[0];
-      const pNeed = clamp(rem.p / Math.max(1, slotsLeft), 28, 55); // gramos de proteína
+      // Proteína por bloque: humana y capada (evita 60g)
+      const pNeed = clamp(rem.p / Math.max(1, slotsLeft), Math.max(20, caps.pMin), caps.pMax);
       const pQty = qtyForMacro(pFood, 'p', pNeed);
       addItem(slot, pFood, (pFood.baseUnit==='unit'?'unit':'g'), pQty);
 
@@ -1332,11 +1636,15 @@ window.addEventListener('error', function(e){
       if(needCarb){
         const cFood = carbs[0] || fruits[0];
         if(cFood){
-          const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, 90);
+          const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, caps.cMax);
           const cQty = (cFood.id==='banana'||cFood.id==='uva'||cFood.id==='freson'||cFood.id==='manzana')
             ? clamp(round5(cNeed*5), 80, 250)
             : qtyForMacro(cFood, 'c', cNeed);
-          addItem(slot, cFood, (cFood.baseUnit==='unit'?'unit':'g'), cQty);
+          // Si ya tenemos demasiados items, mejor subir qty de lo existente
+          const existingCount = plannedItems.filter(x=>x.meal===slot).length;
+          if(existingCount < caps.maxItems){
+            addItem(slot, cFood, (cFood.baseUnit==='unit'?'unit':'g'), cQty);
+          }
         }
       }
 
@@ -1347,9 +1655,12 @@ window.addEventListener('error', function(e){
       if(needFat && fats.length){
         const fFood = fats[0];
         // target grasa moderada
-        const fNeed = clamp(rem.f / Math.max(1, slotsLeft), 8, 18);
+        const fNeed = clamp(rem.f / Math.max(1, slotsLeft), Math.max(6, caps.fMin), caps.fMax);
         const fQty = qtyForMacro(fFood, 'f', fNeed);
-        addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
+        const existingCount = plannedItems.filter(x=>x.meal===slot).length;
+        if(existingCount < caps.maxItems){
+          addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
+        }
       }
 
       // 4) Ajuste final: si aún falta mucha kcal, empuja con carb o fat según lo que falte
@@ -1360,7 +1671,8 @@ window.addEventListener('error', function(e){
         if(delta < 120) break;
 
         // decide si empujar con carb o fat
-        const wantCarb = (rem.c > rem.f*0.8) || carbs.length;
+        // PRE/POST: empujar con carb es más humano; NEUTRAL decide por lo que falte
+        const wantCarb = (ctx==='PRE' || ctx==='POST') ? true : ((rem.c > rem.f*0.8) || carbs.length);
         const pushFood = wantCarb ? (carbs[0] || fruits[0]) : fats[0];
         if(!pushFood) break;
 
@@ -1375,6 +1687,8 @@ window.addEventListener('error', function(e){
           existing.qtyDisplay = qtyDisplay(existing.qtyType, existing.qty);
           existing.kcal=mac.kcal; existing.p=mac.p; existing.c=mac.c; existing.f=mac.f;
         } else {
+          const existingCount = plannedItems.filter(x=>x.meal===slot).length;
+          if(existingCount >= caps.maxItems) break;
           addItem(slot, pushFood, qtyType, (qtyType==='unit'?1:step));
         }
       }
@@ -1427,29 +1741,63 @@ window.addEventListener('error', function(e){
   };
   // ======= ESTADO =======
   const computeDayStatus=(goal,eaten)=>{
-    const kcalRatio = goal.goalKcal>0 ? eaten.kcal/goal.goalKcal : 0;
-    const pRatio = goal.p>0 ? eaten.p/goal.p : 0;
+    // Estado consistente con la filosofía:
+    // - Mandan las calorías (déficit). Si kcal están en rango, el día "cuenta".
+    // - Proteína es prioridad. Si P está cubierta, el día puede ser BUENO aunque C/F estén desbalanceados.
+    const gK = Number(goal.goalKcal)||0;
+    const eK = Number(eaten.kcal)||0;
+    const gP = Number(goal.p)||0;
+    const eP = Number(eaten.p)||0;
+    const gF = Number(goal.f)||0;
+    const eF = Number(eaten.f)||0;
+    const gC = Number(goal.c)||0;
+    const eC = Number(eaten.c)||0;
+
+    const tolKcal = Math.max(100, gK*0.03);
+    const kcalDiff = eK - gK; // + pasado
+
+    const w = Number(($('weight')&&$('weight').value)||0);
+    const minPhysFat = w>0 ? (0.6*w) : 0;
+
+    const proteinOk = (gP<=0) ? true : (eP >= (gP - 5));
+    const fatPhysOk = (minPhysFat<=0) ? true : (eF >= (minPhysFat - 0.1));
+    const energyOk = Math.abs(kcalDiff) <= tolKcal;
+
+    // "Perfecto" exige que los 3 macros estén razonablemente cerca (tolerancias simples)
+    const perfect = energyOk && proteinOk && fatPhysOk &&
+      (Math.abs(eC - gC) <= 15) && (Math.abs(eF - gF) <= 5) && (Math.abs(eP - gP) <= 10);
 
     let state='ok';
-    if(kcalRatio<=1.05 && pRatio>=0.90) state='good';
-    else if(kcalRatio<=1.12 && pRatio>=0.75) state='ok';
-    else state='bad';
+    let label='REGULAR';
 
-    const kcalPct = Math.round(kcalRatio*100);
-    const pPct = Math.round(pRatio*100);
-
-    let label = state==='good'?'BUENO':(state==='ok'?'REGULAR':'MALO');
-    let detail = `Calorías: ${kcalPct}% del objetivo · Proteína: ${pPct}% del objetivo`;
-
-    if(state==='bad'){
-      if(kcalRatio>1.12) detail += ' · Prioriza proteína magra y evita hidratos extra.';
-      else detail += ' · Te falta proteína: mete un bloque proteico ya.';
-    } else if(state==='ok'){
-      if(pRatio<0.9) detail += ' · Aún falta proteína: sube P en la próxima comida.';
-      else detail += ' · Controlado: ajusta fino con proteína y grasas.';
+    if(!energyOk){
+      state='bad';
+      label='REVISAR';
+    } else if(proteinOk && fatPhysOk){
+      state='good';
+      label = perfect ? 'PERFECTO' : 'BUENO';
     } else {
-      detail += ' · Bien ejecutado.';
+      state='ok';
+      label='MEJORABLE';
     }
+
+    const bits=[];
+    const kcalSigned = `${(Math.round(kcalDiff)>0?'+':'')}${Math.round(kcalDiff)} kcal`;
+    bits.push(energyOk ? 'Energía: OK' : `Energía: ${kcalSigned}`);
+    if(!proteinOk) bits.push('Proteína: baja');
+    else bits.push('Proteína: OK');
+    if(!fatPhysOk) bits.push('Grasa: muy baja');
+
+    // Macro balance (solo si energía OK)
+    if(energyOk){
+      const notes=[];
+      if(eF < (gF - 6)) notes.push('F baja');
+      if(eC > (gC + 20)) notes.push('C alta');
+      if(notes.length) bits.push(`Macros: ${notes.join(' · ')}`);
+      else bits.push('Macros: OK');
+    }
+
+    const detail = bits.join(' · ');
     return {state,label,detail};
   };
 
@@ -1738,6 +2086,12 @@ window.addEventListener('error', function(e){
 
   const renderFoodsList=(foods)=>{
     const list=$('foodsList'); list.innerHTML='';
+    const dev = isDev();
+    // Para saber si un alimento es "usuario"
+    const userArr = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    const userSet = new Set(userArr.map(x=>x.id));
+    const hiddenSet = new Set(loadHiddenIds());
+
     const q = ($('foodsSearch')?.value || '').trim().toLowerCase();
     foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
@@ -1745,9 +2099,44 @@ window.addEventListener('error', function(e){
       .sort((a,b)=>a.name.localeCompare(b.name,'es'))
       .forEach(f=>{
         const d=document.createElement('div'); d.className='item';
-        d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id} · ${f.baseUnit}${f.unitGrams?` · ${f.unitGrams}g/u`:''}</small><br><small>${(f.tags||[]).join(', ')}</small></div>
-                     <div class="right"><b>${f.kcal}</b><small> kcal</small><br><small>P ${f.p} · C ${f.c} · F ${f.f}</small></div>`;
+        d.innerHTML = `<div><b>${f.name}</b>${hiddenSet.has(f.id)?'<br><small class="muted">[OCULTO]</small>':''}<br><small>${f.id} · ${f.baseUnit}${f.unitGrams?` · ${f.unitGrams}g/u`:''}</small><br><small>${(f.tags||[]).join(', ')}</small></div>
+                     <div class="right" style="display:flex;align-items:center;gap:10px;">
+                       <div style="text-align:right;">
+                         <b>${f.kcal}</b><small> kcal</small><br><small>P ${f.p} · C ${f.c} · F ${f.f}</small>
+                       </div>
+                       ${dev ? `
+                         ${userSet.has(f.id) ? `<button class="delBtn" data-act="del" title="Eliminar (usuario)">🗑</button>` : `<button class="delBtn" data-act="hide" title="${hiddenSet.has(f.id)?'Mostrar':'Ocultar'} (root)">👁</button>`}
+                       ` : ``}
+                     </div>`;
+
+        const actBtn = d.querySelector('[data-act]');
+        if(actBtn){
+          actBtn.onclick=(ev)=>{
+            ev.stopPropagation();
+            if(!dev) return;
+            const act = actBtn.getAttribute('data-act');
+            if(act==='del'){
+              if(confirm(`¿Eliminar "${f.name}" (usuario)?`)){
+                const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+                saveJSON(LS.foodsUser, currentUser.filter(x=>x.id!==f.id));
+                // si estaba en hidden, también lo limpiamos
+                const h = loadHiddenIds();
+                if(h.includes(f.id)) saveHiddenIds(h.filter(x=>x!==f.id));
+                renderAll();
+              }
+            } else if(act==='hide'){
+              // ocultar/mostrar root sin tocar archivo
+              toggleHiddenId(f.id);
+              renderAll();
+            }
+          };
+        }
         d.onclick=()=>{
+          if(!dev){
+            try{ navigator.clipboard?.writeText(f.id); }catch(_){ }
+            alert(`ID copiado: ${f.id}`);
+            return;
+          }
           $('f_id').value=f.id;
           $('f_name').value=f.name;
           $('f_baseUnit').value=f.baseUnit;
@@ -1841,27 +2230,42 @@ window.addEventListener('error', function(e){
     setFill($('barCFill'), cS.state, cPct);
     setFill($('barKFill'), kS.state, kPct);
 
-    // Advice (prioridad: proteína -> kcal -> carbos, grasas solo si bajo mínimo)
-    const remK = gK - eK;
+    // Advice coherente:
+    // 1) MANDAN LAS CALORÍAS (déficit). Si kcal están en rango, NO se recomienda recortar/añadir, solo re-balanceo.
+    // 2) Prioridad: cubrir proteína (si falta) -> respetar grasa mínima fisiológica -> el resto se ajusta.
+    const tolKcal = Math.max(100, gK*0.03);
+    const kcalDiff = eK - gK; // + = pasado
     const remP = gP - eP;
     const remF = gF - eF;
     const remC = gC - eC;
+    const carbExcess = eC - gC;
+
+    const minPhysFat = w>0 ? (0.6*w) : 0; // umbral mínimo (prueba contigo; no es para usuario final)
+    const fatBelowMinPhys = (minPhysFat>0) && (eF < (minPhysFat - 0.1));
 
     let advice = '';
-    if(fS.text.startsWith('Bajo mínimo')){
-      advice = `Sube grasas: ${fS.text}.`;
+    if(fatBelowMinPhys){
+      advice = `Sube grasas: estás por debajo del mínimo (${fmt1(minPhysFat)} g).`;
     } else if(remP > pMargin){
-      advice = `Mete proteína: faltan ${fmt1(remP)} g. Mantén el resto.`;
-    } else if(remK > kcalMargin){
-      advice = `Te faltan ${Math.round(remK)} kcal. Sube hidratos (y algo de proteína si apetece).`;
-    } else if(remK < -kcalMargin){
-      advice = `Vas pasado de calorías (+${Math.round(Math.abs(remK))} kcal). Baja hidratos/grasas en la próxima comida.`;
-    } else if(cS.state==='mid'){
-      advice = `Ajusta hidratos: faltan ${fmt1(Math.max(0,remC))} g (aprox.).`;
-    } else if(pS.state==='bad' || cS.state==='bad' || fS.state==='bad'){
-      advice = `Toca recortar: revisa el macro en rojo para volver a rango.`;
+      advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Mantén calorías.`;
+    } else if(kcalDiff < -tolKcal){
+      advice = `Te faltan ${Math.round(Math.abs(kcalDiff))} kcal. Sube hidratos (y algo de grasa si te apetece).`;
+    } else if(kcalDiff > tolKcal){
+      advice = `Vas pasado de calorías (+${Math.round(kcalDiff)} kcal). Recorta hidratos/grasas en la próxima comida.`;
     } else {
-      advice = 'No cambies nada. Sigue el plan.';
+      // kcal OK: solo re-balanceo si quieres afinar
+      if(remF > fMargin && carbExcess > cMargin){
+        // swap kcal: grasa 9 kcal/g vs carbo 4 kcal/g
+        const swapF = Math.round(remF);
+        const swapC = Math.round((swapF*9)/4);
+        advice = `Calorías OK. Rebalanceo: sube grasas ~${swapF} g y baja carbo ~${swapC} g.`;
+      } else if(remF > fMargin){
+        advice = `Calorías OK. Si quieres afinar, mete algo más de grasas (+${fmt1(remF)} g aprox.).`;
+      } else if(carbExcess > cMargin){
+        advice = `Calorías OK. Si quieres afinar, baja hidratos en la próxima comida.`;
+      } else {
+        advice = 'No cambies nada. Sigue el plan.';
+      }
     }
     const advEl = $('macroAdviceText');
     if(advEl) advEl.textContent = advice;
@@ -1871,16 +2275,17 @@ window.addEventListener('error', function(e){
   };
   
 
-  const renderBalanceBar=(tdee, eatenKcal)=>{
+  // Balance vs objetivo del día (incluye el déficit seleccionado). Cuando el día está "cuadrado" tiende a 0.
+  const renderBalanceBar=(goalKcal, eatenKcal)=>{
     const elText = $('balanceText');
     const dot = $('balDot');
     if(!elText || !dot) return;
-    const diff = Math.round((tdee - eatenKcal)); // positivo = déficit, negativo = superávit
-    const label = diff>0 ? `Déficit real: -${diff} kcal` : (diff<0 ? `Superávit real: +${Math.abs(diff)} kcal` : 'Equilibrio: 0 kcal');
+    const diff = Math.round((Number(eatenKcal)||0) - (Number(goalKcal)||0)); // + = te pasas vs objetivo, - = te falta
+    const label = diff>0 ? `Balance vs objetivo: +${diff} kcal` : (diff<0 ? `Balance vs objetivo: -${Math.abs(diff)} kcal` : 'Balance vs objetivo: 0 kcal');
     elText.textContent = label;
 
     const cap = 800;
-    const clamped = Math.max(-cap, Math.min(cap, -diff)); // izquierda = déficit (diff positivo) => -diff negativo
+    const clamped = Math.max(-cap, Math.min(cap, diff)); // izquierda = te falta, derecha = te pasas
     const pct = ((clamped + cap) / (2*cap)) * 100;
     dot.style.left = `calc(${pct}% - 7px)`;
   };
@@ -1889,7 +2294,8 @@ window.addEventListener('error', function(e){
 
   const renderDayStatus=(goal,eaten)=>{
     renderMacroBars(goal,eaten);
-    renderBalanceBar(goal.tdee||0, Number(eaten.kcal)||0);
+    renderBalanceBar(goal.goalKcal||goal.tdee||0, Number(eaten.kcal)||0);
+    updateAddStatusBar(goal,eaten);
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
@@ -2255,7 +2661,6 @@ window.addEventListener('error', function(e){
             currentMacrosOk.items.splice(idx,1);
             recalcMacrosOkTotals();
             renderMacrosOk();
-    updateMacrosOkSummary();
             return;
           }
 
@@ -2266,7 +2671,10 @@ window.addEventListener('error', function(e){
           const u=m[2].toLowerCase();
           const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
 
-          const foods=loadFoodsMerged();
+          const foods=loadFoodsMerged({ includeHidden:false });
+
+    // para gestión en drawer (dev puede ver ocultos)
+    const foodsForDrawer = loadFoodsMerged({ includeHidden: isDev() });
           const f=foodById(foods,it.foodId);
           if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
 
@@ -2284,7 +2692,7 @@ window.addEventListener('error', function(e){
     }
 
     const s=document.createElement('div'); s.className='item';
-    s.innerHTML=`<div><b>Total plan (Macros OK)</b><br><small>Se añadirá al registro al confirmar</small></div>
+    s.innerHTML=`<div><b>Total plan (Cuadrar Día)</b><br><small>Se añadirá al registro al confirmar</small></div>
                  <div class="right"><b>${round(currentMacrosOk.tot.kcal)}</b><small> kcal</small><br><small>P ${round(currentMacrosOk.tot.p,1)} · C ${round(currentMacrosOk.tot.c,1)} · F ${round(currentMacrosOk.tot.f,1)}</small></div>`;
     list.appendChild(s);
   };
@@ -2324,7 +2732,8 @@ window.addEventListener('error', function(e){
     rolloverIfNeeded();
     renderWeekChips();
 
-    const foods=loadFoodsMerged();
+    const foods=loadFoodsMerged({ includeHidden:false });
+    const foodsForDrawer=loadFoodsMerged({ includeHidden: isDev() });
 
     const storedMode=loadMode();
     if(!modeDraft) modeDraft = {...storedMode};
@@ -2365,7 +2774,7 @@ window.addEventListener('error', function(e){
     renderFoodPicker(foods);
     renderAddFoodList(foods);
     try{ renderRecentFoods(foods); const f=foodById(foods,$('foodPick').value); if(f) applyQtyModeForFood(f);}catch(e){}
-    renderFoodsList(foods);
+    renderFoodsList(foodsForDrawer);
 
     const logs=loadLogs(activeDayKey).items;
     const eaten=sumMacros(logs);
@@ -2373,7 +2782,8 @@ window.addEventListener('error', function(e){
 
     renderTotals(goal,eaten);
     renderDayStatus(goal,eaten);
-renderHistoryChips(profile, storedMode);
+    try{ updateMiniSticky(goal,eaten); }catch(e){}
+    renderHistoryChips(profile, storedMode);
 
     // Guidance por desviación acumulada 7d
     const guidance = computeDeficitGuidance(profile, storedMode);
@@ -2405,6 +2815,14 @@ renderHistoryChips(profile, storedMode);
     renderRec(currentRec);
 
     renderMacrosOk();
+    // resumen en cabecera del panel Macros OK
+    const _sumEl = $('macrosOkSummaryLine');
+    if(_sumEl){
+      const _rem = $('remKcal')?.textContent || '—';
+      const _n = currentMacrosOk?.items?.length || 0;
+      _sumEl.textContent = _n ? `${_n} ítems · ${_rem} kcal` : 'Sin sugerencia';
+    }
+
     // lock day (solo consulta) si es pasado
     /* lock day */
     const lockables = document.querySelectorAll('#screen-day input, #screen-day select, #screen-day textarea, #screen-day button, #screen-add input, #screen-add select, #screen-add textarea, #screen-add button');
@@ -2420,6 +2838,7 @@ renderHistoryChips(profile, storedMode);
     });
 
     refreshTagButtons();
+    applyDevUI();
   };
 
   // ======= ACTIONS =======
@@ -2698,117 +3117,7 @@ renderHistoryChips(profile, storedMode);
     renderAll();
   };
 
-  // ===== Dev Mode (PIN) + Rules Engine =====
-const MC_DEV_PIN = '0954';
-const LS_DEV = 'mc_dev_enabled';
-const LS_RULES = 'mc_rules_engine';
-
-function isDev(){ return localStorage.getItem(LS_DEV)==='1'; }
-
-function setDev(on){
-  localStorage.setItem(LS_DEV, on ? '1' : '0');
-  const box = $('foodsControlBox');
-  if(box) box.style.display = on ? 'block' : 'none';
-}
-
-// Long-press on "Alimentos" title to unlock dev tools
-(function bindDevUnlock(){
-  const title = $('foodsTitle');
-  if(!title) return;
-  let t=null;
-  const start=()=>{
-    clearTimeout(t);
-    t=setTimeout(()=>{
-      const pin = prompt('PIN desarrollador:');
-      if(pin===null) return;
-      if(String(pin).trim()===MC_DEV_PIN){
-        setDev(true);
-        alert('Modo desarrollador activado.');
-      }else{
-        alert('PIN incorrecto.');
-      }
-    }, 650);
-  };
-  const end=()=>{ clearTimeout(t); t=null; };
-  title.addEventListener('touchstart', start, {passive:true});
-  title.addEventListener('touchend', end, {passive:true});
-  title.addEventListener('touchcancel', end, {passive:true});
-  title.addEventListener('mousedown', start);
-  title.addEventListener('mouseup', end);
-  title.addEventListener('mouseleave', end);
-})();
-
-function loadRules(){
-  try{
-    const raw = localStorage.getItem(LS_RULES);
-    if(!raw) return null;
-    const obj = JSON.parse(raw);
-    if(!obj || obj.schemaVersion !== 1) return null;
-    return obj;
-  }catch(e){ return null; }
-}
-
-function saveRules(obj){
-  localStorage.setItem(LS_RULES, JSON.stringify(obj));
-}
-
-function resetRules(){
-  localStorage.removeItem(LS_RULES);
-}
-
-function updateMacrosOkSummary(){
-  try{
-    const s = $('macrosOkSummary');
-    if(!s) return;
-    if(currentMacrosOk?.items?.length){
-      const kcal = Math.round(currentMacrosOk.items.reduce((a,x)=>a+(x.kcal||0),0));
-      s.textContent = `${currentMacrosOk.items.length} ítems · ${kcal} kcal`;
-    }else{
-      s.textContent = 'Cerrado';
-    }
-  }catch(e){}
-}
-
-// Bind rules import/export buttons (DEV only)
-function bindRulesUI(){
-  const exp = $('exportRules');
-  const impBtn = $('importRulesBtn');
-  const impFile = $('importRulesFile');
-  const reset = $('resetRules');
-  if(exp) exp.onclick = ()=>{
-    const r = loadRules();
-    if(!r){ alert('No hay reglas cargadas.'); return; }
-    const blob=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='rules_engine.json'; a.click();
-    URL.revokeObjectURL(url);
-  };
-  if(impBtn && impFile){
-    impBtn.onclick=()=>impFile.click();
-    impFile.onchange=(ev)=>{
-      const file=ev.target.files[0]; if(!file) return;
-      const fr=new FileReader();
-      fr.onload=()=>{
-        try{
-          const obj=JSON.parse(fr.result);
-          if(!obj || obj.schemaVersion!==1) throw new Error('schemaVersion inválido');
-          saveRules(obj);
-          alert('Reglas importadas.');
-        }catch(e){
-          alert('Reglas inválidas: '+(e?.message||e));
-        }
-      };
-      fr.readAsText(file);
-    };
-  }
-  if(reset) reset.onclick=()=>{
-    resetRules();
-    alert('Reglas restauradas (por defecto).');
-  };
-}
-// ===== End Dev Mode + Rules Engine =====
-
-// CRUD alimentos
+  // CRUD alimentos
   $('saveFood').onclick=()=>{
     const id=$('f_id').value.trim();
     const name=$('f_name').value.trim();
@@ -2835,7 +3144,44 @@ function bindRulesUI(){
     renderAll();
   };
 
-  $('exportFoods').onclick=()=>{
+  
+  // Eliminar alimento (solo usuario) + ocultar/mostrar root (dev)
+  $('deleteFood').onclick=()=>{
+    if(!isDev()){ alert('Bloqueado.'); return; }
+    const id=$('f_id').value.trim();
+    if(!id){ alert('Selecciona un alimento.'); return; }
+    if(!confirm(`¿Eliminar "${id}" del usuario?`)) return;
+
+    const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    const exists = currentUser.some(x=>x.id===id);
+    if(!exists){
+      alert('Este alimento es del núcleo (root). Para quitarlo, usa “Ocultar / Mostrar (root)”.');
+      return;
+    }
+    saveJSON(LS.foodsUser, currentUser.filter(x=>x.id!==id));
+    // limpiar form
+    ['f_id','f_name','f_kcal','f_p','f_c','f_f','f_unitGrams','f_tags'].forEach(k=>{ const el=$(k); if(el) el.value=''; });
+    alert('Eliminado.');
+    renderAll();
+  };
+
+  $('toggleHideFood').onclick=()=>{
+    if(!isDev()){ alert('Bloqueado.'); return; }
+    const id=$('f_id').value.trim();
+    if(!id){ alert('Selecciona un alimento.'); return; }
+
+    // si es usuario, mejor eliminar
+    const currentUser = loadJSON(LS.foodsUser, []).map(normalizeFood);
+    if(currentUser.some(x=>x.id===id)){
+      alert('Este alimento es de usuario. Usa “Eliminar alimento”.');
+      return;
+    }
+
+    toggleHiddenId(id);
+    alert(isHiddenId(id) ? 'Ocultado (root).' : 'Visible (root).');
+    renderAll();
+  };
+$('exportFoods').onclick=()=>{
     const foods=loadFoodsMerged();
     const blob=new Blob([JSON.stringify(foods,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
@@ -2866,6 +3212,107 @@ function bindRulesUI(){
     };
     r.readAsText(file);
   };
+
+  // Rules Engine (DEV): import/export configuración de maridajes/caps
+  $('exportRules') && ($('exportRules').onclick=()=>{
+    try{
+      const rules = loadJSON(LS.rulesEngine, null) || DEFAULT_RULES_ENGINE;
+      const blob=new Blob([JSON.stringify(rules,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='macrocontrol_rules_engine.json'; a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){ alert('No se pudieron exportar las reglas.'); }
+  });
+
+  $('importRulesBtn') && ($('importRulesBtn').onclick=()=>$('importRulesFile').click());
+  $('importRulesFile') && ($('importRulesFile').onchange=(ev)=>{
+    const file=ev.target.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const obj=JSON.parse(r.result);
+        const valid = validateRulesEngine(obj);
+        saveJSON(LS.rulesEngine, valid);
+        alert('Rules Engine importado.');
+        renderAll();
+      }catch(e){
+        alert('Rules Engine inválido: '+(e.message||'error'));
+      }
+    };
+    r.readAsText(file);
+    ev.target.value='';
+  });
+
+  $('resetRules') && ($('resetRules').onclick=()=>{
+    if(!confirm('Restaurar reglas por defecto eliminará tu Rules Engine personalizado. ¿Continuar?')) return;
+    localStorage.removeItem(LS.rulesEngine);
+    alert('Rules Engine restaurado (por defecto).');
+    renderAll();
+  });
+
+  // Backup rápido (DEV): export/import estado completo (perfil + settings + logs + foods usuario)
+  const applyBackupState = (state)=>{
+    if(!state || typeof state!=='object') throw new Error('Backup inválido');
+    if(state.mode!=null) saveJSON(LS.mode, state.mode);
+    if(state.settings!=null) saveJSON(LS.settings, state.settings);
+    if(state.logs!=null) saveJSON(LS.logs, state.logs);
+    if(state.lastDate!=null) saveJSON(LS.lastDate, state.lastDate);
+    if(state.profile!=null) saveJSON(LS.profile, state.profile);
+    if(state.rulesEngine!=null) saveJSON(LS.rulesEngine, state.rulesEngine);
+    if(state.foodsUser!=null) saveJSON(LS.foodsUser, state.foodsUser);
+    if(state.foodsHidden!=null) saveJSON(DEV_HIDDEN_KEY, state.foodsHidden);
+    if(state.devMode!=null) localStorage.setItem(DEV_MODE_KEY, String(state.devMode));
+    saveBackupLast();
+  };
+
+  const makeBackupFilename = ()=>{
+    const d=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    return `macrocontrol_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  };
+
+  $('exportBackup') && ($('exportBackup').onclick=()=>{
+    try{
+      const blob=new Blob([JSON.stringify(snapshotState(),null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=makeBackupFilename(); a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){ alert('No se pudo exportar el backup.'); }
+  });
+
+  $('makeBackupNow') && ($('makeBackupNow').onclick=()=>{
+    saveBackupLast();
+    alert('Copia guardada (local).');
+  });
+
+  $('restoreLastBackup') && ($('restoreLastBackup').onclick=()=>{
+    try{
+      const raw=localStorage.getItem(BACKUP_LAST_KEY);
+      if(!raw) return alert('No hay backup local.');
+      const state=JSON.parse(raw);
+      if(!confirm('Restaurar el último backup local reemplazará tus datos actuales. ¿Continuar?')) return;
+      applyBackupState(state);
+      alert('Backup restaurado.');
+      renderAll();
+    }catch(e){ alert('No se pudo restaurar el backup.'); }
+  });
+
+  $('importBackupBtn') && ($('importBackupBtn').onclick=()=>$('importBackupFile').click());
+  $('importBackupFile') && ($('importBackupFile').onchange=(ev)=>{
+    const file=ev.target.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const state=JSON.parse(r.result);
+        if(!confirm('Importar backup reemplazará tus datos actuales. ¿Continuar?')) return;
+        applyBackupState(state);
+        alert('Backup importado.');
+        renderAll();
+      }catch(e){ alert('Backup inválido o corrupto.'); }
+    };
+    r.readAsText(file);
+    ev.target.value='';
+  });
 
 
 
@@ -3016,12 +3463,20 @@ function bindRulesUI(){
   migrateIfNeeded();
   ensureFoodsStores();
   rolloverIfNeeded();
+  bindDevLongPress();
+  applyDevUI();
+
+  // Panel plegable Macros OK (recordar estado)
+  const _macPanel = $('macrosOkPanel');
+  if(_macPanel){
+    _macPanel.open = localStorage.getItem('mc_ui_macrosOkOpen') === '1';
+    _macPanel.addEventListener('toggle', ()=>{
+      localStorage.setItem('mc_ui_macrosOkOpen', _macPanel.open ? '1' : '0');
+    });
+  }
+
   renderAll();
-  setDev(isDev());
-  bindRulesUI();
 })();
-
-
 // ===== Daily Ledger System (90 days) =====
 const LEDGER_KEY = 'mc_daily_ledger';
 const LEDGER_LIMIT = 90;
