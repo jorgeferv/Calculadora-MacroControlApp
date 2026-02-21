@@ -1389,6 +1389,173 @@ window.addEventListener('error', function(e){
     }
     return a;
   };
+  // ======= PAIRINGS (r47_dev) =======
+  // Activación de maridajes del Rules Engine con fallback seguro al motor r46.
+  const LS_PAIRING_SCORES = 'mc_pairing_scores';
+
+  const loadPairingScores = ()=>{
+    const rules = loadRulesEngine();
+    const key = (rules?.learning?.storeKey) || LS_PAIRING_SCORES;
+    return loadJSON(key, {});
+  };
+
+  const bumpPairingScore = (pairingId, inc=1)=>{
+    const rules = loadRulesEngine();
+    if(!rules?.learning?.enabled) return;
+    const key = (rules?.learning?.storeKey) || LS_PAIRING_SCORES;
+    const now = Date.now();
+    const store = loadJSON(key, {});
+    const cur = store[pairingId] || { score: 0, lastTs: now };
+    cur.score = (Number(cur.score)||0) + inc;
+    cur.lastTs = now;
+    store[pairingId] = cur;
+    saveJSON(key, store);
+  };
+
+  // Tag bridge: usa tus tags actuales y los aproxima a tags del rules_engine_v1.
+  const getEngineTags = (food, rules)=>{
+    const t = new Set([...(food.tags||[])].map(x=>String(x).trim()).filter(Boolean));
+
+    // DB -> engine defaults
+    if(t.has('protein')) t.add('protein_whole');
+    if(t.has('carb')) t.add('carb_staple');
+    if(t.has('fat')) t.add('fat_source');
+
+    // frutas típicas
+    if(['banana','uva','freson','manzana','manzana_roja_acidulce'].includes(food.id)){
+      t.add('carb_fast');
+      t.add('fruit');
+    }
+
+    // aliasToTags (si existe)
+    const a2t = rules?.foodTagging?.aliasToTags;
+    if(a2t){
+      const extra = a2t[String(food.id||'').toLowerCase()];
+      if(Array.isArray(extra)) extra.forEach(x=>t.add(x));
+    }
+
+    return Array.from(t);
+  };
+
+  const hasAnyTag = (engineTags, anyOf=[])=>{
+    if(!anyOf?.length) return true;
+    const s = new Set(engineTags);
+    return anyOf.some(x=>s.has(x));
+  };
+
+  const preferAliasHit = (food, preferAliases=[])=>{
+    if(!preferAliases?.length) return false;
+    const id = String(food.id||'').toLowerCase();
+    return preferAliases.some(a=>String(a).toLowerCase()===id);
+  };
+
+  const scorePairing = (pairingId, baseScore, rules)=>{
+    const sel = rules?.selection?.scoring || {};
+    const baseW = Number(sel.baseWeight ?? 0.45);
+    const learnW = Number(sel.learnedWeight ?? 0.55);
+
+    const learned = loadPairingScores();
+    const learnedScore = Number(learned?.[pairingId]?.score || 0);
+    // compresión 0..1
+    const learnedNorm = 1 - Math.exp(-learnedScore/6);
+
+    return baseW*Number(baseScore||0) + learnW*learnedNorm;
+  };
+
+  const pickByPairings = (foods, slot, ctx, tgt, hard, rules)=>{
+    const pairings = rules?.pairings || [];
+    if(!pairings.length) return null;
+
+    const allowedTag = slotToAllowedTag(slot);
+    const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
+    const foodsAllowed = foods.filter(allow);
+
+    const kcalTol = Number(hard?.kcalToleranceBlock ?? 80);
+
+    let best = null;
+
+    for(const p of pairings){
+      if(Array.isArray(p.context) && !p.context.includes(ctx)) continue;
+
+      const complements = Array.isArray(p.complements) ? p.complements : [];
+      if(!complements.length) continue;
+
+      // base candidates
+      for(const baseFood of foodsAllowed){
+        const tagsBase = getEngineTags(baseFood, rules);
+        const baseOk = preferAliasHit(baseFood, p.base?.preferAliases) || hasAnyTag(tagsBase, p.base?.anyOfTags);
+        if(!baseOk) continue;
+
+        // MVP: 1 complemento
+        for(const compRule of complements){
+          for(const compFood of foodsAllowed){
+            if(compFood.id === baseFood.id) continue;
+
+            const tagsComp = getEngineTags(compFood, rules);
+            const compOk = preferAliasHit(compFood, compRule?.preferAliases) || hasAnyTag(tagsComp, compRule?.anyOfTags);
+            if(!compOk) continue;
+
+            // cantidades: base por proteína si aplica; complemento por C/F si aplica, si no por kcal
+            const baseQtyType = (baseFood.baseUnit==='unit')?'unit':'g';
+            const compQtyType = (compFood.baseUnit==='unit')?'unit':'g';
+
+            const pNeed = clamp(Number(tgt.p)||0, 18, 70);
+            const cNeed = clamp(Number(tgt.c)||0, 0, 160);
+            const fNeed = clamp(Number(tgt.f)||0, 0, 35);
+            const kNeed = clamp(Number(tgt.kcal)||0, 220, 950);
+
+            const baseQty = hasAnyTag(tagsBase, ['protein_whole','protein_fast'])
+              ? qtyForMacro(baseFood, 'p', Math.max(18, pNeed))
+              : qtyForMacro(baseFood, 'kcal', Math.min(260, kNeed*0.55));
+
+            let compQty = qtyForMacro(compFood, 'kcal', Math.min(240, kNeed*0.45));
+            if(hasAnyTag(tagsComp, ['carb_fast','carb_staple','fruit'])) compQty = qtyForMacro(compFood, 'c', Math.max(20, cNeed));
+            if(hasAnyTag(tagsComp, ['fat_source'])) compQty = qtyForMacro(compFood, 'f', Math.max(6, fNeed));
+
+            const baseM = macroFor(baseFood, baseQtyType, baseQty);
+            const compM = macroFor(compFood, compQtyType, compQty);
+
+            const tot = {kcal: baseM.kcal+compM.kcal, p: baseM.p+compM.p, c: baseM.c+compM.c, f: baseM.f+compM.f};
+
+            // Validación simple (no bloquea si el user está apretado)
+            const kcalOk = Math.abs(tot.kcal - kNeed) <= kcalTol;
+            if(!kcalOk) continue;
+
+            const s = scorePairing(p.id, Number(p.scoreBase||0.8), rules);
+            if(!best || s > best.s){
+              best = {
+                s,
+                pairingId: p.id,
+                items: [
+                  { food: baseFood, qtyType: baseQtyType, qty: baseQty, m: baseM },
+                  { food: compFood, qtyType: compQtyType, qty: compQty, m: compM }
+                ],
+                tot
+              };
+            }
+          }
+        }
+      }
+    }
+
+    if(!best) return null;
+
+    return {
+      pairingId: best.pairingId,
+      items: best.items.map(x=>({
+        meal: slot,
+        foodId: x.food.id,
+        name: x.food.name,
+        qtyType: x.qtyType,
+        qty: x.qty,
+        qtyDisplay: qtyDisplay(x.qtyType, x.qty),
+        kcal: x.m.kcal, p: x.m.p, c: x.m.c, f: x.m.f
+      })),
+      tot: best.tot
+    };
+  };
+
+
 
   const recommendForSlot=(foods,goal,eaten,ctx,slotOverride, randomize=false)=>{
     const rem={
@@ -1408,6 +1575,14 @@ window.addEventListener('error', function(e){
     else tgt={p:Math.min(60,rem.p), c:Math.min(90,rem.c), f:Math.min(22,rem.f), kcal:Math.min(800,rem.kcal)};
 
     if(slotOverride==='desayuno' || slotOverride==='merienda') tgt.f = Math.min(tgt.f, 16);
+
+    // Intento 1: maridajes (pairings) del Rules Engine. Si no encaja, fallback a heurística r46.
+    try{
+      const rules = loadRulesEngine();
+      const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
+      const paired = pickByPairings(foods, slotOverride, ctx, tgt, hard, rules);
+      if(paired) return { items: paired.items.map(x=>({ ...x, meal: slotOverride })), tot: paired.tot, pairingId: paired.pairingId };
+    }catch(_){ /* silent fallback */ }
 
     let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
     let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
@@ -1497,6 +1672,9 @@ window.addEventListener('error', function(e){
     const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
 
     const eaten = sumMacros(logs);
+
+    // Pairings usados en esta sugerencia (para aprendizaje)
+    const pairingIds = [];
 
     // qué slots ya están “rellenos” (tienen al menos 1 item)
     const filled = new Set();
@@ -1619,6 +1797,25 @@ window.addEventListener('error', function(e){
       const fats     = candidatesByTag('fat', slot);
       const fruits   = candidatesByTag('fruit', slot);
 
+      // Intento 1: resolver el slot con pairings (maridajes) + fallback seguro
+      try{
+        const tgt = {
+          kcal: kcalTarget,
+          p: clamp(rem.p / Math.max(1, slotsLeft), Math.max(18, caps.pMin), caps.pMax),
+          c: clamp(rem.c / Math.max(1, slotsLeft), 0, caps.cMax),
+          f: clamp(rem.f / Math.max(1, slotsLeft), Math.max(0, caps.fMin), caps.fMax)
+        };
+        const paired = pickByPairings(foods, slot, ctx, tgt, hard, rules);
+        if(paired && paired.items && paired.items.length){
+          pairingIds.push(paired.pairingId);
+          paired.items.forEach(it=>{
+            const f = foods.find(x=>x.id===it.foodId);
+            if(f) addItem(slot, f, it.qtyType, it.qty);
+          });
+          return;
+        }
+      }catch(_){ /* silent fallback */ }
+
       if(!proteins.length) return;
 
       // 1) Proteína base
@@ -1737,7 +1934,7 @@ window.addEventListener('error', function(e){
 
     const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
     const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
-    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
+    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx, pairingIds};
   };
   // ======= ESTADO =======
   const computeDayStatus=(goal,eaten)=>{
@@ -2977,6 +3174,10 @@ window.addEventListener('error', function(e){
     });
 
     saveLogs(activeDayKey, logs);
+    // Aprendizaje ligero: refuerza pairings confirmados
+    try{
+      (currentMacrosOk.pairingIds||[]).filter(Boolean).forEach(pid=>bumpPairingScore(pid, 1));
+    }catch(_){ }
     $('qty').value='';
     $('foodSearch').value='';
     $('foodSearch').focus();
