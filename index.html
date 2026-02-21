@@ -185,16 +185,14 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
+
+    .devOnly{display:none;}
+    .devOnly.devOn{display:block;}
 </style>
 </head>
 
 <body>
-
-  <div id="miniStickyStatus" class="miniSticky" style="display:none;">
-    <div id="miniStickyContent" class="miniStickyContent"></div>
-  </div>
-
-  <h1>MacroControlAPP</h1>
+<h1>MacroControlAPP</h1>
   <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
   <div class="muted" style="margin-bottom:12px;">
     </div>
@@ -208,7 +206,7 @@
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <details class="card" id="foodsControlBox" style="margin-bottom:12px;" >
+      <details class="card devOnly" id="foodsControlBox" style="margin-bottom:12px;" >
   <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
     <b>Control</b>
     <span class="muted">Importar/Exportar</span>
@@ -219,18 +217,6 @@
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
-        <div id="rulesControls" style="display:none;margin-top:10px;">
-          <div class="hr"></div>
-          <div class="muted" style="margin-bottom:8px;"><b>Motor (Rules Engine)</b> · Solo modo desarrollador</div>
-          <div class="seg">
-            <button id="exportRules" type="button">Exportar Reglas</button>
-            <button id="importRulesBtn" type="button">Importar Reglas</button>
-            <button id="resetRules" type="button">Restaurar por defecto</button>
-          </div>
-          <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
-          <div class="muted" style="margin-top:8px;">Importa/exporta <code>rules_engine.json</code>. Se guarda en el dispositivo.</div>
-        </div>
-    
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
         </div>  </div>
@@ -520,10 +506,10 @@
 
         <!-- MACROS OK -->
         <label>Macros OK (sugerencia)</label>
-        <div class="muted" id="macrosOkContext">Pulsa “Cuadrar Día” para cuadrar lo que queda HOY (sin tocar lo ya registrado).</div>
+        <div class="muted" id="macrosOkContext">Pulsa “Macros OK” para cuadrar el día completo.</div>
         <div class="list" id="macrosOkList"></div>
         <div class="seg">
-          <button id="macrosOkGen" type="button">Cuadrar Día</button>
+          <button id="macrosOkGen" type="button">Macros OK</button>
           <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
         </div>
         <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
@@ -636,36 +622,6 @@ pan_cristal 2u"></textarea>
   </div>
 
 <script>
-
-  // ===== Rules Engine (configurable) =====
-  const RULES_KEY = 'mc_rules_engine';
-  const DEV_KEY = 'mc_dev_enabled';
-  const DEV_PIN = '0954';
-
-  const loadRulesEngineSafe = ()=>{
-    try{
-      const raw = localStorage.getItem(RULES_KEY);
-      if(!raw) return null;
-      const obj = JSON.parse(raw);
-      if(!obj || typeof obj!=='object') return null;
-      if(obj.schemaVersion!==1) return null;
-      return obj;
-    }catch(e){ return null; }
-  };
-  const saveRulesEngineSafe = (obj)=>{
-    try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); return true; }catch(e){ return false; }
-  };
-  const resetRulesEngine = ()=>{
-    localStorage.removeItem(RULES_KEY);
-  };
-  const parseHHMM = (s)=>{
-    if(!s) return null;
-    const m = String(s).match(/^(\d{1,2}):(\d{2})$/);
-    if(!m) return null;
-    const hh = Number(m[1]), mm = Number(m[2]);
-    if(!isFinite(hh)||!isFinite(mm)||hh<0||hh>23||mm<0||mm>59) return null;
-    return hh*60+mm;
-  };
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
   try{
@@ -1245,114 +1201,47 @@ window.addEventListener('error', function(e){
   // Objetivo: cuadrar SOLO lo que falta en el día, respetando lo ya registrado.
   // Post-entreno es opcional y solo entra si (WOD > 0) o (Calorías activas > 0). NEAT NO afecta.
   const planMacrosOk=(foods, goal, logs, day)=>{
-    // ======= MACROS OK (CUADRAR DÍA) =======
-    // Filosofía:
-    // - Nunca toca lo ya registrado.
-    // - Cuadra SOLO lo que queda HOY, empezando por la siguiente comida lógica.
-    // - Slots base: desayuno/comida/merienda/cena. PRE/POST solo si tiene sentido o si faltan macros al final.
-    const rules = loadRulesEngineSafe();
-    const hard = rules?.constraintsHard || null;
-
     const baseSlots = ['desayuno','comida','merienda','cena'];
-    const auxSlots  = ['pre_entreno','post_entreno'];
 
-    // Entreno configurado (opcional)
-    const trainTimeStr = (day?.trainTime||'').toString().trim();
-    const now = new Date();
-    const nowMin = now.getHours()*60 + now.getMinutes();
-    const trainMin = parseHHMM(trainTimeStr); // null si no válido
+    const postActive = ((Number(day?.wod)||0) > 0) || ((Number(day?.cardioKcal)||0) > 0);
+    const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
 
-    // 1) Qué slots están ya rellenos (LOCKED)
+    const eaten = sumMacros(logs);
+
+    // qué slots ya están “rellenos” (tienen al menos 1 item)
     const filled = new Set();
     for(const it of logs){
       const mk = normalizeMealLabel(it.meal);
       if(mk) filled.add(mk);
     }
 
-    // 2) Determinar slot base actual (por hora) y construir lista de slots a planificar
-    let nowSlot = mealFromClock(); // puede devolver pre/post también
-    if(nowSlot==='pre_entreno') nowSlot='merienda';
-    if(nowSlot==='post_entreno') nowSlot='cena';
-    let startIdx = baseSlots.indexOf(nowSlot);
-    if(startIdx<0) startIdx = 0;
+    // slots a completar = los activos que NO estén rellenos
+    let slotsToPlan = allSlots.filter(s => !filled.has(s));
 
-    // No inventamos comidas del pasado: si son las 12:30, empezamos por comida (aunque desayuno esté vacío).
-    let slotsToPlan = baseSlots.slice(startIdx).filter(s => !filled.has(s));
-
-    // 3) Inyección inteligente de PRE/POST (si hay entreno) — sin obligar
-    const hasTrain = (trainMin!==null);
-    const minsToTrain = hasTrain ? (trainMin - nowMin) : null;
-
-    // PRE: si entreno está cerca (<=4h) y aún no existe pre
-    if(hasTrain && minsToTrain>0 && minsToTrain<=240 && !filled.has('pre_entreno')){
-      // si aún queda al menos una comida antes del entreno (típicamente merienda), insertamos pre antes de la última comida previa
-      if(slotsToPlan.includes('merienda')){
-        const idx = slotsToPlan.indexOf('merienda');
-        slotsToPlan.splice(idx, 0, 'pre_entreno');
-      } else if(slotsToPlan.includes('comida') && minsToTrain<=180){
-        // caso "almuerzo": entreno relativamente cercano y estamos entre desayuno/comida
-        const idx = slotsToPlan.indexOf('comida');
-        slotsToPlan.splice(idx, 0, 'pre_entreno');
-      }
-    }
-
-    // POST: si entreno ya pasó y no existe post
-    if(hasTrain && nowMin>=trainMin && !filled.has('post_entreno')){
-      // si queda cena por planificar, preferimos post antes de cena; si no, al final como snack noche
-      if(slotsToPlan.includes('cena')){
-        const idx = slotsToPlan.indexOf('cena');
-        slotsToPlan.splice(idx, 0, 'post_entreno');
-      } else {
-        slotsToPlan.push('post_entreno');
-      }
-    }
-
-    // 4) Si no queda nada que planificar, salimos
-    if(!slotsToPlan.length){
-      return { context:'Nada que cuadrar: ya está todo registrado.', items:[], tot:{kcal:0,p:0,c:0,f:0} };
-    }
-
-    const plannedItems = [];
-    const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
-    const round5 = (x)=> Math.round(x/5)*5;
-
-    const eatenBase = sumMacros(logs);
-
-    const getCtxForSlot = (slot)=>{
-      // contexto simple: PRE/POST por slot, si no NEUTRAL
-      if(slot==='pre_entreno') return 'PRE';
-      if(slot==='post_entreno') return 'POST';
-      // si hay entreno, la merienda justo antes puede comportarse como PRE
-      if(hasTrain && slot==='merienda' && minsToTrain!==null && minsToTrain>0 && minsToTrain<=180) return 'PRE';
-      // la comida justo después puede comportarse como POST si entrenaste por la mañana
-      if(hasTrain && slot==='comida' && nowMin>=trainMin && (nowMin-trainMin)<=240) return 'POST';
-      return 'NEUTRAL';
+    // Caso especial: si no queda ningún slot activo pero faltan kcal, permitir “pre_entreno”
+    // SOLO si ya existe cena (última comida tradicional) y aún falta por cuadrar.
+    const remainingNow = ()=>{
+      const e = sumMacros([...logs, ...plannedItems]); // plannedItems definido más abajo
+      return {
+        kcal: Math.max(0, goal.goalKcal - e.kcal),
+        p: Math.max(0, goal.p - e.p),
+        c: Math.max(0, goal.c - e.c),
+        f: Math.max(0, goal.f - e.f),
+      };
     };
 
-    // reglas (caps por bloque)
-    const getCaps = (ctx)=>{
-      const pMin = hard?.proteinPerBlock?.min ?? 20;
-      const pMax = (ctx==='POST' ? (hard?.proteinPerBlock?.maxPost ?? 50) : (hard?.proteinPerBlock?.maxNormal ?? 45));
-      const fMin = hard?.fatPerBlock?.min ?? 5;
-      const fMax = (ctx==='PRE' ? (hard?.fatPerBlock?.maxPre ?? 15) : (ctx==='POST' ? (hard?.fatPerBlock?.maxPost ?? 20) : (hard?.fatPerBlock?.maxNeutral ?? 25)));
-      const cMin = hard?.carbPerBlock?.min ?? 0;
-      const cMax = (ctx==='PRE' ? (hard?.carbPerBlock?.maxPre ?? 90) : (ctx==='POST' ? (hard?.carbPerBlock?.maxPost ?? 120) : (hard?.carbPerBlock?.maxNeutral ?? 140)));
-      const maxItems = hard?.maxItemsPerBlock ?? 3;
-      const prefer2 = hard?.prefer2ItemsPerBlock ?? true;
-      return {pMin,pMax,fMin,fMax,cMin,cMax,maxItems,prefer2};
-    };
-
-    const allowedForSlot = (slot)=>{
-      const tag = slotToAllowedTag(slot);
-      return (f)=> !tag || (f.tags||[]).includes(tag);
-    };
-
+    // ===== helpers selección =====
     const preferOrder = (arr, ids)=>{
       const m=new Map(arr.map(x=>[x.id,x]));
       const out=[];
       ids.forEach(id=>{ if(m.has(id)) out.push(m.get(id)); });
       for(const x of arr){ if(!ids.includes(x.id)) out.push(x); }
       return out;
+    };
+
+    const allowedForSlot = (slot)=>{
+      const tag = slotToAllowedTag(slot);
+      return (f)=> !tag || (f.tags||[]).includes(tag);
     };
 
     const candidatesByTag = (tag, slot)=>{
@@ -1373,18 +1262,21 @@ window.addEventListener('error', function(e){
       return arr;
     };
 
+    const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
+    const round5 = (x)=> Math.round(x/5)*5;
+
     const qtyForMacro = (food, macroKey, target)=>{
-      // target en gramos de macro; devuelve qty (g o units) aproximada, con topes razonables
+      // target en gramos de macro; devuelve qty (g o units) aproximada
       const per = macroFor(food, 'g', 100);
       const perUnit = macroFor(food, 'unit', 1);
       if(food.baseUnit==='unit'){
         const mv = (macroKey==='p'?perUnit.p:(macroKey==='c'?perUnit.c:perUnit.f));
         if(mv<=0) return 1;
-        return clamp(Math.round(target / mv), 1, 4);
+        return clamp(Math.round(target / mv), 1, 6);
       } else {
         const mv = (macroKey==='p'?per.p:(macroKey==='c'?per.c:per.f));
         if(mv<=0) return 100;
-        return clamp(round5((target / mv)*100), 30, 350);
+        return clamp(round5((target / mv)*100), 30, 400);
       }
     };
 
@@ -1401,23 +1293,9 @@ window.addEventListener('error', function(e){
       });
     };
 
-    const remaining = ()=>{
-      const e = sumMacros([...logs, ...plannedItems]);
-      return {
-        kcal: Math.max(0, goal.goalKcal - e.kcal),
-        p: Math.max(0, goal.p - e.p),
-        c: Math.max(0, goal.c - e.c),
-        f: Math.max(0, goal.f - e.f),
-      };
-    };
-
-    const buildSlot = (slot, slotsLeft)=>{
-      const rem = remaining();
-      const ctx = getCtxForSlot(slot);
-      const caps = getCaps(ctx);
-
-      // Target kcal por slot (flexible)
-      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 240, 900);
+    const buildSlot = (slot, rem, slotsLeft)=>{
+      // target kcal para este slot
+      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
 
       const proteins = candidatesByTag('protein', slot);
       const carbs    = candidatesByTag('carb', slot);
@@ -1426,76 +1304,112 @@ window.addEventListener('error', function(e){
 
       if(!proteins.length) return;
 
-      // 1) Proteína base (cap humano)
+      // 1) Proteína base
       const pFood = proteins[0];
-      const pNeed = clamp(rem.p / Math.max(1, slotsLeft), caps.pMin, caps.pMax);
+      const pNeed = clamp(rem.p / Math.max(1, slotsLeft), 28, 55); // gramos de proteína
       const pQty = qtyForMacro(pFood, 'p', pNeed);
       addItem(slot, pFood, (pFood.baseUnit==='unit'?'unit':'g'), pQty);
 
-      // 2) Carbo alrededor del entreno (PRE/POST prioriza carbs)
-      let slotTot = sumMacros(plannedItems.filter(x=>x.meal===slot));
-      const kcalShort = kcalTarget - slotTot.kcal;
+      // 2) Hidrato si hace falta o si faltan kcal
+      let afterP = sumMacros(plannedItems.filter(x=>x.meal===slot));
+      let localRem = { ...rem, kcal: Math.max(0, kcalTarget - afterP.kcal) };
 
-      const needCarb = (ctx==='PRE' || ctx==='POST') ? (kcalShort > 140) : ((rem.c / Math.max(1, slotsLeft)) > 18 || kcalShort > 220);
-      if(needCarb && (caps.maxItems>=2)){
+      const needCarb = (rem.c / Math.max(1, slotsLeft)) > 18 || localRem.kcal > 220;
+      if(needCarb){
         const cFood = carbs[0] || fruits[0];
         if(cFood){
-          const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, caps.cMax);
-          const cQty = (['banana','uva','freson','manzana'].includes(cFood.id))
+          const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, 90);
+          const cQty = (cFood.id==='banana'||cFood.id==='uva'||cFood.id==='freson'||cFood.id==='manzana')
             ? clamp(round5(cNeed*5), 80, 250)
             : qtyForMacro(cFood, 'c', cNeed);
           addItem(slot, cFood, (cFood.baseUnit==='unit'?'unit':'g'), cQty);
         }
       }
 
-      // 3) Grasa: floor, no target. En PRE cap estricto.
-      slotTot = sumMacros(plannedItems.filter(x=>x.meal===slot));
-      const stillShort = kcalTarget - slotTot.kcal;
-      const needFat = (rem.f / Math.max(1, slotsLeft)) > 10 && stillShort > 80;
+      // 3) Grasa/extra para cerrar kcal si sigue corto o falta grasa del día
+      afterP = sumMacros(plannedItems.filter(x=>x.meal===slot));
+      const needFat = (rem.f / Math.max(1, slotsLeft)) > 12 || (kcalTarget - afterP.kcal) > 180;
 
-      if(needFat && fats.length && (caps.maxItems>=3 || !caps.prefer2)){
+      if(needFat && fats.length){
         const fFood = fats[0];
-
-        // Anti-aceite como fuente principal: limitamos si es aceite
-        const isOil = /aceite/i.test(fFood.id) || /aceite/i.test(fFood.name);
-        const fNeed = clamp(rem.f / Math.max(1, slotsLeft), 6, caps.fMax);
-        let fQty = qtyForMacro(fFood, 'f', fNeed);
-
-        if(isOil && fFood.baseUnit!=='unit'){
-          fQty = Math.min(fQty, 15); // máximo 15g aceite en un bloque
-        }
-
+        // target grasa moderada
+        const fNeed = clamp(rem.f / Math.max(1, slotsLeft), 8, 18);
+        const fQty = qtyForMacro(fFood, 'f', fNeed);
         addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
+      }
+
+      // 4) Ajuste final: si aún falta mucha kcal, empuja con carb o fat según lo que falte
+      let guard=0;
+      while(guard++<6){
+        const slotTot = sumMacros(plannedItems.filter(x=>x.meal===slot));
+        const delta = kcalTarget - slotTot.kcal;
+        if(delta < 120) break;
+
+        // decide si empujar con carb o fat
+        const wantCarb = (rem.c > rem.f*0.8) || carbs.length;
+        const pushFood = wantCarb ? (carbs[0] || fruits[0]) : fats[0];
+        if(!pushFood) break;
+
+        const qtyType = (pushFood.baseUnit==='unit') ? 'unit' : 'g';
+        const step = (qtyType==='unit') ? 1 : (pushFood.tags?.includes('fat') ? 10 : 50);
+
+        // si ya existe ese alimento en slot, sube qty, si no, añádelo
+        const existing = plannedItems.find(x=>x.meal===slot && x.foodId===pushFood.id);
+        if(existing){
+          existing.qty += step;
+          const mac = macroFor(pushFood, existing.qtyType, existing.qty);
+          existing.qtyDisplay = qtyDisplay(existing.qtyType, existing.qty);
+          existing.kcal=mac.kcal; existing.p=mac.p; existing.c=mac.c; existing.f=mac.f;
+        } else {
+          addItem(slot, pushFood, qtyType, (qtyType==='unit'?1:step));
+        }
       }
     };
 
-    // 5) Construir slots en orden
+    const plannedItems = [];
+
+    // Si el día está vacío (no hay logs), cuadrar el día completo en slots base (+post si activo)
+    // Si ya hay algo, solo completar slots restantes.
+    // Si slotsToPlan quedó vacío pero falta, permitir pre_entreno si existe cena.
+    const initialRem = {
+      kcal: Math.max(0, goal.goalKcal - eaten.kcal),
+      p: Math.max(0, goal.p - eaten.p),
+      c: Math.max(0, goal.c - eaten.c),
+      f: Math.max(0, goal.f - eaten.f),
+    };
+
+    // Si no hay nada y aun así rem muy bajo, no hacemos nada.
+    if(initialRem.kcal < 120) return {slots:[], slotsToPlan:[], items:[], tot:{kcal:0,p:0,c:0,f:0}, context:'Nada que cuadrar.'};
+
+    // Plan principal
     for(let i=0;i<slotsToPlan.length;i++){
-      const slotsLeft = slotsToPlan.length - i;
-      buildSlot(slotsToPlan[i], slotsLeft);
+      const slot = slotsToPlan[i];
+      const rem = remainingNow();
+      if(rem.kcal < 160) break;
+      buildSlot(slot, rem, (slotsToPlan.length - i));
     }
 
-    // 6) Ajuste final: si kcal OK pero falta algo pequeño, permitir post como snack noche (si no existe)
-    const remEnd = remaining();
-    const tolDay = hard?.kcalToleranceDay ?? 100;
-    const needSmallFix = (remEnd.kcal > tolDay) || (remEnd.p > 12) || (remEnd.f > 10);
-
-    if(needSmallFix && !filled.has('post_entreno') && !slotsToPlan.includes('post_entreno')){
-      // snack noche solo si ya hemos pasado merienda o no queda cena
-      if(!slotsToPlan.includes('cena') || startIdx>=baseSlots.indexOf('cena')){
-        const before = plannedItems.length;
-        buildSlot('post_entreno', 1);
-        if(plannedItems.length===before){
-          // no se pudo construir
-        } else {
-          slotsToPlan.push('post_entreno');
-        }
+    // Caso especial: si no quedan slotsToPlan (o ya los hemos llenado) y aún falta bastante, permitir pre_entreno
+    // SOLO si ya existe 'cena' en logs (última comida) y el usuario no tiene post activo (o ya está relleno).
+    const remAfter = remainingNow();
+    if(remAfter.kcal > 220){
+      const hasDinner = filled.has('cena');
+      const postFilled = filled.has('post_entreno');
+      const allowPre = hasDinner && (!postActive || postFilled);
+      if(allowPre && !filled.has('pre_entreno')){
+        // meter un bloque extra para cerrar (pre-entreno)
+        buildSlot('pre_entreno', remAfter, 1);
+        if(!allSlots.includes('pre_entreno')) allSlots.push('pre_entreno');
+        if(!slotsToPlan.includes('pre_entreno')) slotsToPlan.push('pre_entreno');
       }
     }
 
-    const tot = sumMacros(plannedItems);
-    const ctxText = `Cuadrar Día · Slots: ${slotsToPlan.join(' + ')}`;
-    return { context: ctxText, items: plannedItems, tot };
+    // Totales del plan
+    const tot = plannedItems.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
+
+    const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
+    const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
+    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
   };
   // ======= ESTADO =======
   const computeDayStatus=(goal,eaten)=>{
@@ -2826,77 +2740,6 @@ window.addEventListener('error', function(e){
         alert('JSON inválido: '+e.message);
       }
     };
-
-
-  // ===== DEV MODE (mantener funciones sensibles ocultas) =====
-  const isDevEnabled = ()=> localStorage.getItem(DEV_KEY)==='1';
-  const setDevEnabled = (v)=>{
-    if(v) localStorage.setItem(DEV_KEY,'1'); else localStorage.removeItem(DEV_KEY);
-    const box = document.getElementById('rulesControls');
-    if(box) box.style.display = v ? 'block' : 'none';
-  };
-
-  // Long-press en el título "Alimentos" para desbloquear DEV (PIN 0954)
-  (()=>{
-    const title = document.getElementById('foodsTitle');
-    if(!title) return;
-    let t=null;
-    const start=()=>{
-      clearTimeout(t);
-      t=setTimeout(()=>{
-        const pin = prompt('PIN desarrollador');
-        if(pin===DEV_PIN){
-          setDevEnabled(true);
-          alert('DEV activado');
-        }else if(pin!==null){
-          alert('PIN incorrecto');
-        }
-      }, 700);
-    };
-    const stop=()=>{ clearTimeout(t); t=null; };
-    title.addEventListener('pointerdown', start);
-    title.addEventListener('pointerup', stop);
-    title.addEventListener('pointercancel', stop);
-    title.addEventListener('pointerleave', stop);
-  })();
-
-  // Inicializar visibilidad de controles DEV
-  setDevEnabled(isDevEnabled());
-
-  // ===== Import/Export Rules Engine (DEV) =====
-  $('exportRules') && ($('exportRules').onclick=()=>{
-    const rules = loadRulesEngineSafe();
-    if(!rules){ alert('No hay reglas cargadas.'); return; }
-    const blob=new Blob([JSON.stringify(rules,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='rules_engine.json'; a.click();
-    setTimeout(()=>URL.revokeObjectURL(url), 1500);
-  });
-
-  $('importRulesBtn') && ($('importRulesBtn').onclick=()=>$('importRulesFile').click());
-  $('importRulesFile') && ($('importRulesFile').onchange=(ev)=>{
-    const file=ev.target.files[0]; if(!file) return;
-    const r=new FileReader();
-    r.onload=()=>{
-      try{
-        const obj=JSON.parse(String(r.result||'{}'));
-        if(!obj || obj.schemaVersion!==1) throw new Error('schemaVersion inválido');
-        saveRulesEngineSafe(obj);
-        alert('Reglas importadas.');
-      }catch(e){
-        alert('JSON inválido o incompatible.');
-      }
-    };
-    r.readAsText(file);
-    ev.target.value='';
-  });
-
-  $('resetRules') && ($('resetRules').onclick=()=>{
-    if(confirm('¿Restaurar reglas por defecto? (se borrará el Rules Engine cargado)')){
-      resetRulesEngine();
-      alert('Reglas restauradas (se usarán defaults internos).');
-    }
-  });
     r.readAsText(file);
   };
 
@@ -3086,26 +2929,52 @@ function freezeDayIfNeeded(dateKey, summary){
 // ===== End Ledger System =====
 
 
+
+// ===== Dev Mode (locked) =====
+const DEV_PIN = '0954';
+function isDev(){
+  return localStorage.getItem('mc_dev') === '1';
+}
+function setDev(on){
+  localStorage.setItem('mc_dev', on ? '1' : '0');
+  applyDevUI();
+}
+function applyDevUI(){
+  document.querySelectorAll('.devOnly').forEach(el=>{
+    if(isDev()) el.classList.add('devOn');
+    else el.classList.remove('devOn');
+  });
+}
+(function initDevActivation(){
+  let pressTimer=null;
+  const title = document.getElementById('foodsTitle');
+  if(!title) return;
+  const start = (e)=>{
+    if(pressTimer) clearTimeout(pressTimer);
+    pressTimer = setTimeout(()=>{
+      const pin = prompt('PIN desarrollador');
+      if(pin===null) return;
+      if(pin.trim()===DEV_PIN){
+        setDev(true);
+        alert('Modo desarrollador activado');
+      }else{
+        alert('PIN incorrecto');
+      }
+    }, 650);
+  };
+  const cancel = ()=>{ if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } };
+  title.addEventListener('touchstart', start);
+  title.addEventListener('touchend', cancel);
+  title.addEventListener('touchmove', cancel);
+  title.addEventListener('mousedown', start);
+  title.addEventListener('mouseup', cancel);
+  title.addEventListener('mouseleave', cancel);
+})();
+document.addEventListener('DOMContentLoaded', applyDevUI);
+applyDevUI();
+// ===== End Dev Mode =====
+
 </script>
 </body>
-</html
 
-  const updateMiniSticky = (goal,eaten)=>{
-    try{
-      const el=$('miniStickyStatus'), c=$('miniStickyContent');
-      if(!el||!c||!goal||!eaten) return;
-      const diffP = Math.round(goal.p - eaten.p);
-      const bal = Math.round(eaten.kcal - (goal.tdee||0));
-      c.innerHTML = `
-        <div>🔥 ${Math.round(eaten.kcal)} / ${Math.round(goal.goalKcal)}</div>
-        <div>🥩 ${diffP>0?('faltan '+diffP): (diffP<0?('sobran '+Math.abs(diffP)):'ok')}g</div>
-        <div>⚖️ ${bal>0?('+'+bal):bal} kcal</div>
-      `;
-    }catch(e){}
-  };
-  window.addEventListener('scroll', ()=>{
-    const el=$('miniStickyStatus'); if(!el) return;
-    el.style.display = (window.scrollY>220) ? 'block' : 'none';
-  });
-
->
+</html>
