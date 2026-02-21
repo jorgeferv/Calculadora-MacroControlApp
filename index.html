@@ -193,17 +193,6 @@
 
     /* iOS anti-zoom on inputs */
     input, select, textarea, button { font-size:16px; }
-    /* FAB resumen diario (más moderno y sin problemas con el notch) */
-    .fabStatus{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);
-      z-index:220;display:flex;gap:10px;align-items:center;
-      padding:10px 12px;background:rgba(10,14,20,.92);backdrop-filter:blur(8px);
-      border:1px solid rgba(255,255,255,.10);border-radius:999px;
-      box-shadow:0 14px 34px rgba(0,0,0,.45);
-      font-variant-numeric: tabular-nums;}
-    .fabStatus .item{display:flex;align-items:baseline;gap:6px;white-space:nowrap;}
-    .fabStatus .k{font-size:13px;opacity:.9;}
-    .fabStatus .v{font-size:14px;font-weight:800;}
-    .fabStatus .sep{width:1px;height:18px;background:rgba(255,255,255,.12);}
     /* Add tab UX */
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
@@ -217,13 +206,7 @@
 
 <body>
 
-  <div id="fabStatus" class="fabStatus" style="display:none;">
-    <div class="item"><span class="k">🔥</span><span class="v" id="fabK">—</span></div>
-    <span class="sep"></span>
-    <div class="item"><span class="k">🥩</span><span class="v" id="fabP">—</span></div>
-    <div class="item"><span class="k">🍚</span><span class="v" id="fabC">—</span></div>
-    <div class="item"><span class="k">🥑</span><span class="v" id="fabF">—</span></div>
-  </div>
+  
 
   <h1>MacroControlAPP</h1>
   <div id="weekChips" class="weekChips" style="margin:10px 0 14px;"></div>
@@ -631,6 +614,15 @@
 
         <label>Buscar</label>
         <input id="foodSearch" placeholder="Escribe para filtrar..." />
+        <div id="addStatusBar" class="addStatusBar">
+          <div class="row">
+            <div class="pill"><span class="k">🔥</span><span class="v" id="addRemK">—</span></div>
+            <div class="pill"><span class="k">🥩</span><span class="v" id="addRemP">—</span></div>
+            <div class="pill"><span class="k">🍚</span><span class="v" id="addRemC">—</span></div>
+            <div class="pill"><span class="k">🥑</span><span class="v" id="addRemF">—</span></div>
+          </div>
+        </div>
+
         <!-- (Eliminado) Lista rápida bajo buscar: generaba ruido y no aportaba -->
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
@@ -897,21 +889,21 @@ window.addEventListener('error', function(e){
     t.addEventListener('mouseleave', cancel);
   };
 
-  // FAB resumen diario (kcal + macros). Siempre visible en pantallas principales.
-  const updateFabStatus = (goal,eaten)=>{
+  // Barra de estado en Añadir (kcal + macros)e en pantallas principales.
+  const updateAddStatusBar = (goal,eaten)=>{
     try{
-      const wrap=$('fabStatus');
+      const wrap=$('addStatusBar');
       if(!wrap || !goal || !eaten) return;
-      // mostrar solo en pantallas principales
       const tab = (typeof state!=='undefined' && state && state.tab) ? state.tab : 'day';
-      wrap.style.display = (tab==='day' || tab==='add') ? 'flex' : 'none';
+      // Solo en pantalla Añadir
+      wrap.style.display = (tab==='add') ? 'block' : 'none';
 
       const remK = Math.round((goal.goalKcal||0) - (eaten.kcal||0));
       const remP = Math.round((goal.p||0) - (eaten.p||0));
       const remC = Math.round((goal.c||0) - (eaten.c||0));
       const remF = Math.round((goal.f||0) - (eaten.f||0));
 
-      const kEl=$('fabK'), pEl=$('fabP'), cEl=$('fabC'), fEl=$('fabF');
+      const kEl=$('addRemK'), pEl=$('addRemP'), cEl=$('addRemC'), fEl=$('addRemF');
       if(kEl) kEl.textContent = `${remK>=0?remK:('-'+Math.abs(remK))}`;
       if(pEl) pEl.textContent = `${remP>=0?('+'+remP):('-'+Math.abs(remP))}`;
       if(cEl) cEl.textContent = `${remC>=0?('+'+remC):('-'+Math.abs(remC))}`;
@@ -2288,7 +2280,7 @@ window.addEventListener('error', function(e){
   const renderDayStatus=(goal,eaten)=>{
     renderMacroBars(goal,eaten);
     renderBalanceBar(goal.goalKcal||goal.tdee||0, Number(eaten.kcal)||0);
-    updateFabStatus(goal,eaten);
+    updateAddStatusBar(goal,eaten);
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
