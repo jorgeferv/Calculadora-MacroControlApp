@@ -1628,13 +1628,8 @@ window.addEventListener('error', function(e){
 
     const allowedTag = slotToAllowedTag(slot);
     const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
-
-    // Coach usage context (para evitar redundancia)
-    const logsDay = (typeof activeDayKey!=='undefined') ? loadLogs(activeDayKey).items : [];
-    const uCoach = buildUsageFromLogs(foods, logsDay);
-    const siCoach = slotIndexForMeal(slotOverride);
-    const slotKeyCoach = getSlotKey(slotOverride);
-    const foodsAllowed = foods.filter(f=>allow(f) && coachAllowFood(f, u, slotIndex, slotKey));
+    // Coach constraints are applied at recommendation layer; pairings use basic allow() here.
+    const foodsAllowed = foods.filter(f=>allow(f));
 
     const kcalTol = Number(hard?.kcalToleranceBlock ?? 80);
 
@@ -1744,14 +1739,17 @@ window.addEventListener('error', function(e){
 
     if(slotOverride==='desayuno' || slotOverride==='merienda') tgt.f = Math.min(tgt.f, 16);
 
+    // Coach usage (variedad/anti-repetición)
+    const logsDay = (typeof activeDayKey!=='undefined') ? loadLogs(activeDayKey).items : [];
+    const uCoach = buildUsageFromLogs(foods, logsDay);
+    const siCoach = slotIndexForMeal(slotOverride);
+    const slotKeyCoach = getSlotKey(slotOverride);
+
     // Intento 1: maridajes (pairings) del Rules Engine. Si no encaja, fallback a heurística r46.
     try{
       const rules = loadRulesEngine();
       const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
-      const logsDay = (typeof activeDayKey!=='undefined') ? loadLogs(activeDayKey).items : [];
-      const u = buildUsageFromLogs(foods, logsDay);
-      const si = slotIndexForMeal(slotOverride);
-      const paired = pickByPairings(foods, slotOverride, ctx, tgt, hard, rules, u, si);
+      const paired = pickByPairings(foods, slotOverride, ctx, tgt, hard, rules, uCoach, siCoach);
       if(paired) return { items: paired.items.map(x=>({ ...x, meal: slotOverride })), tot: paired.tot, pairingId: paired.pairingId };
     }catch(_){ /* silent fallback */ }
 
