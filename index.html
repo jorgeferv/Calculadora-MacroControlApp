@@ -1835,6 +1835,18 @@ window.addEventListener('error', function(e){
   // Objetivo: cuadrar SOLO lo que falta en el día, respetando lo ya registrado.
   // Post-entreno es opcional y solo entra si (WOD > 0) o (Calorías activas > 0). NEAT NO afecta.
   const planMacrosOk=(foods, goal, logs, day)=>{
+
+  // === Reroll support (seeded rotation of preferred lists) ===
+  const __rerollSeed = (typeof window !== 'undefined' && window.__macrosOkRerollSeed) ? Number(window.__macrosOkRerollSeed) : 0;
+  const rerollPrefer = (ids, salt)=>{
+    if(!__rerollSeed) return ids;
+    const n = ids.length;
+    if(n<=1) return ids;
+    // rotate by deterministic offset
+    const off = Math.abs((__rerollSeed + (salt||0))) % n;
+    return ids.slice(off).concat(ids.slice(0, off));
+  };
+
     const rules = loadRulesEngine();
     const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
     const ctxConf = rules?.contexts || DEFAULT_RULES_ENGINE.contexts;
@@ -1892,13 +1904,13 @@ window.addEventListener('error', function(e){
         arr = foods.filter(f => ['banana','freson','uva','manzana'].includes(f.id) && allow(f));
       }
       if(tag==='protein'){
-        arr = preferOrder(arr, ['queso_batido_0','claras','huevo_M','pollo_pechuga','Pechuga_92%_pavo_hacendado_lonchas','lomo_cerdo','Lomo_embuchado_Hacendado_lonchas']);
+        arr = preferOrder(arr, rerollPrefer(['queso_batido_0','claras','huevo_M','pollo_pechuga','Pechuga_92%_pavo_hacendado_lonchas','lomo_cerdo','Lomo_embuchado_Hacendado_lonchas'], 101));
       }
       if(tag==='carb'){
-        arr = preferOrder(arr, ['gnocchi','pan_cristal','Pan_Brioche_Hamburguesa_Hacendado','Pan_molde_blanco_Hacendado','patata_guarnicion','baston_batata']);
+        arr = preferOrder(arr, rerollPrefer(['gnocchi','pan_cristal','Pan_Brioche_Hamburguesa_Hacendado','Pan_molde_blanco_Hacendado','patata_guarnicion','baston_batata'], 202));
       }
       if(tag==='fat'){
-        arr = preferOrder(arr, ['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light']);
+        arr = preferOrder(arr, rerollPrefer(['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light'], 303));
       }
       return arr;
     };
@@ -4195,14 +4207,14 @@ function freezeDayIfNeeded(dateKey, summary){
     const list = document.getElementById('macrosOkList');
     if(!list) return;
 
-    list.addEventListener('dblclick', (ev)=>{
-      const row = ev.target.closest('.item');
-      if(!row) return;
-      const idx = row.getAttribute('data-macrosok-idx');
+    list.addEventListener('click', (ev)=>{
+      const btn = ev.target.closest('.mcSwapBtn');
+      if(!btn) return;
+      const idx = btn.getAttribute('data-macrosok-idx');
       if(idx===null) return;
       const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
       App.Engine.swapMacrosOkItem(Number(idx), foods);
-    }, {passive:true});
+    });
   }
 
   // Enhance renderMacrosOk to annotate items with data index for dblclick swap
@@ -4216,17 +4228,28 @@ function freezeDayIfNeeded(dateKey, summary){
 
       // Find non-header items: we assume headers are "item" too but contain "(plan)" in bold line.
       const nodes = Array.from(list.querySelectorAll('.item'));
-      // We'll assign indices only to those that match an item name in sequence as rendered.
+      // We'll assign indices to non-header rows in order and append a visible Swap button.
       let cursor = 0;
       for(const n of nodes){
         const b = n.querySelector('b');
         const title = (b?.textContent||'').trim();
         const isHeader = title.endsWith('(plan)');
         if(isHeader) continue;
-        // assign current cursor
         if(cursor < currentMacrosOk.items.length){
           n.setAttribute('data-macrosok-idx', String(cursor));
-          n.title = (n.title||'') + "\nDoble toque para reemplazar (swap).";
+
+          // add/refresh swap button
+          let sb = n.querySelector('.mcSwapBtn');
+          if(!sb){
+            sb = document.createElement('button');
+            sb.type = 'button';
+            sb.className = 'mcSwapBtn';
+            sb.style.marginLeft = '8px';
+            sb.textContent = 'Cambiar';
+            n.appendChild(sb);
+          }
+          sb.setAttribute('data-macrosok-idx', String(cursor));
+
           cursor++;
         }
       }
@@ -4235,6 +4258,7 @@ function freezeDayIfNeeded(dateKey, summary){
 
   // ---------- Reroll ----------
   App.Engine.rerollMacrosOk = function(){
+    window.__macrosOkRerollSeed = Date.now();
     const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
     const storedMode = (typeof loadMode==='function') ? loadMode() : null;
     const daySettings = (typeof loadDaySettings==='function') ? loadDaySettings(activeDayKey, storedMode?.modeKey) : null;
