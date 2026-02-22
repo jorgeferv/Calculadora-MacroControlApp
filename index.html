@@ -1760,17 +1760,42 @@ window.addEventListener('error', function(e){
 
     const qtyForMacro = (food, macroKey, target)=>{
       // target en gramos de macro; devuelve qty (g o units) aproximada
-      const per = macroFor(food, 'g', 100);
+      // Modo COACH por defecto: prioriza unidades y redondeos humanos (sin báscula).
+      const per100 = macroFor(food, 'g', 100);
       const perUnit = macroFor(food, 'unit', 1);
+
+      const macroVal = (m)=> (macroKey==='p'?m.p:(macroKey==='c'?m.c:m.f));
+
+      // límites blandos por alimento (por slot) para evitar cantidades absurdas
+      const maxByIdG = {
+        'claras': 250,
+        'queso_batido_0': 300,
+      };
+
       if(food.baseUnit==='unit'){
-        const mv = (macroKey==='p'?perUnit.p:(macroKey==='c'?perUnit.c:perUnit.f));
+        const mv = macroVal(perUnit);
         if(mv<=0) return 1;
-        return clamp(Math.round(target / mv), 1, 6);
-      } else {
-        const mv = (macroKey==='p'?per.p:(macroKey==='c'?per.c:per.f));
-        if(mv<=0) return 100;
-        return clamp(round5((target / mv)*100), 30, 400);
+
+        // Redondeo a medios envases (0.5) y máximo 2 unidades (COACH)
+        const raw = target / mv;
+        const rounded = Math.round(raw*2)/2; // 0.5 increments
+        return clamp(rounded, 0.5, 2);
       }
+
+      // baseUnit gramos
+      const mv100 = macroVal(per100);
+      if(mv100<=0) return 100;
+
+      // qty en gramos aproximada
+      const rawG = (target / mv100) * 100;
+
+      // steps por tipo (más humano)
+      const step = (food.tags||[]).includes('fat') ? 10 : ((food.tags||[]).includes('carb') ? 50 : 25);
+
+      const roundedG = Math.max(step, Math.round(rawG/step)*step);
+
+      const maxG = maxByIdG[food.id] ?? ((food.tags||[]).includes('protein') ? 300 : 400);
+      return clamp(roundedG, step, maxG);
     };
 
     const addItem = (slot, food, qtyType, qty)=>{
@@ -2169,6 +2194,8 @@ window.addEventListener('error', function(e){
     const set = getTagSetFromInput();
     if(set.has(t)) set.delete(t); else set.add(t);
     setTagsToInput(set);
+    bindStatsModal();
+
     refreshTagButtons();
   });
 
@@ -2444,7 +2471,12 @@ window.addEventListener('error', function(e){
     if(fatBelowMinPhys){
       advice = `Sube grasas: estás por debajo del mínimo (${fmt1(minPhysFat)} g).`;
     } else if(remP > pMargin){
-      advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Mantén calorías.`;
+      if(Math.abs(kcalDiff) <= tolKcal){
+        const cutFromC = Math.max(0, Math.round((remP*4)/4)); // 1g P ~ 1g C en kcal
+        advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Para mantener calorías, recorta ~${cutFromC} g de hidratos (o ~${Math.round((remP*4)/9)} g de grasa) en la próxima comida.`;
+      } else {
+        advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Añádela y ajustamos el resto del día.`;
+      }
     } else if(kcalDiff < -tolKcal){
       advice = `Te faltan ${Math.round(Math.abs(kcalDiff))} kcal. Sube hidratos (y algo de grasa si te apetece).`;
     } else if(kcalDiff > tolKcal){
