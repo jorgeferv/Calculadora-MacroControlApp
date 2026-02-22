@@ -3196,14 +3196,11 @@ window.addEventListener('error', function(e){
 
     // Guidance por desviación acumulada 7d
     const guidance = computeDeficitGuidance(profile, storedMode);
-    let adjustedGoal = goal;
+    const adjustedGoal = goal; // Coach: nunca modificar el objetivo diario automáticamente
     if(guidance){
       const absDev = Math.abs(guidance.deviation);
       if(absDev>0.20){
         $('dayStatusDetail').textContent += ` · ${guidance.msg}`;
-      }
-      if((activeDayKey >= todayKey()) && absDev>0.15){
-        adjustedGoal = { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) };
       }
     }
 
@@ -3493,9 +3490,8 @@ window.addEventListener('error', function(e){
     const {items:logs}=loadLogs(activeDayKey);
     const goal=computeGoal(profile, day, storedMode);
     const guidance = computeDeficitGuidance(profile, storedMode);
-    const adjustedGoal = (guidance && (activeDayKey >= todayKey()) && Math.abs(guidance.deviation)>0.15)
-      ? { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) }
-      : goal;
+    const adjustedGoal = goal; // Coach: Macros OK siempre cuadra contra el objetivo diario, no contra TDEE/corrección 7d
+    // Nota: guidance se muestra solo como información; no altera el objetivo automáticamente.
 
     currentMacrosOk = planMacrosOk(foods, adjustedGoal, logs, day);
 
