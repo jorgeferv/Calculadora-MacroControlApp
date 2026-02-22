@@ -585,6 +585,7 @@
           <div class="list" id="macrosOkList"></div>
           <div class="seg">
             <button id="macrosOkGen" type="button">Cuadrar Día</button>
+            <button id="macrosOkReroll" type="button">🔄 Nuevo plan</button>
             <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
           </div>
           <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
@@ -3991,6 +3992,285 @@ function freezeDayIfNeeded(dateKey, summary){
   };
 
   window.App = App;
+})();
+</script>
+
+
+<script>
+/**
+ * r48_learning_swap_reroll
+ * - Learning v1 (anti-monotonía, exploración invisible) minimal hooks
+ * - Swap item in Macros OK plan: user chooses replacement, engine computes qty to keep slot roughly on target
+ * - Reroll: regenerate Macros OK plan with shuffled foods to provide an alternate quadrant
+ *
+ * Notes:
+ * - Conservative: no UI overhaul; uses prompts and existing renderMacrosOk()
+ * - Learning reset remains manual via DEV (console hook) for now: App.Engine.resetLearning()
+ */
+(function(){
+  if(!window.App) window.App = {};
+  const App = window.App;
+  App.State = App.State || {};
+  App.Engine = App.Engine || {};
+  App.Data = App.Data || {};
+  App.UI = App.UI || {};
+
+  // ---------- Learning state ----------
+  function ensureLearningState(){
+    const st = (typeof window.state !== 'undefined') ? window.state : (App.State.state || App.State.appState || App.State.mcState || App.State.todayState || App.State.state);
+    // We store learning inside the same root state object if possible, otherwise in App.State.__learning.
+    const root = st || App.State;
+    if(!root.learning){
+      root.learning = {
+        foodScore: {},
+        pairingScore: {},
+        // simple recency counters (optional). We'll derive from logs when needed.
+        lastSeenFood: {},   // foodId -> YYYY-MM-DD
+        weeklyCount: {}     // foodId -> count (last 7 days best-effort)
+      };
+    }
+    return root.learning;
+  }
+
+  function clamp(v, a, b){ v=Number(v)||0; return Math.max(a, Math.min(b, v)); }
+
+  App.Engine.resetLearning = function(){
+    const L = ensureLearningState();
+    L.foodScore = {};
+    L.pairingScore = {};
+    L.lastSeenFood = {};
+    L.weeklyCount = {};
+    // Save if possible
+    try{ if(typeof saveState==='function') saveState(); }catch(e){}
+    try{ if(typeof App.Data.save==='function') App.Data.save(); }catch(e){}
+    console.log("Learning reset completado.");
+  };
+
+  function bumpScore(map, key, delta){
+    if(!key) return;
+    const cur = Number(map[key]||0);
+    map[key] = clamp(cur + delta, -3, 3);
+  }
+
+  App.Engine.registerAcceptance = function(foodId, pairingId){
+    const L = ensureLearningState();
+    bumpScore(L.foodScore, foodId, +1);
+    bumpScore(L.pairingScore, pairingId, +1);
+    try{ if(typeof saveState==='function') saveState(); }catch(e){}
+  };
+
+  App.Engine.registerRejection = function(foodId, pairingId){
+    const L = ensureLearningState();
+    bumpScore(L.foodScore, foodId, -1);
+    bumpScore(L.pairingScore, pairingId, -1);
+    try{ if(typeof saveState==='function') saveState(); }catch(e){}
+  };
+
+  // ---------- Helpers ----------
+  function findFoodByQuery(foods, q){
+    q = (q||'').trim().toLowerCase();
+    if(!q) return null;
+    // exact id
+    let hit = foods.find(f => (f.id||'').toLowerCase() === q);
+    if(hit) return hit;
+    // exact name
+    hit = foods.find(f => (f.name||'').toLowerCase() === q);
+    if(hit) return hit;
+    // includes
+    const scored = foods.map(f=>{
+      const name = (f.name||'').toLowerCase();
+      const id = (f.id||'').toLowerCase();
+      let s = 0;
+      if(name.includes(q)) s += 3;
+      if(id.includes(q)) s += 2;
+      // prefix bonus
+      if(name.startsWith(q)) s += 2;
+      return {f, s, nameLen:name.length};
+    }).filter(x=>x.s>0).sort((a,b)=> b.s-a.s || a.nameLen-b.nameLen);
+    return scored[0]?.f || null;
+  }
+
+  function pickQtyToMatchKcal(food, targetKcal){
+    targetKcal = Number(targetKcal)||0;
+    if(targetKcal <= 0) targetKcal = 100;
+
+    // Use existing macroFor if available, fallback approximate
+    const mf = (typeof macroFor==='function') ? macroFor : null;
+
+    const best = {qtyType:'g', qty:100, tot:{kcal:0,p:0,c:0,f:0}, err:1e9};
+
+    const evalCandidate = (qtyType, qty)=>{
+      const tot = mf ? mf(food, qtyType, qty) : {kcal:0,p:0,c:0,f:0};
+      const kcal = Number(tot.kcal)||0;
+      const err = (kcal <= targetKcal) ? (targetKcal - kcal) : (targetKcal - kcal) * 4; // overshoot heavily penalized
+      if(err < best.err){
+        best.qtyType = qtyType; best.qty = qty; best.tot = tot; best.err = err;
+      }
+    };
+
+    // Prefer units when possible
+    const canUnit = (food.baseUnit === 'unit') || (food.baseUnit === '100g' && food.unitGrams);
+    if(canUnit){
+      [0.5,1,1.5,2].forEach(u=> evalCandidate('unit', u));
+      // if still far, allow 2.5
+      if(best.err > 120) evalCandidate('unit', 2.5);
+      return best;
+    }
+
+    // grams mode
+    // estimate kcal per 100g
+    let per100 = mf ? mf(food, 'g', 100).kcal : 0;
+    per100 = Number(per100)||0;
+    if(per100 <= 0){
+      // fallback: 100g
+      evalCandidate('g', 100);
+      return best;
+    }
+    const kcalPerG = per100/100;
+    let g = targetKcal / kcalPerG;
+
+    // Coach rounding: 25g steps for protein-ish, else 50g
+    const tags = food.tags||[];
+    const step = tags.includes('protein') ? 25 : 50;
+    g = Math.max(step, Math.round(g/step)*step);
+
+    // clamp to reasonable bounds
+    g = Math.min(Math.max(g, step), 600);
+
+    [g-step, g, g+step].forEach(x=> evalCandidate('g', Math.max(step, x)));
+    return best;
+  }
+
+  function qtyDisplayFor(it){
+    // Reuse existing formatters if present
+    if(typeof prettyQty === 'function') return prettyQty(it.qty, it.qtyType);
+    const t = it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g');
+    return `${Math.round((it.qty||0)*100)/100} ${t}`;
+  }
+
+  // ---------- Swap in Macros OK ----------
+  App.Engine.swapMacrosOkItem = function(itemIndex, foods){
+    if(typeof currentMacrosOk === 'undefined' || !currentMacrosOk?.items?.length) return;
+
+    const it = currentMacrosOk.items[itemIndex];
+    if(!it) return;
+
+    const q = prompt(
+      `Reemplazar "${it.name}"\n\nEscribe nombre o id del alimento.\nEjemplos: atun | pavo | arroz | tortilla\n\n(Enter para cancelar)`,
+      ''
+    );
+    if(!q) return;
+
+    const replacement = findFoodByQuery(foods, q);
+    if(!replacement){
+      alert('No encontrado. Prueba con otro nombre.');
+      return;
+    }
+
+    // Learning: reject old, accept new (pairingId best-effort if exists)
+    App.Engine.registerRejection(it.id, it.pairingId);
+    App.Engine.registerAcceptance(replacement.id, it.pairingId);
+
+    const best = pickQtyToMatchKcal(replacement, it.kcal);
+
+    // Update item
+    it.id = replacement.id;
+    it.name = replacement.name || replacement.id;
+    it.qtyType = best.qtyType;
+    it.qty = best.qty;
+    it.kcal = Math.round((best.tot.kcal||0));
+    it.p = Math.round((best.tot.p||0)*10)/10;
+    it.c = Math.round((best.tot.c||0)*10)/10;
+    it.f = Math.round((best.tot.f||0)*10)/10;
+    it.qtyDisplay = qtyDisplayFor(it);
+
+    // Rerender
+    try{ if(typeof renderMacrosOk==='function') renderMacrosOk(); }catch(e){ console.error(e); }
+  };
+
+  // Patch existing Macros OK item click prompt to support SWAP without changing old behavior too much.
+  // We add a small hint: type "R" to replace.
+  // Safer approach: attach a double-click handler on items in macrosOkList.
+  function bindMacrosOkSwap(){
+    const list = document.getElementById('macrosOkList');
+    if(!list) return;
+
+    list.addEventListener('dblclick', (ev)=>{
+      const row = ev.target.closest('.item');
+      if(!row) return;
+      const idx = row.getAttribute('data-macrosok-idx');
+      if(idx===null) return;
+      const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
+      App.Engine.swapMacrosOkItem(Number(idx), foods);
+    }, {passive:true});
+  }
+
+  // Enhance renderMacrosOk to annotate items with data index for dblclick swap
+  const _origRenderMacrosOk = (typeof renderMacrosOk==='function') ? renderMacrosOk : null;
+  if(_origRenderMacrosOk){
+    window.renderMacrosOk = function(){
+      _origRenderMacrosOk();
+      // annotate items (best-effort): second pass through DOM to map by order within each plan group
+      const list = document.getElementById('macrosOkList');
+      if(!list || !currentMacrosOk?.items?.length) return;
+
+      // Find non-header items: we assume headers are "item" too but contain "(plan)" in bold line.
+      const nodes = Array.from(list.querySelectorAll('.item'));
+      // We'll assign indices only to those that match an item name in sequence as rendered.
+      let cursor = 0;
+      for(const n of nodes){
+        const b = n.querySelector('b');
+        const title = (b?.textContent||'').trim();
+        const isHeader = title.endsWith('(plan)');
+        if(isHeader) continue;
+        // assign current cursor
+        if(cursor < currentMacrosOk.items.length){
+          n.setAttribute('data-macrosok-idx', String(cursor));
+          n.title = (n.title||'') + "\nDoble toque para reemplazar (swap).";
+          cursor++;
+        }
+      }
+    };
+  }
+
+  // ---------- Reroll ----------
+  App.Engine.rerollMacrosOk = function(){
+    const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
+    const storedMode = (typeof loadMode==='function') ? loadMode() : null;
+    const daySettings = (typeof loadDaySettings==='function') ? loadDaySettings(activeDayKey, storedMode?.modeKey) : null;
+    const day = daySettings?.day || {};
+    const profile = (typeof loadProfile==='function') ? loadProfile() : null;
+    const logsWrap = (typeof loadLogs==='function') ? loadLogs(activeDayKey) : {items:[]};
+    const logs = logsWrap?.items || [];
+    const goal = (typeof computeGoal==='function') ? computeGoal(profile, day, storedMode) : null;
+    if(!goal || typeof planMacrosOk!=='function') return;
+
+    // Shuffle foods to get a different quadrant without changing engine internals
+    const shuffled = foods.slice();
+    for(let i=shuffled.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
+    }
+
+    currentMacrosOk = planMacrosOk(shuffled, goal, logs, day);
+    const ctxEl = document.getElementById('macrosOkContext');
+    if(ctxEl) ctxEl.textContent = currentMacrosOk?.context || 'Sin sugerencia.';
+    try{ if(typeof renderMacrosOk==='function') renderMacrosOk(); }catch(e){ console.error(e); }
+  };
+
+  // Bind reroll button
+  function bindRerollBtn(){
+    const btn = document.getElementById('macrosOkReroll');
+    if(!btn) return;
+    btn.onclick = ()=> App.Engine.rerollMacrosOk();
+  }
+
+  // Boot-time bindings
+  document.addEventListener('DOMContentLoaded', ()=>{
+    bindRerollBtn();
+    bindMacrosOkSwap();
+  });
+
 })();
 </script>
 
