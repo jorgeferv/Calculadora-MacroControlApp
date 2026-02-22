@@ -1437,6 +1437,164 @@ window.addEventListener('error', function(e){
     return Array.from(t);
   };
 
+
+  // ===== Coach mode: variedad y límites (r47.3) =====
+  const ENGINE_MODE_KEY = 'mc_engine_mode'; // 'coach' | 'pro'
+  const getEngineMode = ()=> loadJSON(ENGINE_MODE_KEY, 'coach');
+
+  const getProteinGroup = (food)=>{
+    const id = String(food.id||'').toLowerCase();
+    const name = String(food.name||'').toLowerCase();
+    const tags = new Set((food.tags||[]).map(t=>String(t).toLowerCase()));
+
+    // tags explícitos si existen
+    if(tags.has('protein_egg')) return 'protein_egg';
+    if(tags.has('protein_dairy')) return 'protein_dairy';
+    if(tags.has('protein_deli')) return 'protein_deli';
+    if(tags.has('protein_fish')) return 'protein_fish';
+    if(tags.has('protein_meat')) return 'protein_meat';
+    if(tags.has('protein_legume')) return 'protein_legume';
+
+    // heurística por id/nombre (fallback)
+    if(id.includes('clara') || id.includes('huevo') || name.includes('clara') || name.includes('huevo')) return 'protein_egg';
+    if(id.includes('queso') || id.includes('skyr') || id.includes('yog') || id.includes('proteinas_mousse') || id.includes('proteinas_pudding') || id.includes('proteinas_natillas')
+       || name.includes('queso') || name.includes('skyr') || name.includes('yogur') || name.includes('postre') || name.includes('mousse') || name.includes('pudding') || name.includes('natillas')) return 'protein_dairy';
+    if(id.includes('pavo') || id.includes('jamon') || id.includes('lonchas') || name.includes('pavo') || name.includes('jamón') || name.includes('jamon') || name.includes('lonchas')) return 'protein_deli';
+    if(id.includes('atun') || id.includes('atún') || id.includes('salmon') || id.includes('salmón') || id.includes('caballa') || name.includes('atún') || name.includes('atun') || name.includes('salmón') || name.includes('salmon') || name.includes('caballa')) return 'protein_fish';
+
+    return null;
+  };
+
+  const coachLimits = ()=>{
+    // hard caps diarios por alimento comodín (modo coach)
+    return {
+      maxPerDayById: {
+        // ajusta ids si en tu base están con nombres distintos
+        'claras_pasteurizadas': 1,
+        'claras_de_huevo': 1,
+        'claras_liquidas': 1,
+        'clara_huevo': 1,
+        'queso_fresco_batido': 2,
+        'queso_batido': 2,
+        'queso_fresco_batido_0': 2,
+        'gnocchi': 1,
+        'ñoquis': 1,
+        'gnochhi': 1
+      },
+      // límites por grupo (variedad)
+      minProteinGroupsPerDay: 2,
+      maxProteinGroupsPerDay: 3,
+      // repetición consecutiva (penalty fuerte)
+      penaltySameGroupPrev: 0.70,
+      penaltyGroupUsedToday: 0.35,
+      // preferencia por slot
+      slotPrefs: {
+        breakfast: ['protein_dairy','protein_egg'],
+        lunch: ['protein_deli','protein_fish','protein_meat'],
+        snack: ['protein_dairy','protein_deli'],
+        dinner: ['protein_fish','protein_deli','protein_meat'],
+        post: ['protein_dairy','protein_deli']
+      }
+    };
+  };
+
+  const initUsageState = ()=>({
+    foodCounts: {},          // {foodId: n}
+    groupCounts: {},         // {group: n}
+    groupSeq: [],            // por slot
+    groupsUsed: new Set()    // distintos
+  });
+
+  const noteUsage = (used, foodId, group)=>{
+    if(foodId){
+      used.foodCounts[foodId] = (used.foodCounts[foodId]||0)+1;
+    }
+    if(group){
+      used.groupCounts[group] = (used.groupCounts[group]||0)+1;
+      used.groupsUsed.add(group);
+    }
+  };
+
+  const getSlotKey = (slot)=>{
+    const s = String(slot||'').toLowerCase();
+    if(s.includes('desay')) return 'breakfast';
+    if(s.includes('comida') || s.includes('almuer')) return 'lunch';
+    if(s.includes('merien')) return 'snack';
+    if(s.includes('cena')) return 'dinner';
+    if(s.includes('post')) return 'post';
+    return 'snack';
+  };
+
+  const coachAllowFood = (food, used, slotIndex, slotKey)=>{
+    if(getEngineMode() !== 'coach') return true;
+    const lim = coachLimits();
+    const id = String(food.id||'');
+    const idLow = id.toLowerCase();
+
+    // hard caps por id (comodines)
+    for(const k in lim.maxPerDayById){
+      if(idLow.includes(k)){
+        if((used.foodCounts[id]||0) >= lim.maxPerDayById[k]) return false;
+      }
+    }
+
+    // Queso batido: permitir 2/día pero no consecutivo (por grupo dairy)
+    const g = getProteinGroup(food);
+    const prevG = used.groupSeq[slotIndex-1] || null;
+    if(g==='protein_dairy' && prevG==='protein_dairy' && slotKey!=='post') return false;
+
+    // Máximo 3 grupos distintos: no permitir introducir un 4º
+    if(g && !used.groupsUsed.has(g) && used.groupsUsed.size >= lim.maxProteinGroupsPerDay) return false;
+
+    return true;
+  };
+
+  const coachScoreAdjust = (food, used, slotIndex, slotKey)=>{
+    if(getEngineMode() !== 'coach') return 0;
+    const lim = coachLimits();
+    const g = getProteinGroup(food);
+    if(!g) return 0;
+
+    let adj = 0;
+    const prevG = used.groupSeq[slotIndex-1] || null;
+    if(prevG && g===prevG) adj -= lim.penaltySameGroupPrev;
+
+    if(used.groupsUsed.has(g)) adj -= lim.penaltyGroupUsedToday;
+
+    // bonificar introducción de 2º/3º grupo al inicio del día
+    if(!used.groupsUsed.has(g) && used.groupsUsed.size < lim.minProteinGroupsPerDay) adj += 0.25;
+
+    // preferencia por slot (ligera)
+    const prefs = lim.slotPrefs[slotKey] || [];
+    const idx = prefs.indexOf(g);
+    if(idx>=0) adj += (0.20 - idx*0.05);
+
+    return adj;
+  };
+
+  const slotIndexForMeal = (meal)=>{
+    const m = String(meal||'').toLowerCase();
+    const order = ['desayuno','comida','merienda','pre_entreno','cena','post_entreno','post'];
+    const i = order.indexOf(m);
+    return i>=0 ? i : 0;
+  };
+
+  const buildUsageFromLogs = (foods, logs)=>{
+    const u = initUsageState();
+    for(const it of (logs||[])){
+      const fid = it.foodId || it.id;
+      if(!fid) continue;
+      const f = foods.find(x=>x.id===fid);
+      if(!f) continue;
+      const g = getProteinGroup(f);
+      noteUsage(u, f.id, g);
+      // intentamos inferir orden de slots según 'meal'
+      const si = slotIndexForMeal(it.meal || it.slot || it.block);
+      u.groupSeq[si] = u.groupSeq[si] || g;
+    }
+    return u;
+  };
+
   const hasAnyTag = (engineTags, anyOf=[])=>{
     if(!anyOf?.length) return true;
     const s = new Set(engineTags);
@@ -1462,13 +1620,21 @@ window.addEventListener('error', function(e){
     return baseW*Number(baseScore||0) + learnW*learnedNorm;
   };
 
-  const pickByPairings = (foods, slot, ctx, tgt, hard, rules)=>{
+  const pickByPairings = (foods, slot, ctx, tgt, hard, rules, used=null, slotIndex=0)=>{
     const pairings = rules?.pairings || [];
     if(!pairings.length) return null;
+    const slotKey = getSlotKey(slot);
+    const u = used || initUsageState();
 
     const allowedTag = slotToAllowedTag(slot);
     const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
-    const foodsAllowed = foods.filter(allow);
+
+    // Coach usage context (para evitar redundancia)
+    const logsDay = (typeof activeDayKey!=='undefined') ? loadLogs(activeDayKey).items : [];
+    const uCoach = buildUsageFromLogs(foods, logsDay);
+    const siCoach = slotIndexForMeal(slotOverride);
+    const slotKeyCoach = getSlotKey(slotOverride);
+    const foodsAllowed = foods.filter(f=>allow(f) && coachAllowFood(f, u, slotIndex, slotKey));
 
     const kcalTol = Number(hard?.kcalToleranceBlock ?? 80);
 
@@ -1521,7 +1687,9 @@ window.addEventListener('error', function(e){
             const kcalOk = Math.abs(tot.kcal - kNeed) <= kcalTol;
             if(!kcalOk) continue;
 
-            const s = scorePairing(p.id, Number(p.scoreBase||0.8), rules);
+            let s = scorePairing(p.id, Number(p.scoreBase||0.8), rules);
+            s += coachScoreAdjust(baseFood, u, slotIndex, slotKey);
+            s += coachScoreAdjust(compFood, u, slotIndex, slotKey);
             if(!best || s > best.s){
               best = {
                 s,
@@ -1580,13 +1748,16 @@ window.addEventListener('error', function(e){
     try{
       const rules = loadRulesEngine();
       const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
-      const paired = pickByPairings(foods, slotOverride, ctx, tgt, hard, rules);
+      const logsDay = (typeof activeDayKey!=='undefined') ? loadLogs(activeDayKey).items : [];
+      const u = buildUsageFromLogs(foods, logsDay);
+      const si = slotIndexForMeal(slotOverride);
+      const paired = pickByPairings(foods, slotOverride, ctx, tgt, hard, rules, u, si);
       if(paired) return { items: paired.items.map(x=>({ ...x, meal: slotOverride })), tot: paired.tot, pairingId: paired.pairingId };
     }catch(_){ /* silent fallback */ }
 
-    let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
-    let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
-    let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f));
+    let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f) && coachAllowFood(f, uCoach, siCoach, slotKeyCoach));
+    let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f) && coachAllowFood(f, uCoach, siCoach, slotKeyCoach));
+    let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f) && coachAllowFood(f, uCoach, siCoach, slotKeyCoach));
 
     if(!proteins.length) return null;
 
@@ -1604,7 +1775,7 @@ window.addEventListener('error', function(e){
 
     let best=null;
 
-    const score=(tot)=>{
+    const score=(tot, protFood)=>{
       const dp=Math.max(0,tgt.p-tot.p);
       const df=Math.max(0,tgt.f-tot.f);
       const dc=Math.max(0,tgt.c-tot.c);
@@ -1613,7 +1784,10 @@ window.addEventListener('error', function(e){
       const fatHard = ((ctx.startsWith('PRE') || slotOverride==='desayuno' || slotOverride==='merienda') && tot.f>18) ? (tot.f-18)*10 : 0;
 
       const jitter = randomize ? (Math.random()*0.35) : 0;
-      return dp*10 + df*4 + dc*1.5 + overKcal + fatHard + jitter;
+      // Penalización/bonificación de variedad (Coach): si repetimos grupo, empeora; si introducimos variedad o preferencia, mejora.
+      const protAdj = protFood ? coachScoreAdjust(protFood, uCoach, siCoach, slotKeyCoach) : 0;
+      // score es una 'pérdida' (menor es mejor), así que restamos la bonificación
+      return dp*10 + df*4 + dc*1.5 + overKcal + fatHard + jitter - (protAdj*10);
     };
 
     for(const pr of protIter){
@@ -1641,7 +1815,7 @@ window.addEventListener('error', function(e){
                   f:prM.f+cbM.f+frM.f
                 };
 
-                const s=score(tot);
+                const s=score(tot, pr);
                 if(!best || s<best.s){
                   best={s, slot:slotOverride, ctx, items:[
                     {meal:slotOverride, foodId:pr.id,name:pr.name, qtyType:prQtyType, qty:pg, qtyDisplay:qtyDisplay(prQtyType,pg), ...prM},
@@ -1814,10 +1988,16 @@ window.addEventListener('error', function(e){
     const buildSlot = (slot, rem, slotsLeft)=>{
       const ctx = ctxForSlot(slot);
       const caps = capsForCtx(ctx);
+      const slotKey = getSlotKey(slot);
+      const si = slotIndexForMeal(slot);
+      const uSlot = buildUsageFromLogs(foods, [...logs, ...plannedItems]);
       // target kcal para este slot
       const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
 
-      const proteins = candidatesByTag('protein', slot);
+      let proteins = candidatesByTag('protein', slot)
+        .filter(f=>coachAllowFood(f, uSlot, si, slotKey));
+      // Ordenar por preferencia de variedad y slot (Coach)
+      proteins.sort((a,b)=> (coachScoreAdjust(b,uSlot,si,slotKey) - coachScoreAdjust(a,uSlot,si,slotKey)));
       const carbs    = candidatesByTag('carb', slot);
       const fats     = candidatesByTag('fat', slot);
       const fruits   = candidatesByTag('fruit', slot);
@@ -1830,7 +2010,9 @@ window.addEventListener('error', function(e){
           c: clamp(rem.c / Math.max(1, slotsLeft), 0, caps.cMax),
           f: clamp(rem.f / Math.max(1, slotsLeft), Math.max(0, caps.fMin), caps.fMax)
         };
-        const paired = pickByPairings(foods, slot, ctx, tgt, hard, rules);
+        const u = buildUsageFromLogs(foods, [...logs, ...plannedItems]);
+      const si = slotIndexForMeal(slot);
+      const paired = pickByPairings(foods, slot, ctx, tgt, hard, rules, u, si);
         if(paired && paired.items && paired.items.length){
           pairingIds.push(paired.pairingId);
           paired.items.forEach(it=>{
