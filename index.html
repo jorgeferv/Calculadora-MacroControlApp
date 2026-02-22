@@ -3918,5 +3918,81 @@ function freezeDayIfNeeded(dateKey, summary){
 
 
 </script>
+
+<script>
+/**
+ * r48_arch shim
+ * Goal: introduce a single global namespace (App) without rewriting the whole codebase yet.
+ * This reduces accidental globals and gives us stable attachment points for future refactors.
+ *
+ * NOTE: Existing functions/vars remain as-is; we just register them under App.* for now.
+ */
+(function(){
+  // Prevent double-init if hot-reloaded or SW cached oddities
+  if (window.App && window.App.__archShim) return;
+
+  const App = window.App || {};
+  App.__archShim = true;
+
+  // Buckets (future-proof)
+  App.State = App.State || {};
+  App.Data  = App.Data  || {};
+  App.Rules = App.Rules || {};
+  App.Engine= App.Engine|| {};
+  App.UI    = App.UI    || {};
+
+  // Best-effort wiring: map commonly-used globals if they exist
+  const g = window;
+
+  // State-like objects
+  ["state","appState","mcState","todayState","db","foodsDB","rulesEngine","settings","profile"].forEach(k=>{
+    if (g[k] !== undefined && App.State[k] === undefined) App.State[k] = g[k];
+  });
+
+  // Data functions (storage/import/export) - register if present
+  [
+    "loadState","saveState","exportJSON","importJSON","exportBackup","importBackup",
+    "lsGet","lsSet","lsDel","migrate","migrateState","validateState","normalizeState"
+  ].forEach(fn=>{
+    if (typeof g[fn] === "function" && App.Data[fn] === undefined) App.Data[fn] = g[fn];
+  });
+
+  // Engine functions - register if present
+  [
+    "computeTDEE","computeGoal","computeMacros","computeTargets","planMacrosOk",
+    "recommendForSlot","pickByPairings","scoreCandidate","clamp","roundTo","roundToStep"
+  ].forEach(fn=>{
+    if (typeof g[fn] === "function" && App.Engine[fn] === undefined) App.Engine[fn] = g[fn];
+  });
+
+  // UI functions - register if present
+  [
+    "render","renderAll","renderFoods","renderDay","openStats","closeStats","showToast","showBanner"
+  ].forEach(fn=>{
+    if (typeof g[fn] === "function" && App.UI[fn] === undefined) App.UI[fn] = g[fn];
+  });
+
+  // Rules
+  if (g.rulesEngine !== undefined && App.Rules.engine === undefined) App.Rules.engine = g.rulesEngine;
+
+  // Boot: a safe, idempotent entry point
+  App.boot = App.boot || function(){
+    // If the app already booted via legacy code, do nothing.
+    // We mark when render has happened at least once.
+    if (App.State.__booted) return;
+    App.State.__booted = true;
+
+    // If a legacy init exists, call it; otherwise fallback to renderAll if present.
+    if (typeof g.init === "function") {
+      try { g.init(); } catch(e) { console.error(e); }
+    } else if (typeof g.renderAll === "function") {
+      try { g.renderAll(); } catch(e) { console.error(e); }
+    }
+  };
+
+  window.App = App;
+})();
+</script>
+
 </body>
 </html>
