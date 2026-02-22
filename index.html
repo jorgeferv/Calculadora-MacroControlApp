@@ -1990,7 +1990,7 @@ window.addEventListener('error', function(e){
       const si = slotIndexForMeal(slot);
       const uSlot = buildUsageFromLogs(foods, [...logs, ...plannedItems]);
       // target kcal para este slot
-      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
+      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 0, 900); // r47.5: no forzar mínimo por slot (evita cuadrar por encima del objetivo)
 
       let proteins = candidatesByTag('protein', slot)
         .filter(f=>coachAllowFood(f, uSlot, si, slotKey));
@@ -3446,9 +3446,7 @@ window.addEventListener('error', function(e){
     const eaten=sumMacros(logs);
     const goal=computeGoal(profile, day, storedMode);
     const guidance = computeDeficitGuidance(profile, storedMode);
-    const adjustedGoal = (guidance && (activeDayKey >= todayKey()) && Math.abs(guidance.deviation)>0.15)
-      ? { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) }
-      : goal;
+    const adjustedGoal = goal; // r47.5: no aplicar corrección 7d al objetivo diario durante Macros OK
     const tc=timeContext(day.trainTime);
     const slot=mealFromClock();
 
