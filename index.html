@@ -824,7 +824,10 @@ window.addEventListener('error', function(e){
   //   "confidence": 0..1
   // }
   // If backend returns only "text", we parse locally (regex ES/EN).
-  const OCR_ENDPOINT = ""; // <-- CONFIGURA AQUÍ (ej: "https://tu-backend/ocr")
+  const OCR_ENDPOINT = "https://api.ocr.space/parse/image"; // OCR.space endpoint (DEV)
+  const OCR_SPACE_APIKEY = "K84237061588957"; // ⚠ Visible in client (DEV only)
+  const OCR_SPACE_LANG = "spa"; // "spa" or "eng"
+  const OCR_SPACE_ENGINE = "2"; // OCR engine 2 often better for labels
 
 const LS = {
     mode: 'mc_mode',
