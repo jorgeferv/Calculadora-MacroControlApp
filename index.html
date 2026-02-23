@@ -205,6 +205,10 @@
     /* Add tab UX */
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
+
+    .chipBtn{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
+    .chipBtn:active{transform:scale(.98)}
+    .chipBtn .muted{font-size:11px;display:block;opacity:.85}
     .unitToggle{display:flex;gap:8px;align-items:center;margin-top:8px;}
     .unitToggle .miniBtn{min-width:60px}
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
@@ -585,7 +589,6 @@
           <div class="list" id="macrosOkList"></div>
           <div class="seg">
             <button id="macrosOkGen" type="button">Cuadrar Día</button>
-            <button id="macrosOkReroll" type="button">🔄 Nuevo plan</button>
             <button class="success" id="macrosOkConfirm" type="button">✅ Confirmar</button>
           </div>
           <div class="muted" style="margin-top:6px;">La sugerencia no se añade al registro hasta confirmar. Toca un ítem para ajustar cantidad.</div>
@@ -707,6 +710,18 @@ pan_cristal 2u"></textarea>
     <button id="tabAdd" type="button">Añadir</button>
   </div>
 
+
+  <!-- Cambiar alimento (Cuadrar Día) -->
+  <div id="swapFoodModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
+    <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
+      <button id="swapFoodClose" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
+      <h3 style="margin-top:0">Cambiar alimento</h3>
+      <div class="muted" style="margin-bottom:10px">Escribe para buscar. Pulsa un chip para reemplazar y ajustar cantidad automáticamente.</div>
+      <input id="swapFoodSearch" class="input" placeholder="Buscar (ej: pollo, arroz, queso…)" autocomplete="off" />
+      <div id="swapFoodChips" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+      <div id="swapFoodHint" class="muted" style="margin-top:10px"></div>
+    </div>
+  </div>
 <script>
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
@@ -1168,7 +1183,29 @@ window.addEventListener('error', function(e){
     saveJSON(LS.foodsUser, uniqByIdPreferLast(u));
   };
 
-  const foodById=(foods,id)=>foods.find(f=>f.id===id);
+    const normId = (s)=>String(s||'')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g,' ')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // quita tildes
+
+  const foodByIdSafe = (foods, id)=>{
+    if(!id) return null;
+    // 1) exacto
+    let f = foods.find(x => x.id === id);
+    if(f) return f;
+    // 2) case-insensitive
+    const lid = String(id).toLowerCase();
+    f = foods.find(x => String(x.id).toLowerCase() === lid);
+    if(f) return f;
+    // 3) normalizado (tildes/espacios raros)
+    const nid = normId(id);
+    return foods.find(x => normId(x.id) === nid) || null;
+  };
+
+  // compat: mantiene nombre original (pero robusto)
+  const foodById=(foods,id)=>foodByIdSafe(foods,id);
+
 
   const macroFor=(food,qtyType,qty)=>{
     qty=Number(qty)||0; if(qty<=0) return {kcal:0,p:0,c:0,f:0};
@@ -1390,336 +1427,6 @@ window.addEventListener('error', function(e){
     }
     return a;
   };
-  // ======= PAIRINGS (r47_dev) =======
-  // Activación de maridajes del Rules Engine con fallback seguro al motor r46.
-  const LS_PAIRING_SCORES = 'mc_pairing_scores';
-
-  const loadPairingScores = ()=>{
-    const rules = loadRulesEngine();
-    const key = (rules?.learning?.storeKey) || LS_PAIRING_SCORES;
-    return loadJSON(key, {});
-  };
-
-  const bumpPairingScore = (pairingId, inc=1)=>{
-    const rules = loadRulesEngine();
-    if(!rules?.learning?.enabled) return;
-    const key = (rules?.learning?.storeKey) || LS_PAIRING_SCORES;
-    const now = Date.now();
-    const store = loadJSON(key, {});
-    const cur = store[pairingId] || { score: 0, lastTs: now };
-    cur.score = (Number(cur.score)||0) + inc;
-    cur.lastTs = now;
-    store[pairingId] = cur;
-    saveJSON(key, store);
-  };
-
-  // Tag bridge: usa tus tags actuales y los aproxima a tags del rules_engine_v1.
-  const getEngineTags = (food, rules)=>{
-    const t = new Set([...(food.tags||[])].map(x=>String(x).trim()).filter(Boolean));
-
-    // DB -> engine defaults
-    if(t.has('protein')) t.add('protein_whole');
-    if(t.has('carb')) t.add('carb_staple');
-    if(t.has('fat')) t.add('fat_source');
-
-    // frutas típicas
-    if(['banana','uva','freson','manzana','manzana_roja_acidulce'].includes(food.id)){
-      t.add('carb_fast');
-      t.add('fruit');
-    }
-
-    // aliasToTags (si existe)
-    const a2t = rules?.foodTagging?.aliasToTags;
-    if(a2t){
-      const extra = a2t[String(food.id||'').toLowerCase()];
-      if(Array.isArray(extra)) extra.forEach(x=>t.add(x));
-    }
-
-    return Array.from(t);
-  };
-
-
-  // ===== Coach mode: variedad y límites (r47.3) =====
-  const ENGINE_MODE_KEY = 'mc_engine_mode'; // 'coach' | 'pro'
-  const getEngineMode = ()=> loadJSON(ENGINE_MODE_KEY, 'coach');
-
-  const getProteinGroup = (food)=>{
-    const id = String(food.id||'').toLowerCase();
-    const name = String(food.name||'').toLowerCase();
-    const tags = new Set((food.tags||[]).map(t=>String(t).toLowerCase()));
-
-    // tags explícitos si existen
-    if(tags.has('protein_egg')) return 'protein_egg';
-    if(tags.has('protein_dairy')) return 'protein_dairy';
-    if(tags.has('protein_deli')) return 'protein_deli';
-    if(tags.has('protein_fish')) return 'protein_fish';
-    if(tags.has('protein_meat')) return 'protein_meat';
-    if(tags.has('protein_legume')) return 'protein_legume';
-
-    // heurística por id/nombre (fallback)
-    if(id.includes('clara') || id.includes('huevo') || name.includes('clara') || name.includes('huevo')) return 'protein_egg';
-    if(id.includes('queso') || id.includes('skyr') || id.includes('yog') || id.includes('proteinas_mousse') || id.includes('proteinas_pudding') || id.includes('proteinas_natillas')
-       || name.includes('queso') || name.includes('skyr') || name.includes('yogur') || name.includes('postre') || name.includes('mousse') || name.includes('pudding') || name.includes('natillas')) return 'protein_dairy';
-    if(id.includes('pavo') || id.includes('jamon') || id.includes('lonchas') || name.includes('pavo') || name.includes('jamón') || name.includes('jamon') || name.includes('lonchas')) return 'protein_deli';
-    if(id.includes('atun') || id.includes('atún') || id.includes('salmon') || id.includes('salmón') || id.includes('caballa') || name.includes('atún') || name.includes('atun') || name.includes('salmón') || name.includes('salmon') || name.includes('caballa')) return 'protein_fish';
-
-    return null;
-  };
-
-  const coachLimits = ()=>{
-    // hard caps diarios por alimento comodín (modo coach)
-    return {
-      maxPerDayById: {
-        // ajusta ids si en tu base están con nombres distintos
-        'claras_pasteurizadas': 1,
-        'claras_de_huevo': 1,
-        'claras_liquidas': 1,
-        'clara_huevo': 1,
-        'queso_fresco_batido': 2,
-        'queso_batido': 2,
-        'queso_fresco_batido_0': 2,
-        'gnocchi': 1,
-        'ñoquis': 1,
-        'gnochhi': 1
-      },
-      // límites por grupo (variedad)
-      minProteinGroupsPerDay: 2,
-      maxProteinGroupsPerDay: 3,
-      // repetición consecutiva (penalty fuerte)
-      penaltySameGroupPrev: 0.70,
-      penaltyGroupUsedToday: 0.35,
-      // preferencia por slot
-      slotPrefs: {
-        breakfast: ['protein_dairy','protein_egg'],
-        lunch: ['protein_deli','protein_fish','protein_meat'],
-        snack: ['protein_dairy','protein_deli'],
-        dinner: ['protein_fish','protein_deli','protein_meat'],
-        post: ['protein_dairy','protein_deli']
-      }
-    };
-  };
-
-  const initUsageState = ()=>({
-    foodCounts: {},          // {foodId: n}
-    groupCounts: {},         // {group: n}
-    groupSeq: [],            // por slot
-    groupsUsed: new Set()    // distintos
-  });
-
-  const noteUsage = (used, foodId, group)=>{
-    if(foodId){
-      used.foodCounts[foodId] = (used.foodCounts[foodId]||0)+1;
-    }
-    if(group){
-      used.groupCounts[group] = (used.groupCounts[group]||0)+1;
-      used.groupsUsed.add(group);
-    }
-  };
-
-  const getSlotKey = (slot)=>{
-    const s = String(slot||'').toLowerCase();
-    if(s.includes('desay')) return 'breakfast';
-    if(s.includes('comida') || s.includes('almuer')) return 'lunch';
-    if(s.includes('merien')) return 'snack';
-    if(s.includes('cena')) return 'dinner';
-    if(s.includes('post')) return 'post';
-    return 'snack';
-  };
-
-  const coachAllowFood = (food, used, slotIndex, slotKey)=>{
-    if(getEngineMode() !== 'coach') return true;
-    const lim = coachLimits();
-    const id = String(food.id||'');
-    const idLow = id.toLowerCase();
-
-    // hard caps por id (comodines)
-    for(const k in lim.maxPerDayById){
-      if(idLow.includes(k)){
-        if((used.foodCounts[id]||0) >= lim.maxPerDayById[k]) return false;
-      }
-    }
-
-    // Queso batido: permitir 2/día pero no consecutivo (por grupo dairy)
-    const g = getProteinGroup(food);
-    const prevG = used.groupSeq[slotIndex-1] || null;
-    if(g==='protein_dairy' && prevG==='protein_dairy' && slotKey!=='post') return false;
-
-    // Máximo 3 grupos distintos: no permitir introducir un 4º
-    if(g && !used.groupsUsed.has(g) && used.groupsUsed.size >= lim.maxProteinGroupsPerDay) return false;
-
-    return true;
-  };
-
-  const coachScoreAdjust = (food, used, slotIndex, slotKey)=>{
-    if(getEngineMode() !== 'coach') return 0;
-    const lim = coachLimits();
-    const g = getProteinGroup(food);
-    if(!g) return 0;
-
-    let adj = 0;
-    const prevG = used.groupSeq[slotIndex-1] || null;
-    if(prevG && g===prevG) adj -= lim.penaltySameGroupPrev;
-
-    if(used.groupsUsed.has(g)) adj -= lim.penaltyGroupUsedToday;
-
-    // bonificar introducción de 2º/3º grupo al inicio del día
-    if(!used.groupsUsed.has(g) && used.groupsUsed.size < lim.minProteinGroupsPerDay) adj += 0.25;
-
-    // preferencia por slot (ligera)
-    const prefs = lim.slotPrefs[slotKey] || [];
-    const idx = prefs.indexOf(g);
-    if(idx>=0) adj += (0.20 - idx*0.05);
-
-    return adj;
-  };
-
-  const slotIndexForMeal = (meal)=>{
-    const m = String(meal||'').toLowerCase();
-    const order = ['desayuno','comida','merienda','pre_entreno','cena','post_entreno','post'];
-    const i = order.indexOf(m);
-    return i>=0 ? i : 0;
-  };
-
-  const buildUsageFromLogs = (foods, logs)=>{
-    const u = initUsageState();
-    for(const it of (logs||[])){
-      const fid = it.foodId || it.id;
-      if(!fid) continue;
-      const f = foods.find(x=>x.id===fid);
-      if(!f) continue;
-      const g = getProteinGroup(f);
-      noteUsage(u, f.id, g);
-      // intentamos inferir orden de slots según 'meal'
-      const si = slotIndexForMeal(it.meal || it.slot || it.block);
-      u.groupSeq[si] = u.groupSeq[si] || g;
-    }
-    return u;
-  };
-
-  const hasAnyTag = (engineTags, anyOf=[])=>{
-    if(!anyOf?.length) return true;
-    const s = new Set(engineTags);
-    return anyOf.some(x=>s.has(x));
-  };
-
-  const preferAliasHit = (food, preferAliases=[])=>{
-    if(!preferAliases?.length) return false;
-    const id = String(food.id||'').toLowerCase();
-    return preferAliases.some(a=>String(a).toLowerCase()===id);
-  };
-
-  const scorePairing = (pairingId, baseScore, rules)=>{
-    const sel = rules?.selection?.scoring || {};
-    const baseW = Number(sel.baseWeight ?? 0.45);
-    const learnW = Number(sel.learnedWeight ?? 0.55);
-
-    const learned = loadPairingScores();
-    const learnedScore = Number(learned?.[pairingId]?.score || 0);
-    // compresión 0..1
-    const learnedNorm = 1 - Math.exp(-learnedScore/6);
-
-    return baseW*Number(baseScore||0) + learnW*learnedNorm;
-  };
-
-  const pickByPairings = (foods, slot, ctx, tgt, hard, rules, used=null, slotIndex=0)=>{
-    const pairings = rules?.pairings || [];
-    if(!pairings.length) return null;
-    const slotKey = getSlotKey(slot);
-    const u = used || initUsageState();
-
-    const allowedTag = slotToAllowedTag(slot);
-    const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
-    // Coach constraints are applied at recommendation layer; pairings use basic allow() here.
-    const foodsAllowed = foods.filter(f=>allow(f));
-
-    const kcalTol = Number(hard?.kcalToleranceBlock ?? 80);
-
-    let best = null;
-
-    for(const p of pairings){
-      if(Array.isArray(p.context) && !p.context.includes(ctx)) continue;
-
-      const complements = Array.isArray(p.complements) ? p.complements : [];
-      if(!complements.length) continue;
-
-      // base candidates
-      for(const baseFood of foodsAllowed){
-        const tagsBase = getEngineTags(baseFood, rules);
-        const baseOk = preferAliasHit(baseFood, p.base?.preferAliases) || hasAnyTag(tagsBase, p.base?.anyOfTags);
-        if(!baseOk) continue;
-
-        // MVP: 1 complemento
-        for(const compRule of complements){
-          for(const compFood of foodsAllowed){
-            if(compFood.id === baseFood.id) continue;
-
-            const tagsComp = getEngineTags(compFood, rules);
-            const compOk = preferAliasHit(compFood, compRule?.preferAliases) || hasAnyTag(tagsComp, compRule?.anyOfTags);
-            if(!compOk) continue;
-
-            // cantidades: base por proteína si aplica; complemento por C/F si aplica, si no por kcal
-            const baseQtyType = (baseFood.baseUnit==='unit')?'unit':'g';
-            const compQtyType = (compFood.baseUnit==='unit')?'unit':'g';
-
-            const pNeed = clamp(Number(tgt.p)||0, 18, 70);
-            const cNeed = clamp(Number(tgt.c)||0, 0, 160);
-            const fNeed = clamp(Number(tgt.f)||0, 0, 35);
-            const kNeed = clamp(Number(tgt.kcal)||0, 220, 950);
-
-            const baseQty = hasAnyTag(tagsBase, ['protein_whole','protein_fast'])
-              ? qtyForMacro(baseFood, 'p', Math.max(18, pNeed))
-              : qtyForMacro(baseFood, 'kcal', Math.min(260, kNeed*0.55));
-
-            let compQty = qtyForMacro(compFood, 'kcal', Math.min(240, kNeed*0.45));
-            if(hasAnyTag(tagsComp, ['carb_fast','carb_staple','fruit'])) compQty = qtyForMacro(compFood, 'c', Math.max(20, cNeed));
-            if(hasAnyTag(tagsComp, ['fat_source'])) compQty = qtyForMacro(compFood, 'f', Math.max(6, fNeed));
-
-            const baseM = macroFor(baseFood, baseQtyType, baseQty);
-            const compM = macroFor(compFood, compQtyType, compQty);
-
-            const tot = {kcal: baseM.kcal+compM.kcal, p: baseM.p+compM.p, c: baseM.c+compM.c, f: baseM.f+compM.f};
-
-            // Validación simple (no bloquea si el user está apretado)
-            const kcalOk = Math.abs(tot.kcal - kNeed) <= kcalTol;
-            if(!kcalOk) continue;
-
-            let s = scorePairing(p.id, Number(p.scoreBase||0.8), rules);
-            s += coachScoreAdjust(baseFood, u, slotIndex, slotKey);
-            s += coachScoreAdjust(compFood, u, slotIndex, slotKey);
-            if(!best || s > best.s){
-              best = {
-                s,
-                pairingId: p.id,
-                items: [
-                  { food: baseFood, qtyType: baseQtyType, qty: baseQty, m: baseM },
-                  { food: compFood, qtyType: compQtyType, qty: compQty, m: compM }
-                ],
-                tot
-              };
-            }
-          }
-        }
-      }
-    }
-
-    if(!best) return null;
-
-    return {
-      pairingId: best.pairingId,
-      items: best.items.map(x=>({
-        meal: slot,
-        foodId: x.food.id,
-        name: x.food.name,
-        qtyType: x.qtyType,
-        qty: x.qty,
-        qtyDisplay: qtyDisplay(x.qtyType, x.qty),
-        kcal: x.m.kcal, p: x.m.p, c: x.m.c, f: x.m.f
-      })),
-      tot: best.tot
-    };
-  };
-
-
 
   const recommendForSlot=(foods,goal,eaten,ctx,slotOverride, randomize=false)=>{
     const rem={
@@ -1740,23 +1447,9 @@ window.addEventListener('error', function(e){
 
     if(slotOverride==='desayuno' || slotOverride==='merienda') tgt.f = Math.min(tgt.f, 16);
 
-    // Coach usage (variedad/anti-repetición)
-    const logsDay = (typeof activeDayKey!=='undefined') ? loadLogs(activeDayKey).items : [];
-    const uCoach = buildUsageFromLogs(foods, logsDay);
-    const siCoach = slotIndexForMeal(slotOverride);
-    const slotKeyCoach = getSlotKey(slotOverride);
-
-    // Intento 1: maridajes (pairings) del Rules Engine. Si no encaja, fallback a heurística r46.
-    try{
-      const rules = loadRulesEngine();
-      const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
-      const paired = pickByPairings(foods, slotOverride, ctx, tgt, hard, rules, uCoach, siCoach);
-      if(paired) return { items: paired.items.map(x=>({ ...x, meal: slotOverride })), tot: paired.tot, pairingId: paired.pairingId };
-    }catch(_){ /* silent fallback */ }
-
-    let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f) && coachAllowFood(f, uCoach, siCoach, slotKeyCoach));
-    let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f) && coachAllowFood(f, uCoach, siCoach, slotKeyCoach));
-    let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f) && coachAllowFood(f, uCoach, siCoach, slotKeyCoach));
+    let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
+    let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
+    let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f));
 
     if(!proteins.length) return null;
 
@@ -1774,7 +1467,7 @@ window.addEventListener('error', function(e){
 
     let best=null;
 
-    const score=(tot, protFood)=>{
+    const score=(tot)=>{
       const dp=Math.max(0,tgt.p-tot.p);
       const df=Math.max(0,tgt.f-tot.f);
       const dc=Math.max(0,tgt.c-tot.c);
@@ -1783,10 +1476,7 @@ window.addEventListener('error', function(e){
       const fatHard = ((ctx.startsWith('PRE') || slotOverride==='desayuno' || slotOverride==='merienda') && tot.f>18) ? (tot.f-18)*10 : 0;
 
       const jitter = randomize ? (Math.random()*0.35) : 0;
-      // Penalización/bonificación de variedad (Coach): si repetimos grupo, empeora; si introducimos variedad o preferencia, mejora.
-      const protAdj = protFood ? coachScoreAdjust(protFood, uCoach, siCoach, slotKeyCoach) : 0;
-      // score es una 'pérdida' (menor es mejor), así que restamos la bonificación
-      return dp*10 + df*4 + dc*1.5 + overKcal + fatHard + jitter - (protAdj*10);
+      return dp*10 + df*4 + dc*1.5 + overKcal + fatHard + jitter;
     };
 
     for(const pr of protIter){
@@ -1814,7 +1504,7 @@ window.addEventListener('error', function(e){
                   f:prM.f+cbM.f+frM.f
                 };
 
-                const s=score(tot, pr);
+                const s=score(tot);
                 if(!best || s<best.s){
                   best={s, slot:slotOverride, ctx, items:[
                     {meal:slotOverride, foodId:pr.id,name:pr.name, qtyType:prQtyType, qty:pg, qtyDisplay:qtyDisplay(prQtyType,pg), ...prM},
@@ -1845,9 +1535,6 @@ window.addEventListener('error', function(e){
     const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
 
     const eaten = sumMacros(logs);
-
-    // Pairings usados en esta sugerencia (para aprendizaje)
-    const pairingIds = [];
 
     // qué slots ya están “rellenos” (tienen al menos 1 item)
     const filled = new Set();
@@ -1933,42 +1620,17 @@ window.addEventListener('error', function(e){
 
     const qtyForMacro = (food, macroKey, target)=>{
       // target en gramos de macro; devuelve qty (g o units) aproximada
-      // Modo COACH por defecto: prioriza unidades y redondeos humanos (sin báscula).
-      const per100 = macroFor(food, 'g', 100);
+      const per = macroFor(food, 'g', 100);
       const perUnit = macroFor(food, 'unit', 1);
-
-      const macroVal = (m)=> (macroKey==='p'?m.p:(macroKey==='c'?m.c:m.f));
-
-      // límites blandos por alimento (por slot) para evitar cantidades absurdas
-      const maxByIdG = {
-        'claras': 250,
-        'queso_batido_0': 300,
-      };
-
       if(food.baseUnit==='unit'){
-        const mv = macroVal(perUnit);
+        const mv = (macroKey==='p'?perUnit.p:(macroKey==='c'?perUnit.c:perUnit.f));
         if(mv<=0) return 1;
-
-        // Redondeo a medios envases (0.5) y máximo 2 unidades (COACH)
-        const raw = target / mv;
-        const rounded = Math.round(raw*2)/2; // 0.5 increments
-        return clamp(rounded, 0.5, 2);
+        return clamp(Math.round(target / mv), 1, 6);
+      } else {
+        const mv = (macroKey==='p'?per.p:(macroKey==='c'?per.c:per.f));
+        if(mv<=0) return 100;
+        return clamp(round5((target / mv)*100), 30, 400);
       }
-
-      // baseUnit gramos
-      const mv100 = macroVal(per100);
-      if(mv100<=0) return 100;
-
-      // qty en gramos aproximada
-      const rawG = (target / mv100) * 100;
-
-      // steps por tipo (más humano)
-      const step = (food.tags||[]).includes('fat') ? 10 : ((food.tags||[]).includes('carb') ? 50 : 25);
-
-      const roundedG = Math.max(step, Math.round(rawG/step)*step);
-
-      const maxG = maxByIdG[food.id] ?? ((food.tags||[]).includes('protein') ? 300 : 400);
-      return clamp(roundedG, step, maxG);
     };
 
     const addItem = (slot, food, qtyType, qty)=>{
@@ -1987,40 +1649,13 @@ window.addEventListener('error', function(e){
     const buildSlot = (slot, rem, slotsLeft)=>{
       const ctx = ctxForSlot(slot);
       const caps = capsForCtx(ctx);
-      const slotKey = getSlotKey(slot);
-      const si = slotIndexForMeal(slot);
-      const uSlot = buildUsageFromLogs(foods, [...logs, ...plannedItems]);
       // target kcal para este slot
-      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 0, 900); // r47.5: no forzar mínimo por slot (evita cuadrar por encima del objetivo)
+      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
 
-      let proteins = candidatesByTag('protein', slot)
-        .filter(f=>coachAllowFood(f, uSlot, si, slotKey));
-      // Ordenar por preferencia de variedad y slot (Coach)
-      proteins.sort((a,b)=> (coachScoreAdjust(b,uSlot,si,slotKey) - coachScoreAdjust(a,uSlot,si,slotKey)));
+      const proteins = candidatesByTag('protein', slot);
       const carbs    = candidatesByTag('carb', slot);
       const fats     = candidatesByTag('fat', slot);
       const fruits   = candidatesByTag('fruit', slot);
-
-      // Intento 1: resolver el slot con pairings (maridajes) + fallback seguro
-      try{
-        const tgt = {
-          kcal: kcalTarget,
-          p: clamp(rem.p / Math.max(1, slotsLeft), Math.max(18, caps.pMin), caps.pMax),
-          c: clamp(rem.c / Math.max(1, slotsLeft), 0, caps.cMax),
-          f: clamp(rem.f / Math.max(1, slotsLeft), Math.max(0, caps.fMin), caps.fMax)
-        };
-        const u = buildUsageFromLogs(foods, [...logs, ...plannedItems]);
-      const si = slotIndexForMeal(slot);
-      const paired = pickByPairings(foods, slot, ctx, tgt, hard, rules, u, si);
-        if(paired && paired.items && paired.items.length){
-          pairingIds.push(paired.pairingId);
-          paired.items.forEach(it=>{
-            const f = foods.find(x=>x.id===it.foodId);
-            if(f) addItem(slot, f, it.qtyType, it.qty);
-          });
-          return;
-        }
-      }catch(_){ /* silent fallback */ }
 
       if(!proteins.length) return;
 
@@ -2140,7 +1775,7 @@ window.addEventListener('error', function(e){
 
     const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
     const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
-    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx, pairingIds};
+    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
   };
   // ======= ESTADO =======
   const computeDayStatus=(goal,eaten)=>{
@@ -2276,116 +1911,6 @@ window.addEventListener('error', function(e){
   let currentRec=null;
   let currentMacrosOk=null;
 
-  // --- Coach utilities: Swap + Reroll (r48_fix4) ---
-  let macrosOkRerollSeed = 0;
-
-  const stableHash = (str)=>{
-    let h = 2166136261;
-    for(let i=0;i<str.length;i++){
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h>>>0;
-  };
-
-  const rerollFoods = (foods, prevIds)=>{
-    macrosOkRerollSeed++;
-    const prev = new Set(prevIds||[]);
-    return foods.slice().map(f=>{
-      const id = f.id||f.name||'';
-      const was = prev.has(id) ? 1 : 0;
-      const h = stableHash(id + '|' + macrosOkRerollSeed);
-      return {f, was, h};
-    }).sort((a,b)=> (a.was-b.was) || (a.h-b.h)).map(x=>x.f);
-  };
-
-  const pickQtyToMatchKcal = (food, targetKcal)=>{
-    targetKcal = Number(targetKcal)||0;
-    if(targetKcal<=0) targetKcal=120;
-
-    const candidates=[];
-
-    // Try units first if plausible
-    const unitG = Number(food.unitGrams || food.unit_g || food.gramsPerUnit || 0);
-    const canUnit = (food.baseUnit==='unit') || (unitG>0);
-
-    if(canUnit){
-      [0.5,1,1.5,2,2.5].forEach(u=>candidates.push({qtyType:'unit', qty:u}));
-    }
-
-    // grams candidates from kcal/100g if available
-    const k100 = Number(food.k100 ?? food.kcal100 ?? food.kcal100g ?? food.kcal_per100 ?? 0);
-    if(k100>0){
-      const kcalPerG = k100/100;
-      let g = targetKcal / kcalPerG;
-      const step = 25;
-      g = Math.round(g/step)*step;
-      g = Math.max(step, Math.min(600, g));
-      [g-step,g,g+step,g+2*step].forEach(x=>candidates.push({qtyType:'g', qty:Math.max(step,x)}));
-    }else{
-      candidates.push({qtyType:'g', qty:100});
-    }
-
-    let best=null, bestErr=1e9;
-    for(const c of candidates){
-      const tot = macroFor(food, c.qtyType, c.qty);
-      const kcal = Number(tot.kcal)||0;
-      const overshoot = kcal>targetKcal;
-      const err = overshoot ? (kcal-targetKcal)*4 : (targetKcal-kcal);
-      if(err<bestErr){
-        bestErr=err; best={...c, tot};
-      }
-    }
-    return best || {qtyType:'g', qty:100, tot:macroFor(food,'g',100)};
-  };
-
-  const findFoodByQuery = (foods, q)=>{
-    q=(q||'').trim().toLowerCase();
-    if(!q) return null;
-    let hit=foods.find(f=>String(f.id||'').toLowerCase()===q);
-    if(hit) return hit;
-    hit=foods.find(f=>String(f.name||'').toLowerCase()===q);
-    if(hit) return hit;
-    const scored=foods.map(f=>{
-      const name=String(f.name||'').toLowerCase();
-      const id=String(f.id||'').toLowerCase();
-      let s=0;
-      if(name.includes(q)) s+=3;
-      if(id.includes(q)) s+=2;
-      if(name.startsWith(q)) s+=2;
-      return {f,s,len:name.length};
-    }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s||a.len-b.len);
-    return scored[0]?.f||null;
-  };
-
-  const swapMacrosOkItem = (idx)=>{
-    if(!currentMacrosOk?.items?.length) return;
-    const it=currentMacrosOk.items[idx];
-    if(!it) return;
-
-    const q = prompt(`Cambiar "${it.name}"\nEscribe nombre o id del alimento:`, '');
-    if(q===null) return;
-    const foods = loadFoodsMerged({ includeHidden:false });
-    const rep = findFoodByQuery(foods, q);
-    if(!rep){ alert('No encontrado.'); return; }
-
-    const best = pickQtyToMatchKcal(rep, it.kcal);
-
-    it.id = rep.id;
-    it.name = rep.name || rep.id;
-    it.qtyType = best.qtyType;
-    it.qty = best.qty;
-    it.kcal = Math.round(best.tot.kcal||0);
-    it.p = Math.round((best.tot.p||0)*10)/10;
-    it.c = Math.round((best.tot.c||0)*10)/10;
-    it.f = Math.round((best.tot.f||0)*10)/10;
-    it.qtyDisplay = prettyQty(it.qty, it.qtyType);
-
-    recalcMacrosOkTotals();
-    renderMacrosOk();
-  };
-
-
   const setTab=(t)=>{
     $('tabDay').classList.toggle('active',t==='day');
     $('tabAdd').classList.toggle('active',t==='add');
@@ -2485,8 +2010,6 @@ window.addEventListener('error', function(e){
     const set = getTagSetFromInput();
     if(set.has(t)) set.delete(t); else set.add(t);
     setTagsToInput(set);
-    bindStatsModal();
-
     refreshTagButtons();
   });
 
@@ -2762,12 +2285,7 @@ window.addEventListener('error', function(e){
     if(fatBelowMinPhys){
       advice = `Sube grasas: estás por debajo del mínimo (${fmt1(minPhysFat)} g).`;
     } else if(remP > pMargin){
-      if(Math.abs(kcalDiff) <= tolKcal){
-        const cutFromC = Math.max(0, Math.round((remP*4)/4)); // 1g P ~ 1g C en kcal
-        advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Para mantener calorías, recorta ~${cutFromC} g de hidratos (o ~${Math.round((remP*4)/9)} g de grasa) en la próxima comida.`;
-      } else {
-        advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Añádela y ajustamos el resto del día.`;
-      }
+      advice = `Prioridad proteína: faltan ${fmt1(remP)} g. Mantén calorías.`;
     } else if(kcalDiff < -tolKcal){
       advice = `Te faltan ${Math.round(Math.abs(kcalDiff))} kcal. Sube hidratos (y algo de grasa si te apetece).`;
     } else if(kcalDiff > tolKcal){
@@ -3137,16 +2655,6 @@ window.addEventListener('error', function(e){
     const list=$('macrosOkList');
     list.innerHTML='';
 
-    // Swap button handler (Safari-safe)
-    list.addEventListener('click', (e)=>{
-      const btn = e.target.closest && e.target.closest('.mcSwapBtn');
-      if(!btn) return;
-      e.preventDefault(); e.stopPropagation();
-      const idx = Number(btn.getAttribute('data-idx'));
-      if(Number.isNaN(idx)) return;
-      swapMacrosOkItem(idx);
-    });
-
     if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
       list.innerHTML = '<div class="muted">Sin sugerencia aún.</div>';
       return;
@@ -3178,7 +2686,27 @@ window.addEventListener('error', function(e){
       arr.forEach(({it, idx})=>{
         const d=document.createElement('div'); d.className='item';
         d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
-                       <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small><br><button type="button" class="mcSwapBtn" data-idx="${idx}">Cambiar</button></div>`;
+                       <div class="right" style="display:flex;align-items:center;gap:10px;">
+                         <div style="text-align:right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>
+                         <button class="delBtn" type="button" data-act="swap" title="Cambiar alimento">↔</button>
+                         <button class="delBtn" type="button" data-act="del" title="Eliminar">🗑</button>
+                       </div>`;
+        // Acciones de botones (evita mezclar con editar cantidad)
+        d.querySelectorAll('button[data-act]').forEach(btn=>{
+          btn.onclick=(ev)=>{
+            ev.stopPropagation();
+            const act=btn.getAttribute('data-act');
+            if(act==='del'){
+              currentMacrosOk.items.splice(idx,1);
+              recalcMacrosOkTotals();
+              renderMacrosOk();
+              return;
+            }
+            if(act==='swap'){
+              openSwapFoodModal(idx);
+            }
+          };
+        });
         d.onclick=()=>{
           const action = prompt(
             `Editar sugerencia "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
@@ -3237,6 +2765,196 @@ window.addEventListener('error', function(e){
     }),{kcal:0,p:0,c:0,f:0});
     currentMacrosOk.tot = tot;
   };
+
+
+  const computeSlotTargets = (items)=>{
+    const m = new Map();
+    (items||[]).forEach(it=>{
+      const key = normalizeMealLabel(it.meal);
+      if(!m.has(key)) m.set(key,{kcal:0,p:0,c:0,f:0});
+      const t=m.get(key);
+      t.kcal += (Number(it.kcal)||0);
+      t.p += (Number(it.p)||0);
+      t.c += (Number(it.c)||0);
+      t.f += (Number(it.f)||0);
+    });
+    return Object.fromEntries(m.entries());
+  };
+
+  let _swapFoodsCache = null;
+  let _swapIdx = null;
+
+  const openSwapFoodModal = (itemIdx)=>{
+    if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items[itemIdx]) return;
+    _swapIdx = itemIdx;
+
+    // cachea foods (evita recargar)
+    if(!_swapFoodsCache) _swapFoodsCache = loadFoodsMerged({ includeHidden:false });
+
+    // asegura targets
+    if(!currentMacrosOk.slotTargets) currentMacrosOk.slotTargets = computeSlotTargets(currentMacrosOk.items);
+
+    const it = currentMacrosOk.items[itemIdx];
+    $('swapFoodHint').textContent = `Bloque: ${prettyMeal(normalizeMealLabel(it.meal))} · Actual: ${it.name}`;
+    $('swapFoodSearch').value = '';
+    renderSwapChips('');
+    $('swapFoodModal').style.display='block';
+    setTimeout(()=>{ try{ $('swapFoodSearch').focus(); }catch{} }, 50);
+  };
+
+  const closeSwapFoodModal = ()=>{
+    $('swapFoodModal').style.display='none';
+    _swapIdx = null;
+  };
+
+  const scoreFoodMatch = (f, q)=>{
+    const name = (f.name||'').toLowerCase();
+    const id = (f.id||'').toLowerCase();
+    if(!q) return 0;
+    if(name === q || id === q) return 100;
+    let s = 0;
+    if(name.startsWith(q) || id.startsWith(q)) s += 40;
+    if(name.includes(q) || id.includes(q)) s += 20;
+    // pequeñas bonificaciones por tags
+    const tags = Array.isArray(f.tags)? f.tags.join(' ').toLowerCase() : '';
+    if(tags.includes(q)) s += 5;
+    return s;
+  };
+
+  const renderSwapChips = (query)=>{
+    const q = String(query||'').trim().toLowerCase();
+    const box = $('swapFoodChips');
+    box.innerHTML='';
+
+    if(!_swapFoodsCache) _swapFoodsCache = loadFoodsMerged({ includeHidden:false });
+
+    let arr = _swapFoodsCache;
+    if(q.length){
+      arr = arr
+        .map(f=>({f, s: scoreFoodMatch(f,q)}))
+        .filter(x=> x.s>0)
+        .sort((a,b)=>b.s-a.s)
+        .slice(0, 18)
+        .map(x=>x.f);
+    }else{
+      // sin query: muestra recientes si existen, si no top primeros
+      const rec = (loadRecentFoodIds && loadRecentFoodIds()) ? loadRecentFoodIds() : [];
+      const recFoods = rec.map(id=>foodByIdSafe(_swapFoodsCache,id)).filter(Boolean);
+      arr = recFoods.length ? recFoods.slice(0,18) : _swapFoodsCache.slice(0,18);
+    }
+
+    if(!arr.length){
+      $('swapFoodHint').textContent = 'Sin resultados. Prueba con otra palabra.';
+      return;
+    }
+
+    $('swapFoodHint').textContent = 'Selecciona un alimento:';
+    arr.forEach(f=>{
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='chipBtn';
+      // mini resumen por 100g o por unidad
+      const isUnit = (String(f.baseUnit||'').toLowerCase()==='unit');
+      const per = isUnit ? macroFor(f,'unit',1) : macroFor(f,'g',100);
+      const suffix = isUnit ? '1u' : '100g';
+      b.innerHTML = `<b>${f.name}</b><span class="muted">${suffix} · ${round(per.kcal)} kcal · P ${round(per.p,1)} C ${round(per.c,1)} F ${round(per.f,1)}</span>`;
+      b.onclick=()=>applySwapFood(f);
+      box.appendChild(b);
+    });
+  };
+
+  const pickFitKey = (food, rem)=>{
+    // Preferencia clásica: proteína primero, luego carb, luego grasa (y kcal como fallback)
+    const keys = ['p','c','f'];
+    // si el alimento no aporta la macro, no sirve
+    const viable = keys.filter(k => (Number(food[k])||0) > 0.05 && (Number(rem[k])||0) > 0.1);
+    if(viable.length){
+      // elige la que más falta (en gramos)
+      viable.sort((a,b)=>(rem[b]||0)-(rem[a]||0));
+      return viable[0];
+    }
+    return 'kcal';
+  };
+
+  const qtySolve = (food, qtyType, key, target)=>{
+    const per1 = macroFor(food, qtyType, 1);
+    let denom = Number(per1[key]) || 0;
+    if(key==='kcal') denom = Number(per1.kcal)||0;
+    if(denom <= 0) return 0;
+    return Math.max(0, target / denom);
+  };
+
+  const clampQty = (qtyType, qty)=>{
+    if(qtyType==='unit'){
+      // unidades enteras (tradicional y simple)
+      const q = Math.round(qty);
+      return clamp(q, 1, 8);
+    }
+    // gramos: mínimo 10g, máximo 600g; redondea a 5g
+    const q = Math.round(qty/5)*5;
+    return clamp(q, 10, 600);
+  };
+
+  const applySwapFood = (food)=>{
+    if(_swapIdx===null) return;
+    const it = currentMacrosOk.items[_swapIdx];
+    const mealKey = normalizeMealLabel(it.meal);
+
+    // targets del bloque (antes del cambio)
+    const target = currentMacrosOk.slotTargets?.[mealKey] || null;
+
+    // suma otros items del bloque
+    const others = {kcal:0,p:0,c:0,f:0};
+    currentMacrosOk.items.forEach((x, i)=>{
+      if(i===_swapIdx) return;
+      if(normalizeMealLabel(x.meal)!==mealKey) return;
+      others.kcal += Number(x.kcal)||0;
+      others.p += Number(x.p)||0;
+      others.c += Number(x.c)||0;
+      others.f += Number(x.f)||0;
+    });
+
+    // remanente del bloque
+    const rem = target ? {
+      kcal: Math.max(0, (target.kcal||0) - others.kcal),
+      p: Math.max(0, (target.p||0) - others.p),
+      c: Math.max(0, (target.c||0) - others.c),
+      f: Math.max(0, (target.f||0) - others.f),
+    } : {kcal: it.kcal||0, p: it.p||0, c: it.c||0, f: it.f||0};
+
+    // decide tipo (unit vs g)
+    const qtyType = (String(food.baseUnit||'').toLowerCase()==='unit') ? 'unit' : 'g';
+
+    // elige macro a cuadrar
+    const key = pickFitKey(food, rem);
+
+    // objetivo (macro o kcal) para este item
+    const targetVal = (key==='kcal') ? rem.kcal : rem[key];
+
+    // resuelve cantidad
+    let qty = qtySolve(food, qtyType, key, targetVal);
+    qty = clampQty(qtyType, qty);
+
+    // aplica cambio
+    it.foodId = food.id;
+    it.name = food.name;
+    it.qtyType = qtyType;
+    it.qty = qty;
+    it.qtyDisplay = qtyDisplay(qtyType, qty);
+
+    const mac = macroFor(food, qtyType, qty);
+    it.kcal = mac.kcal; it.p = mac.p; it.c = mac.c; it.f = mac.f;
+
+    recalcMacrosOkTotals();
+    renderMacrosOk();
+    closeSwapFoodModal();
+  };
+
+  // Eventos del modal
+  $('swapFoodClose').onclick = closeSwapFoodModal;
+  $('swapFoodModal').onclick = (e)=>{ if(e.target && e.target.id==='swapFoodModal') closeSwapFoodModal(); };
+  $('swapFoodSearch').addEventListener('input', (e)=>renderSwapChips(e.target.value));
+
 
   // ======= ROLLOVER =======
   const rolloverIfNeeded=()=>{
@@ -3317,11 +3035,14 @@ window.addEventListener('error', function(e){
 
     // Guidance por desviación acumulada 7d
     const guidance = computeDeficitGuidance(profile, storedMode);
-    const adjustedGoal = goal; // Coach: nunca modificar el objetivo diario automáticamente
+    let adjustedGoal = goal;
     if(guidance){
       const absDev = Math.abs(guidance.deviation);
       if(absDev>0.20){
         $('dayStatusDetail').textContent += ` · ${guidance.msg}`;
+      }
+      if((activeDayKey >= todayKey()) && absDev>0.15){
+        adjustedGoal = { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) };
       }
     }
 
@@ -3504,10 +3225,6 @@ window.addEventListener('error', function(e){
     });
 
     saveLogs(activeDayKey, logs);
-    // Aprendizaje ligero: refuerza pairings confirmados
-    try{
-      (currentMacrosOk.pairingIds||[]).filter(Boolean).forEach(pid=>bumpPairingScore(pid, 1));
-    }catch(_){ }
     $('qty').value='';
     $('foodSearch').value='';
     $('foodSearch').focus();
@@ -3564,7 +3281,9 @@ window.addEventListener('error', function(e){
     const eaten=sumMacros(logs);
     const goal=computeGoal(profile, day, storedMode);
     const guidance = computeDeficitGuidance(profile, storedMode);
-    const adjustedGoal = goal; // r47.5: no aplicar corrección 7d al objetivo diario durante Macros OK
+    const adjustedGoal = (guidance && (activeDayKey >= todayKey()) && Math.abs(guidance.deviation)>0.15)
+      ? { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) }
+      : goal;
     const tc=timeContext(day.trainTime);
     const slot=mealFromClock();
 
@@ -3611,29 +3330,19 @@ window.addEventListener('error', function(e){
     const {items:logs}=loadLogs(activeDayKey);
     const goal=computeGoal(profile, day, storedMode);
     const guidance = computeDeficitGuidance(profile, storedMode);
-    const adjustedGoal = goal; // Coach: Macros OK siempre cuadra contra el objetivo diario, no contra TDEE/corrección 7d
-    // Nota: guidance se muestra solo como información; no altera el objetivo automáticamente.
+    const adjustedGoal = (guidance && (activeDayKey >= todayKey()) && Math.abs(guidance.deviation)>0.15)
+      ? { ...goal, goalKcal: Math.max(0, goal.goalKcal - guidance.correctionPerDay) }
+      : goal;
 
     currentMacrosOk = planMacrosOk(foods, adjustedGoal, logs, day);
+
+    // Guarda objetivos por bloque (para poder cambiar alimentos sin romper el plan)
+    currentMacrosOk.slotTargets = computeSlotTargets(currentMacrosOk.items);
+
 
     $('macrosOkContext').textContent = currentMacrosOk?.context || 'Sin sugerencia.';
     renderMacrosOk();
   };
-
-  $('macrosOkReroll').onclick=()=>{
-    if(!currentMacrosOk || !currentMacrosOk.items) return;
-    const prevIds = currentMacrosOk.items.map(it=>it.id).filter(Boolean);
-    const foods = rerollFoods(loadFoodsMerged(), prevIds);
-    const storedMode=loadMode();
-    const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
-    const profile=loadProfile();
-    const logs=loadLogs(activeDayKey).items;
-    const goal=computeGoal(profile, day, storedMode);
-    currentMacrosOk = planMacrosOk(foods, goal, logs, day);
-    recalcMacrosOkTotals();
-    renderMacrosOk();
-  };
-
 
   $('macrosOkConfirm').onclick=()=>{
     if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
@@ -4054,284 +3763,5 @@ function freezeDayIfNeeded(dateKey, summary){
 
 
 </script>
-
-<script>
-/**
- * r48_arch shim
- * Goal: introduce a single global namespace (App) without rewriting the whole codebase yet.
- * This reduces accidental globals and gives us stable attachment points for future refactors.
- *
- * NOTE: Existing functions/vars remain as-is; we just register them under App.* for now.
- */
-(function(){
-  // Prevent double-init if hot-reloaded or SW cached oddities
-  if (window.App && window.App.__archShim) return;
-
-  const App = window.App || {};
-  App.__archShim = true;
-
-  // Buckets (future-proof)
-  App.State = App.State || {};
-  App.Data  = App.Data  || {};
-  App.Rules = App.Rules || {};
-  App.Engine= App.Engine|| {};
-  App.UI    = App.UI    || {};
-
-  // Best-effort wiring: map commonly-used globals if they exist
-  const g = window;
-
-  // State-like objects
-  ["state","appState","mcState","todayState","db","foodsDB","rulesEngine","settings","profile"].forEach(k=>{
-    if (g[k] !== undefined && App.State[k] === undefined) App.State[k] = g[k];
-  });
-
-  // Data functions (storage/import/export) - register if present
-  [
-    "loadState","saveState","exportJSON","importJSON","exportBackup","importBackup",
-    "lsGet","lsSet","lsDel","migrate","migrateState","validateState","normalizeState"
-  ].forEach(fn=>{
-    if (typeof g[fn] === "function" && App.Data[fn] === undefined) App.Data[fn] = g[fn];
-  });
-
-  // Engine functions - register if present
-  [
-    "computeTDEE","computeGoal","computeMacros","computeTargets","planMacrosOk",
-    "recommendForSlot","pickByPairings","scoreCandidate","clamp","roundTo","roundToStep"
-  ].forEach(fn=>{
-    if (typeof g[fn] === "function" && App.Engine[fn] === undefined) App.Engine[fn] = g[fn];
-  });
-
-  // UI functions - register if present
-  [
-    "render","renderAll","renderFoods","renderDay","openStats","closeStats","showToast","showBanner"
-  ].forEach(fn=>{
-    if (typeof g[fn] === "function" && App.UI[fn] === undefined) App.UI[fn] = g[fn];
-  });
-
-  // Rules
-  if (g.rulesEngine !== undefined && App.Rules.engine === undefined) App.Rules.engine = g.rulesEngine;
-
-  // Boot: a safe, idempotent entry point
-  App.boot = App.boot || function(){
-    // If the app already booted via legacy code, do nothing.
-    // We mark when render has happened at least once.
-    if (App.State.__booted) return;
-    App.State.__booted = true;
-
-    // If a legacy init exists, call it; otherwise fallback to renderAll if present.
-    if (typeof g.init === "function") {
-      try { g.init(); } catch(e) { console.error(e); }
-    } else if (typeof g.renderAll === "function") {
-      try { g.renderAll(); } catch(e) { console.error(e); }
-    }
-  };
-
-  window.App = App;
-})();
-</script>
-
-
-<style>
-/* Swap modal (chips) */
-#mcSwapModal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:9999}
-#mcSwapModal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
-#mcSwapModal .sheet{position:relative;width:min(720px,100%);max-height:72vh;border-top-left-radius:18px;border-top-right-radius:18px;
-  background:rgba(18,18,20,.98);border:1px solid rgba(255,255,255,.10);box-shadow:0 12px 40px rgba(0,0,0,.55);
-  padding:14px 14px 18px 14px;overflow:auto}
-#mcSwapModal .title{font-weight:700;font-size:16px;margin:4px 2px 10px 2px}
-#mcSwapModal .row{display:flex;gap:10px;align-items:center}
-#mcSwapModal input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;
-  padding:10px 12px;border-radius:12px;outline:none;font-size:15px}
-#mcSwapModal .closeBtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;
-  padding:10px 12px;border-radius:12px}
-#mcSwapModal .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-#mcSwapModal .chip{padding:10px 12px;border-radius:999px;background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.12);font-size:14px}
-#mcSwapModal .hint{opacity:.75;font-size:12px;margin-top:10px;line-height:1.35}
-</style>
-<div id="mcSwapModal" aria-hidden="true">
-  <div class="backdrop"></div>
-  <div class="sheet" role="dialog" aria-modal="true">
-    <div class="title" id="mcSwapTitle">Cambiar alimento</div>
-    <div class="row">
-      <input id="mcSwapQuery" type="text" placeholder="Escribe: pechuga, pavo, pollo, queso, atun..." autocomplete="off" autocapitalize="off" />
-      <button class="closeBtn" id="mcSwapClose" type="button">Cerrar</button>
-    </div>
-    <div class="chips" id="mcSwapChips"></div>
-    <div class="hint">Escribe una palabra y toca un chip. La app ajusta la cantidad automáticamente (modo Coach: no pasarse).</div>
-  </div>
-</div>
-
-
-<script>
-(function(){
-  if(!window.App) window.App = {};
-  const App = window.App;
-  App.Engine = App.Engine || {};
-
-  // ---- Swap modal state ----
-  const swapUI = { open:false, idx:null, foods:[] };
-
-  function norm(s){
-    return (s||'').toString().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^a-z0-9\s]/g,' ')
-      .replace(/\s+/g,' ').trim();
-  }
-
-  function loadFoodsSafe(){
-    try{
-      if(typeof loadFoodsMerged==='function') return loadFoodsMerged() || [];
-    }catch(e){}
-    const st = (typeof window.state!=='undefined')? window.state : null;
-    return st?.foods || st?.foodsDB || [];
-  }
-
-  function scoreMatch(food, tokens){
-    const name = norm(food.name || '');
-    const id = norm(food.id || '');
-    let s=0;
-    for(const t of tokens){
-      if(!t) continue;
-      if(name.includes(t)) s += 6;
-      if(id.includes(t)) s += 3;
-      if(name.startsWith(t)) s += 2;
-    }
-    return s;
-  }
-
-  function renderChips(list){
-    const wrap = document.getElementById('mcSwapChips');
-    if(!wrap) return;
-    wrap.innerHTML = '';
-    if(!list || list.length===0){
-      wrap.innerHTML = '<div class="hint">Sin coincidencias. Prueba otra palabra.</div>';
-      return;
-    }
-    for(const f of list){
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'chip';
-      chip.textContent = (f.name || f.id);
-      chip.dataset.foodid = (f.id || '');
-      wrap.appendChild(chip);
-    }
-  }
-
-  function openModal(idx){
-    if(typeof currentMacrosOk==='undefined' || !currentMacrosOk?.items?.length) return;
-    const it = currentMacrosOk.items[idx];
-    if(!it) return;
-
-    swapUI.idx = idx;
-    swapUI.foods = loadFoodsSafe();
-
-    const modal = document.getElementById('mcSwapModal');
-    const title = document.getElementById('mcSwapTitle');
-    const input = document.getElementById('mcSwapQuery');
-
-    if(title) title.textContent = `Cambiar: ${it.name}`;
-    if(input){
-      input.value = '';
-      setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 60);
-    }
-    renderChips([]);
-
-    if(modal){
-      modal.style.display = 'flex';
-      modal.setAttribute('aria-hidden','false');
-    }
-    swapUI.open = true;
-  }
-
-  function closeModal(){
-    const modal = document.getElementById('mcSwapModal');
-    if(modal){
-      modal.style.display = 'none';
-      modal.setAttribute('aria-hidden','true');
-    }
-    swapUI.open = false;
-    swapUI.idx = null;
-  }
-
-  function updateMatches(){
-    const input = document.getElementById('mcSwapQuery');
-    if(!input) return;
-    const q = norm(input.value);
-    const tokens = q.split(' ').filter(Boolean);
-    if(tokens.length===0){
-      renderChips([]);
-      return;
-    }
-    const ranked = swapUI.foods
-      .map(f=>({f, s: scoreMatch(f,tokens)}))
-      .filter(x=>x.s>0)
-      .sort((a,b)=> b.s-a.s)
-      .slice(0, 12)
-      .map(x=>x.f);
-    renderChips(ranked);
-  }
-
-  // ---- Replace flow: select foodId -> reuse existing swap function if present ----
-  function applyReplacement(foodId){
-    if(!foodId) return;
-    // Prefer our swap function defined in fix5, but adapt if it expects query
-    try{
-      if(typeof App.Engine.swapMacrosOkItem === 'function'){
-        // If function arity==2 assume (idx, foodId). Else fallback to prompt-less path not available.
-        if(App.Engine.swapMacrosOkItem.length >= 2){
-          App.Engine.swapMacrosOkItem(swapUI.idx, foodId);
-        }else{
-          // fallback: emulate previous behavior by temporarily prompting with exact name
-          const f = swapUI.foods.find(x => (x.id||'') === foodId);
-          if(!f) return;
-          const oldPrompt = window.prompt;
-          window.prompt = ()=> (f.name || f.id);
-          App.Engine.swapMacrosOkItem(swapUI.idx);
-          window.prompt = oldPrompt;
-        }
-      }
-    }catch(e){
-      console.error(e);
-    }
-  }
-
-  // ---- Event bindings ----
-  document.addEventListener('click', function(e){
-    const modal = document.getElementById('mcSwapModal');
-    if(modal && modal.style.display === 'flex'){
-      if(e.target.closest('#mcSwapModal .backdrop') || e.target.closest('#mcSwapClose')){
-        closeModal();
-        return;
-      }
-      const chip = e.target.closest('#mcSwapChips .chip');
-      if(chip){
-        applyReplacement(chip.dataset.foodid);
-        closeModal();
-        return;
-      }
-    }
-
-    // Open modal when clicking "Cambiar" button that exists in plan list
-    const btn = e.target.closest('.mc-swap-btn');
-    if(btn){
-      const idxStr = btn.getAttribute('data-index') || btn.dataset.index;
-      const idx = Number(idxStr);
-      if(Number.isFinite(idx)) openModal(idx);
-      return;
-    }
-  }, true);
-
-  let t=null;
-  document.addEventListener('input', function(e){
-    if(e.target && e.target.id === 'mcSwapQuery'){
-      clearTimeout(t);
-      t = setTimeout(updateMatches, 90);
-    }
-  });
-
-})();
-</script>
-
 </body>
 </html>
