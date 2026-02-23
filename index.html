@@ -205,14 +205,26 @@
     /* Add tab UX */
     .recentFoods{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px;}
     .recentFoods .chip{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
-
-    .chipBtn{padding:8px 10px;border-radius:999px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
-    .chipBtn:active{transform:scale(.98)}
-    .chipBtn .muted{font-size:11px;display:block;opacity:.85}
     .unitToggle{display:flex;gap:8px;align-items:center;margin-top:8px;}
     .unitToggle .miniBtn{min-width:60px}
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
+
+
+    /* ======= DEV OCR MODAL (r48) ======= */
+    .modalBack{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:9999;padding:16px;}
+    .modalBox{width:min(560px,100%);max-height:88vh;overflow:auto;background:rgba(18,18,18,.98);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px;}
+    .modalTop{display:flex;align-items:center;gap:10px;}
+    .modalTop b{font-size:16px}
+    .modalBox .field{margin-top:10px}
+    .modalBox label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .modalBox input[type="text"], .modalBox input[type="number"], .modalBox textarea{
+      width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.25);color:var(--text);font-size:16px;
+    }
+    .modalBox textarea{min-height:120px;font-size:13px;line-height:1.25}
+    .modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+    .previewLine{margin-top:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
 
 </style>
 </head>
@@ -248,6 +260,14 @@
           <button id="exportFoods" type="button">Exportar JSON</button>
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
+        <!-- DEV tool (r48): OCR label scanner -->
+        <div class="seg" style="margin-top:10px;">
+          <button id="ocrScanBtn" type="button">Escanear etiqueta (OCR)</button>
+        </div>
+        <div class="muted" style="margin-top:6px;">
+          DEV: crea/actualiza un alimento por 100 g a partir de una foto de la etiqueta.
+        </div>
+
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
@@ -711,20 +731,72 @@ pan_cristal 2u"></textarea>
   </div>
 
 
-  <!-- Cambiar alimento (Cuadrar Día) -->
-  <div id="swapFoodModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
-    <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
-      <button id="swapFoodClose" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
-      <h3 style="margin-top:0">Cambiar alimento</h3>
-      <div class="muted" style="margin-bottom:10px">Escribe para buscar. Pulsa un chip para reemplazar y ajustar cantidad automáticamente.</div>
-      <input id="swapFoodSearch" class="input" placeholder="Buscar (ej: pollo, arroz, queso…)" autocomplete="off" />
-      <div id="swapFoodChips" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
-      <div id="swapFoodHint" class="muted" style="margin-top:10px"></div>
+  <!-- ======= MODAL OCR (DEV) - r48 ======= -->
+  <div class="modalBack" id="ocrBack" aria-hidden="true">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-label="Escáner nutricional">
+      <div class="modalTop">
+        <b>Escáner nutricional</b>
+        <span id="ocrConf" class="pill" style="margin-left:auto;display:none;">OCR</span>
+        <button class="iconBtn" id="ocrClose" type="button">✕</button>
+      </div>
+
+      <div class="field">
+        <label for="ocrName">Nombre del producto (obligatorio)</label>
+        <input id="ocrName" type="text" placeholder="Ej: Queso batido 0% Hacendado" />
+      </div>
+
+      <div class="field">
+        <label>Foto de la etiqueta</label>
+        <div class="seg">
+          <button id="ocrPickBtn" type="button">Hacer foto / seleccionar imagen</button>
+          <input id="ocrFile" type="file" accept="image/*" capture="environment" style="display:none;" />
+        </div>
+        <div id="ocrFileHint" class="muted" style="margin-top:6px;">Sube una foto nítida (por 100 g si es posible).</div>
+      </div>
+
+      <details class="card" id="ocrTextBox" style="margin-top:12px;">
+        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <b>Texto OCR detectado</b>
+          <span class="muted">ver/ocultar</span>
+        </summary>
+        <div style="margin-top:10px;">
+          <textarea id="ocrText" placeholder="Aquí se mostrará el texto OCR…"></textarea>
+        </div>
+      </details>
+
+      <div class="field" style="margin-top:12px;">
+        <label>Macros por 100 g (editable)</label>
+        <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label for="ocrFat">Grasas (g)</label>
+            <input id="ocrFat" type="number" step="0.1" min="0" max="100" placeholder="Ej: 1.5" />
+          </div>
+          <div>
+            <label for="ocrProtein">Proteínas (g)</label>
+            <input id="ocrProtein" type="number" step="0.1" min="0" max="100" placeholder="Ej: 6" />
+          </div>
+          <div>
+            <label for="ocrCarbs">Carbohidratos (g)</label>
+            <input id="ocrCarbs" type="number" step="0.1" min="0" max="100" placeholder="Ej: 7" />
+          </div>
+          <div>
+            <label for="ocrKcal">kcal (opcional)</label>
+            <input id="ocrKcal" type="number" step="1" min="0" max="900" placeholder="Ej: 120" />
+          </div>
+        </div>
+
+        <div id="ocrPreview" class="previewLine muted" style="display:none;"></div>
+        <div id="ocrWarn" class="muted" style="margin-top:8px;display:none;"></div>
+      </div>
+
+      <div class="modalActions">
+        <button id="ocrCancel" type="button">Cancelar</button>
+        <button id="ocrSave" type="button">Guardar alimento</button>
+      </div>
     </div>
   </div>
-<script>
-function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
 
+<script>
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
   try{
@@ -743,7 +815,18 @@ window.addEventListener('error', function(e){
   // =========================
   // STORAGE KEYS (estables)
   // =========================
-  const LS = {
+  
+  // ======= DEV OCR CONFIG (r48) =======
+  // OCR_ENDPOINT: endpoint OCR (multipart/form-data). Expected response:
+  // {
+  //   "text": "full_ocr_text",
+  //   "per100g": {"fat": 1.5, "protein": 6, "carbs": 7, "kcal": 120},
+  //   "confidence": 0..1
+  // }
+  // If backend returns only "text", we parse locally (regex ES/EN).
+  const OCR_ENDPOINT = ""; // <-- CONFIGURA AQUÍ (ej: "https://tu-backend/ocr")
+
+const LS = {
     mode: 'mc_mode',
     modeLegacy: 'mc_mode_v9',
     settings: 'mc_settings',
@@ -921,6 +1004,208 @@ window.addEventListener('error', function(e){
     t.addEventListener('mouseup', cancel);
     t.addEventListener('mouseleave', cancel);
   };
+  // ======= DEV OCR: UI wiring (r48) =======
+  // Added button in DEV tools: #ocrScanBtn
+  // Modal: #ocrBack (Escáner nutricional)
+  const bindDevOCR = ()=>{
+    const btn = $('ocrScanBtn');
+    if(!btn) return;
+
+    const back = $('ocrBack');
+    const closeBtn = $('ocrClose');
+    const cancelBtn = $('ocrCancel');
+    const pickBtn = $('ocrPickBtn');
+    const fileIn = $('ocrFile');
+
+    const nameIn = $('ocrName');
+    const fatIn = $('ocrFat');
+    const proIn = $('ocrProtein');
+    const carbIn = $('ocrCarbs');
+    const kcalIn = $('ocrKcal');
+    const txt = $('ocrText');
+    const confPill = $('ocrConf');
+    const preview = $('ocrPreview');
+    const warn = $('ocrWarn');
+
+    let lastOCR = { text:'', confidence:null, per100:null, per100Detected:false };
+
+    const show = ()=>{ if(back){ back.style.display='flex'; back.setAttribute('aria-hidden','false'); } };
+    const hide = ()=>{
+      if(back){ back.style.display='none'; back.setAttribute('aria-hidden','true'); }
+      // reset file to allow re-pick
+      if(fileIn) fileIn.value='';
+    };
+
+    const setWarn = (msg)=>{ if(!warn) return; warn.style.display = msg ? '' : 'none'; warn.textContent = msg || ''; };
+    const setPreview = (obj)=>{
+      if(!preview) return;
+      if(!obj){ preview.style.display='none'; preview.textContent=''; return; }
+      const est = obj.kcalEstimated ? ' (estimada)' : '';
+      preview.style.display='';
+      preview.textContent = `Por 100 g: G ${obj.fat} / P ${obj.protein} / C ${obj.carbs} / kcal ${obj.kcal}${est}`;
+    };
+
+    const readInputs = ()=>{
+      const fat = clampNum(parseNumLoose(fatIn?.value), 0, 100);
+      const protein = clampNum(parseNumLoose(proIn?.value), 0, 100);
+      const carbs = clampNum(parseNumLoose(carbIn?.value), 0, 100);
+      let kcal = parseNumLoose(kcalIn?.value);
+      kcal = (kcal===null) ? null : clampNum(kcal, 0, 900);
+      const ok = (fat!==null && protein!==null && carbs!==null);
+      if(!ok) return null;
+
+      let kcalEstimated = false;
+      if(kcal===null){
+        kcal = Math.round(fat*9 + (protein+carbs)*4);
+        kcalEstimated = true;
+      } else {
+        kcal = Math.round(kcal);
+      }
+      return { fat, protein, carbs, kcal, kcalEstimated };
+    };
+
+    const refreshPreview = ()=>{
+      const m = readInputs();
+      if(!m){ setPreview(null); return; }
+      setPreview(m);
+    };
+
+    [fatIn, proIn, carbIn, kcalIn].forEach(el=>{
+      el?.addEventListener('input', refreshPreview);
+    });
+
+    async function runOCR(file){
+      setWarn('');
+      if(confPill){ confPill.style.display='inline-flex'; confPill.textContent='OCR…'; }
+      try{
+        const res = await sendImageToOCR(file);
+        const text = res?.text || '';
+        const per = res?.per100g || null;
+        const conf = (typeof res?.confidence === 'number') ? res.confidence : null;
+
+        lastOCR = { text, confidence: conf, per100: per, per100Detected:false };
+
+        if(txt) txt.value = text;
+
+        let parsed = null;
+        if(per && typeof per === 'object'){
+          parsed = {
+            fat: parseNumLoose(per.fat),
+            protein: parseNumLoose(per.protein),
+            carbs: parseNumLoose(per.carbs),
+            kcal: parseNumLoose(per.kcal)
+          };
+          lastOCR.per100Detected = true; // backend says per100g
+        } else if(text){
+          const loc = parseNutritionFromText(text);
+          parsed = loc;
+          lastOCR.per100Detected = !!loc.per100;
+        }
+
+        if(parsed){
+          if(parsed.fat!==null && fatIn) fatIn.value = String(parsed.fat);
+          if(parsed.protein!==null && proIn) proIn.value = String(parsed.protein);
+          if(parsed.carbs!==null && carbIn) carbIn.value = String(parsed.carbs);
+          if(parsed.kcal!==null && kcalIn) kcalIn.value = String(Math.round(parsed.kcal));
+          refreshPreview();
+        }
+
+        if(confPill){
+          confPill.style.display='inline-flex';
+          confPill.textContent = (conf===null) ? 'OCR' : `OCR ${(conf*100).toFixed(0)}%`;
+        }
+
+        if(!lastOCR.per100Detected){
+          setWarn('Aviso: no se detectó claramente “por 100 g”. Revisa macros antes de guardar.');
+        }
+
+      }catch(err){
+        if(confPill){ confPill.style.display='none'; }
+        setWarn('Fallo OCR: ' + (err?.message || err));
+      }
+    }
+
+    btn.addEventListener('click', ()=>{
+      if(!isDev()){
+        alert('Modo desarrollador BLOQUEADO.');
+        return;
+      }
+      // reset UI
+      if(confPill) confPill.style.display='none';
+      setWarn('');
+      if(txt) txt.value='';
+      if(fatIn) fatIn.value='';
+      if(proIn) proIn.value='';
+      if(carbIn) carbIn.value='';
+      if(kcalIn) kcalIn.value='';
+      setPreview(null);
+      show();
+      setTimeout(()=>nameIn?.focus(), 50);
+    });
+
+    closeBtn?.addEventListener('click', hide);
+    cancelBtn?.addEventListener('click', hide);
+    back?.addEventListener('click', (e)=>{ if(e.target===back) hide(); });
+
+    pickBtn?.addEventListener('click', ()=> fileIn?.click());
+    fileIn?.addEventListener('change', ()=>{
+      const f = fileIn.files && fileIn.files[0];
+      if(!f) return;
+      runOCR(f);
+    });
+
+    $('ocrSave')?.addEventListener('click', ()=>{
+      if(!isDev()){
+        alert('Modo desarrollador BLOQUEADO.');
+        return;
+      }
+      const name = String(nameIn?.value||'').trim();
+      if(!name){
+        alert('Falta el nombre del producto.');
+        return;
+      }
+      const m = readInputs();
+      if(!m){
+        alert('No se detectaron macros válidos. Revisa Grasas/Proteínas/Carbohidratos.');
+        return;
+      }
+
+      // Build food object (per 100g). NO ml. NO modo unit aquí.
+      const id = slugSafe(name);
+
+      // tags mínimos (mejorable después con rules engine)
+      const tags = [];
+      if(m.protein >= 10) tags.push('protein');
+      if(m.carbs >= 10) tags.push('carb');
+      if(m.fat >= 10) tags.push('fat');
+      // tags de uso: mantener estilo actual sin inventar estructuras
+      tags.push('comida_ok'); // genérico
+
+      const foodObj = normalizeFood({
+        id,
+        name,
+        baseUnit: '100g',
+        kcal: m.kcal,
+        p: m.protein,
+        c: m.carbs,
+        f: m.fat,
+        unitGrams: null,
+        tags
+      });
+
+      try{
+        upsertFoodFromApp(foodObj);
+        // refrescar UI foods drawer si está abierto
+        renderAll();
+        alert(`Guardado: ${foodObj.name}\n\n${preview?.textContent || ''}`);
+        hide();
+      }catch(err){
+        alert('Error al guardar: ' + (err?.message || err));
+      }
+    });
+  };
+
+
 
   // Barra de estado en Añadir (kcal + macros)e en pantallas principales.
   const updateAddStatusBar = (goal,eaten)=>{
@@ -1185,28 +1470,73 @@ window.addEventListener('error', function(e){
     saveJSON(LS.foodsUser, uniqByIdPreferLast(u));
   };
 
-    const normId = (s)=>String(s||'')
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g,' ')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // quita tildes
+  const foodById=(foods,id)=>foods.find(f=>f.id===id);
 
-  const foodByIdSafe = (foods, id)=>{
-    if(!id) return null;
-    // 1) exacto
-    let f = foods.find(x => x.id === id);
-    if(f) return f;
-    // 2) case-insensitive
-    const lid = String(id).toLowerCase();
-    f = foods.find(x => String(x.id).toLowerCase() === lid);
-    if(f) return f;
-    // 3) normalizado (tildes/espacios raros)
-    const nid = normId(id);
-    return foods.find(x => normId(x.id) === nid) || null;
-  };
+  // ======= DEV OCR: helpers (r48) =======
+  function slugSafe(str){
+    str = String(str||"").trim().toLowerCase();
+    // quitar tildes
+    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    // espacios y símbolos -> _
+    str = str.replace(/[^a-z0-9]+/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,'');
+    return str || 'food';
+  }
 
-  // compat: mantiene nombre original (pero robusto)
-  const foodById=(foods,id)=>foodByIdSafe(foods,id);
+  function parseNumLoose(x){
+    if(x===null || x===undefined) return null;
+    const s = String(x).trim().replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function clampNum(n, lo, hi){
+    n = Number(n);
+    if(!Number.isFinite(n)) return null;
+    return Math.max(lo, Math.min(hi, n));
+  }
+
+  // Local OCR parser fallback (ES/EN). Supports comma decimals.
+  function parseNutritionFromText(text){
+    const t = String(text||"");
+    const norm = t.replace(/\u00A0/g,' ').toLowerCase();
+
+    function pick(re){
+      const m = norm.match(re);
+      if(!m) return null;
+      const raw = (m[1]||'').replace(',', '.');
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    // fat
+    const fat = pick(/(?:grasas?|fat)\s*(?:totales?)?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*g/);
+    // protein
+    const protein = pick(/(?:prote[ií]nas?|protein)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*g/);
+    // carbs
+    const carbs = pick(/(?:hidratos?\s*de\s*carbono|carbohidratos?|carbohydrates?|carbs?)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*g/);
+    // kcal
+    const kcal = pick(/(?:kcal|kilocalor(?:i|í)as?)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/);
+
+    const per100 = /por\s*100\s*g|per\s*100\s*g/.test(norm);
+
+    return { fat, protein, carbs, kcal, per100 };
+  }
+
+  async function sendImageToOCR(file){
+    if(!OCR_ENDPOINT){
+      throw new Error("OCR_ENDPOINT no está configurado.");
+    }
+    const fd = new FormData();
+    fd.append("image", file, file.name || "label.jpg");
+
+    const res = await fetch(OCR_ENDPOINT, { method:"POST", body: fd });
+    if(!res.ok){
+      const msg = await res.text().catch(()=> "");
+      throw new Error("OCR HTTP " + res.status + (msg ? (": " + msg.slice(0,180)) : ""));
+    }
+    const json = await res.json();
+    return json;
+  }
 
 
   const macroFor=(food,qtyType,qty)=>{
@@ -2688,27 +3018,7 @@ window.addEventListener('error', function(e){
       arr.forEach(({it, idx})=>{
         const d=document.createElement('div'); d.className='item';
         d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
-                       <div class="right" style="display:flex;align-items:center;gap:10px;">
-                         <div style="text-align:right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>
-                         <button class="delBtn" type="button" data-act="swap" title="Cambiar alimento">↔</button>
-                         <button class="delBtn" type="button" data-act="del" title="Eliminar">🗑</button>
-                       </div>`;
-        // Acciones de botones (evita mezclar con editar cantidad)
-        d.querySelectorAll('button[data-act]').forEach(btn=>{
-          btn.onclick=(ev)=>{
-            ev.stopPropagation();
-            const act=btn.getAttribute('data-act');
-            if(act==='del'){
-              currentMacrosOk.items.splice(idx,1);
-              recalcMacrosOkTotals();
-              renderMacrosOk();
-              return;
-            }
-            if(act==='swap'){
-              openSwapFoodModal(idx);
-            }
-          };
-        });
+                       <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>`;
         d.onclick=()=>{
           const action = prompt(
             `Editar sugerencia "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
@@ -2731,10 +3041,11 @@ window.addEventListener('error', function(e){
           const u=m[2].toLowerCase();
           const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
 
-          // Al editar cantidades, permitir resolver IDs aunque varíen por mayúsculas/espacios
-          // y, en modo dev, permitir también alimentos ocultos.
-          const foods=loadFoodsMerged({ includeHidden: isDev() });
-          const f=foodByIdSafe(foods,it.foodId);
+          const foods=loadFoodsMerged({ includeHidden:false });
+
+    // para gestión en drawer (dev puede ver ocultos)
+    const foodsForDrawer = loadFoodsMerged({ includeHidden: isDev() });
+          const f=foodById(foods,it.foodId);
           if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
 
           const mac=macroFor(f,qtyType,qty);
@@ -2766,218 +3077,6 @@ window.addEventListener('error', function(e){
     }),{kcal:0,p:0,c:0,f:0});
     currentMacrosOk.tot = tot;
   };
-
-
-  const computeSlotTargets = (items)=>{
-    const m = new Map();
-    (items||[]).forEach(it=>{
-      const key = normalizeMealLabel(it.meal);
-      if(!m.has(key)) m.set(key,{kcal:0,p:0,c:0,f:0});
-      const t=m.get(key);
-      t.kcal += (Number(it.kcal)||0);
-      t.p += (Number(it.p)||0);
-      t.c += (Number(it.c)||0);
-      t.f += (Number(it.f)||0);
-    });
-    return Object.fromEntries(m.entries());
-  };
-
-  let _swapFoodsCache = null;
-  let _swapIdx = null;
-
-  const openSwapFoodModal = (itemIdx)=>{
-    if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items[itemIdx]) return;
-    _swapIdx = itemIdx;
-
-    // cachea foods (evita recargar)
-    if(!_swapFoodsCache) _swapFoodsCache = loadFoodsMerged({ includeHidden:false });
-
-    // asegura targets
-    if(!currentMacrosOk.slotTargets) currentMacrosOk.slotTargets = computeSlotTargets(currentMacrosOk.items);
-
-    const it = currentMacrosOk.items[itemIdx];
-    $('swapFoodHint').textContent = `Bloque: ${prettyMeal(normalizeMealLabel(it.meal))} · Actual: ${it.name}`;
-    $('swapFoodSearch').value = '';
-    renderSwapChips('');
-    $('swapFoodModal').style.display='block';
-    setTimeout(()=>{ try{ $('swapFoodSearch').focus(); }catch{} }, 50);
-  };
-
-  const closeSwapFoodModal = ()=>{
-    $('swapFoodModal').style.display='none';
-    _swapIdx = null;
-  };
-
-  const scoreFoodMatch = (f, q)=>{
-    const name = (f.name||'').toLowerCase();
-    const id = (f.id||'').toLowerCase();
-    if(!q) return 0;
-    if(name === q || id === q) return 100;
-    let s = 0;
-    if(name.startsWith(q) || id.startsWith(q)) s += 40;
-    if(name.includes(q) || id.includes(q)) s += 20;
-    // pequeñas bonificaciones por tags
-    const tags = Array.isArray(f.tags)? f.tags.join(' ').toLowerCase() : '';
-    if(tags.includes(q)) s += 5;
-    return s;
-  };
-
-  const renderSwapChips = (query)=>{
-    const q = String(query||'').trim().toLowerCase();
-    const box = $('swapFoodChips');
-    box.innerHTML='';
-
-    if(!_swapFoodsCache) _swapFoodsCache = loadFoodsMerged({ includeHidden:false });
-
-    let arr = _swapFoodsCache;
-    if(q.length){
-      arr = arr
-        .map(f=>({f, s: scoreFoodMatch(f,q)}))
-        .filter(x=> x.s>0)
-        .sort((a,b)=>b.s-a.s)
-        .slice(0, 18)
-        .map(x=>x.f);
-    }else{
-      // sin query: muestra recientes si existen, si no top primeros
-      // Nota: en builds anteriores puede no existir loadRecentFoodIds.
-      // Usar guardia con typeof para evitar ReferenceError en Safari iOS.
-      const rec = (typeof loadRecentFoodIds === 'function') ? (loadRecentFoodIds()||[]) : [];
-      const recFoods = rec.map(id=>foodByIdSafe(_swapFoodsCache,id)).filter(Boolean);
-      arr = recFoods.length ? recFoods.slice(0,18) : _swapFoodsCache.slice(0,18);
-    }
-
-    if(!arr.length){
-      $('swapFoodHint').textContent = 'Sin resultados. Prueba con otra palabra.';
-      return;
-    }
-
-    $('swapFoodHint').textContent = 'Selecciona un alimento:';
-    arr.forEach(f=>{
-      const b=document.createElement('button');
-      b.type='button';
-      b.className='chipBtn';
-      // mini resumen por 100g o por unidad
-      const isUnit = (String(f.baseUnit||'').toLowerCase()==='unit');
-      const per = isUnit ? macroFor(f,'unit',1) : macroFor(f,'g',100);
-      const suffix = isUnit ? '1u' : '100g';
-      b.innerHTML = `<b>${f.name}</b><span class="muted">${suffix} · ${round(per.kcal)} kcal · P ${round(per.p,1)} C ${round(per.c,1)} F ${round(per.f,1)}</span>`;
-      b.onclick=()=>applySwapFood(f);
-      box.appendChild(b);
-    });
-  };
-
-  const pickFitKey = (food, rem)=>{
-    // Preferencia clásica: proteína primero, luego carb, luego grasa (y kcal como fallback)
-    const keys = ['p','c','f'];
-    // si el alimento no aporta la macro, no sirve
-    const viable = keys.filter(k => (Number(food[k])||0) > 0.05 && (Number(rem[k])||0) > 0.1);
-    if(viable.length){
-      // elige la que más falta (en gramos)
-      viable.sort((a,b)=>(rem[b]||0)-(rem[a]||0));
-      return viable[0];
-    }
-    return 'kcal';
-  };
-
-  const qtySolve = (food, qtyType, key, target)=>{
-    const per1 = macroFor(food, qtyType, 1);
-    let denom = Number(per1[key]) || 0;
-    if(key==='kcal') denom = Number(per1.kcal)||0;
-    if(denom <= 0) return 0;
-    return Math.max(0, target / denom);
-  };
-
-  const clampQty = (qtyType, qty)=>{
-    if(qtyType==='unit'){
-      // unidades enteras (tradicional y simple)
-      const q = Math.round(qty);
-      return clamp(q, 1, 8);
-    }
-    // gramos: mínimo 10g, máximo 600g; redondea a 5g
-    const q = Math.round(qty/5)*5;
-    return clamp(q, 10, 600);
-  };
-
-  const applySwapFood = (food)=>{
-    // En iOS Safari, si algo falla aquí se ve un banner rojo. Mejor capturar y
-    // mostrar un error humano + contexto.
-    try{
-      if(_swapIdx===null) return;
-      if(!currentMacrosOk || !Array.isArray(currentMacrosOk.items)) throw new Error('Estado de Cuadrar Día inválido');
-      const it = currentMacrosOk.items[_swapIdx];
-      if(!it) throw new Error('Ítem de plan no encontrado');
-      const mealKey = normalizeMealLabel(it.meal);
-
-      // Debug contextual (para que el banner muestre qué estaba ocurriendo)
-      window.__lastAction = { op:'swap_food', idx:_swapIdx, from: it.foodId, to: food?.id, meal: it.meal };
-
-    // targets del bloque (antes del cambio)
-      const target = currentMacrosOk.slotTargets?.[mealKey] || null;
-
-    // suma otros items del bloque
-      const others = {kcal:0,p:0,c:0,f:0};
-      currentMacrosOk.items.forEach((x, i)=>{
-        if(i===_swapIdx) return;
-        if(normalizeMealLabel(x.meal)!==mealKey) return;
-        others.kcal += Number(x.kcal)||0;
-        others.p += Number(x.p)||0;
-        others.c += Number(x.c)||0;
-        others.f += Number(x.f)||0;
-      });
-
-    // remanente del bloque
-      const rem = target ? {
-        kcal: Math.max(0, (Number(target.kcal)||0) - others.kcal),
-        p: Math.max(0, (Number(target.p)||0) - others.p),
-        c: Math.max(0, (Number(target.c)||0) - others.c),
-        f: Math.max(0, (Number(target.f)||0) - others.f),
-      } : {
-        kcal: Number(it.kcal)||0,
-        p: Number(it.p)||0,
-        c: Number(it.c)||0,
-        f: Number(it.f)||0
-      };
-
-    // decide tipo (unit vs g)
-      if(!food || !food.id) throw new Error('Alimento inválido');
-      const qtyType = (String(food.baseUnit||'').toLowerCase()==='unit') ? 'unit' : 'g';
-
-    // elige macro a cuadrar
-      const key = pickFitKey(food, rem);
-
-    // objetivo (macro o kcal) para este item
-      const targetVal = (key==='kcal') ? rem.kcal : rem[key];
-
-    // resuelve cantidad
-      let qty = qtySolve(food, qtyType, key, targetVal);
-      qty = clampQty(qtyType, qty);
-      if(!Number.isFinite(qty) || qty<=0) throw new Error('No se pudo calcular una cantidad válida');
-
-    // aplica cambio
-      it.foodId = food.id;
-      it.name = food.name;
-      it.qtyType = qtyType;
-      it.qty = qty;
-      it.qtyDisplay = qtyDisplay(qtyType, qty);
-
-      const mac = macroFor(food, qtyType, qty);
-      it.kcal = mac.kcal; it.p = mac.p; it.c = mac.c; it.f = mac.f;
-
-      recalcMacrosOkTotals();
-      renderMacrosOk();
-      closeSwapFoodModal();
-    }catch(e){
-      const msg = e?.message || String(e);
-      alert('Error al cambiar alimento: ' + msg);
-      console.error('Swap food error:', e, window.__lastAction);
-    }
-  };
-
-  // Eventos del modal
-  $('swapFoodClose').onclick = closeSwapFoodModal;
-  $('swapFoodModal').onclick = (e)=>{ if(e.target && e.target.id==='swapFoodModal') closeSwapFoodModal(); };
-  $('swapFoodSearch').addEventListener('input', (e)=>renderSwapChips(e.target.value));
-
 
   // ======= ROLLOVER =======
   const rolloverIfNeeded=()=>{
@@ -3359,10 +3458,6 @@ window.addEventListener('error', function(e){
 
     currentMacrosOk = planMacrosOk(foods, adjustedGoal, logs, day);
 
-    // Guarda objetivos por bloque (para poder cambiar alimentos sin romper el plan)
-    currentMacrosOk.slotTargets = computeSlotTargets(currentMacrosOk.items);
-
-
     $('macrosOkContext').textContent = currentMacrosOk?.context || 'Sin sugerencia.';
     renderMacrosOk();
   };
@@ -3739,6 +3834,7 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
+  bindDevOCR();
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
