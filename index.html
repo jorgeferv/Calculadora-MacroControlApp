@@ -4130,5 +4130,164 @@ function freezeDayIfNeeded(dateKey, summary){
 })();
 </script>
 
+
+<style>
+#mcSwapModal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:9999}
+#mcSwapModal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+#mcSwapModal .sheet{position:relative;width:min(720px,100%);max-height:72vh;border-top-left-radius:18px;border-top-right-radius:18px;
+  background:rgba(18,18,20,.98);border:1px solid rgba(255,255,255,.10);box-shadow:0 12px 40px rgba(0,0,0,.55);
+  padding:14px 14px 18px 14px;overflow:auto}
+#mcSwapModal .title{font-weight:700;font-size:16px;margin:4px 2px 10px 2px}
+#mcSwapModal .row{display:flex;gap:10px;align-items:center}
+#mcSwapModal input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;
+  padding:10px 12px;border-radius:12px;outline:none;font-size:15px}
+#mcSwapModal .closeBtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;
+  padding:10px 12px;border-radius:12px}
+#mcSwapModal .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+#mcSwapModal .chip{padding:10px 12px;border-radius:999px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);font-size:14px}
+#mcSwapModal .hint{opacity:.75;font-size:12px;margin-top:10px;line-height:1.35}
+</style>
+<div id="mcSwapModal" aria-hidden="true">
+  <div class="backdrop"></div>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="title" id="mcSwapTitle">Cambiar alimento</div>
+    <div class="row">
+      <input id="mcSwapQuery" type="text" placeholder="Escribe: pavo, pollo, queso, atun..." autocomplete="off" autocapitalize="off" />
+      <button class="closeBtn" id="mcSwapClose" type="button">Cerrar</button>
+    </div>
+    <div class="chips" id="mcSwapChips"></div>
+    <div class="hint">Escribe una palabra (ej. “pechuga”, “pavo”). Toca un chip para seleccionar; la app ajusta cantidad automáticamente sin pasarse.</div>
+  </div>
+</div>
+
 </body>
-</html>
+</html
+  // ---------------- Chip modal UI (Safari-safe) ----------------
+  const __swapUI = { open:false, idx:null, foods:null };
+
+  function norm(s){
+    return (s||'').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9\s]/g,' ')
+      .replace(/\s+/g,' ').trim();
+  }
+
+  function scoreMatch(food, qTokens){
+    const name = norm(food.name || '');
+    const id = norm(food.id || '');
+    let s = 0;
+    for(const t of qTokens){
+      if(!t) continue;
+      if(name.includes(t)) s += 5;
+      if(id.includes(t)) s += 3;
+      if(name.startsWith(t)) s += 2;
+    }
+    return s;
+  }
+
+  function renderChips(list){
+    const wrap = document.getElementById('mcSwapChips');
+    if(!wrap) return;
+    wrap.innerHTML = '';
+    if(!list || list.length === 0){
+      wrap.innerHTML = '<div class="hint">Sin coincidencias. Prueba otra palabra.</div>';
+      return;
+    }
+    for(const f of list){
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = (f.name || f.id);
+      chip.setAttribute('data-foodid', f.id || '');
+      wrap.appendChild(chip);
+    }
+  }
+
+  function openSwapModal(itemIdx){
+    try{
+      if(typeof currentMacrosOk === 'undefined' || !currentMacrosOk?.items?.length) return;
+      const it = currentMacrosOk.items[itemIdx];
+      if(!it) return;
+
+      __swapUI.idx = itemIdx;
+      __swapUI.foods = loadFoodsSafe();
+
+      const modal = document.getElementById('mcSwapModal');
+      const title = document.getElementById('mcSwapTitle');
+      const input = document.getElementById('mcSwapQuery');
+      if(title) title.textContent = `Cambiar: ${it.name}`;
+      if(input){
+        input.value = '';
+        setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 50);
+      }
+      renderChips([]);
+
+      if(modal){
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden','false');
+      }
+      __swapUI.open = true;
+    }catch(err){
+      console.error(err);
+      alert('Error abriendo el selector de cambio.');
+    }
+  }
+
+  function closeSwapModal(){
+    const modal = document.getElementById('mcSwapModal');
+    if(modal){
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden','true');
+    }
+    __swapUI.open = false;
+    __swapUI.idx = null;
+  }
+
+  function updateSwapMatches(){
+    const input = document.getElementById('mcSwapQuery');
+    if(!input || !__swapUI.foods) return;
+    const q = norm(input.value);
+    const tokens = q.split(' ').filter(Boolean);
+    if(tokens.length === 0){
+      renderChips([]);
+      return;
+    }
+    const ranked = __swapUI.foods.map(f=>({f, s: scoreMatch(f, tokens)}))
+      .filter(x=>x.s>0)
+      .sort((a,b)=> b.s-a.s)
+      .slice(0, 12)
+      .map(x=>x.f);
+    renderChips(ranked);
+  }
+
+  // Bind modal events
+  document.addEventListener('click', function(e){
+    const modal = document.getElementById('mcSwapModal');
+    if(!modal || modal.style.display !== 'flex') return;
+
+    if(e.target.closest('#mcSwapModal .backdrop') || e.target.closest('#mcSwapClose')){
+      closeSwapModal();
+      return;
+    }
+
+    const chip = e.target.closest('#mcSwapChips .chip');
+    if(chip){
+      const foodId = chip.getAttribute('data-foodid') || '';
+      if(foodId){
+        App.Engine.swapMacrosOkItem(__swapUI.idx, foodId);
+      }
+      closeSwapModal();
+      return;
+    }
+  });
+
+  let __swapTimer = null;
+  document.addEventListener('input', function(e){
+    if(e.target && e.target.id === 'mcSwapQuery'){
+      clearTimeout(__swapTimer);
+      __swapTimer = setTimeout(updateSwapMatches, 80);
+    }
+  });
+
+>
