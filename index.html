@@ -723,6 +723,8 @@ pan_cristal 2u"></textarea>
     </div>
   </div>
 <script>
+function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
   try{
@@ -2729,11 +2731,10 @@ window.addEventListener('error', function(e){
           const u=m[2].toLowerCase();
           const qtyType=(u==='ml')?'ml':(u.startsWith('u')?'unit':'g');
 
-          const foods=loadFoodsMerged({ includeHidden:false });
-
-    // para gestión en drawer (dev puede ver ocultos)
-    const foodsForDrawer = loadFoodsMerged({ includeHidden: isDev() });
-          const f=foodById(foods,it.foodId);
+          // Al editar cantidades, permitir resolver IDs aunque varíen por mayúsculas/espacios
+          // y, en modo dev, permitir también alimentos ocultos.
+          const foods=loadFoodsMerged({ includeHidden: isDev() });
+          const f=foodByIdSafe(foods,it.foodId);
           if(!f){ alert('No encuentro el alimento en base de datos.'); return; }
 
           const mac=macroFor(f,qtyType,qty);
@@ -2898,58 +2899,78 @@ window.addEventListener('error', function(e){
   };
 
   const applySwapFood = (food)=>{
-    if(_swapIdx===null) return;
-    const it = currentMacrosOk.items[_swapIdx];
-    const mealKey = normalizeMealLabel(it.meal);
+    // En iOS Safari, si algo falla aquí se ve un banner rojo. Mejor capturar y
+    // mostrar un error humano + contexto.
+    try{
+      if(_swapIdx===null) return;
+      if(!currentMacrosOk || !Array.isArray(currentMacrosOk.items)) throw new Error('Estado de Cuadrar Día inválido');
+      const it = currentMacrosOk.items[_swapIdx];
+      if(!it) throw new Error('Ítem de plan no encontrado');
+      const mealKey = normalizeMealLabel(it.meal);
+
+      // Debug contextual (para que el banner muestre qué estaba ocurriendo)
+      window.__lastAction = { op:'swap_food', idx:_swapIdx, from: it.foodId, to: food?.id, meal: it.meal };
 
     // targets del bloque (antes del cambio)
-    const target = currentMacrosOk.slotTargets?.[mealKey] || null;
+      const target = currentMacrosOk.slotTargets?.[mealKey] || null;
 
     // suma otros items del bloque
-    const others = {kcal:0,p:0,c:0,f:0};
-    currentMacrosOk.items.forEach((x, i)=>{
-      if(i===_swapIdx) return;
-      if(normalizeMealLabel(x.meal)!==mealKey) return;
-      others.kcal += Number(x.kcal)||0;
-      others.p += Number(x.p)||0;
-      others.c += Number(x.c)||0;
-      others.f += Number(x.f)||0;
-    });
+      const others = {kcal:0,p:0,c:0,f:0};
+      currentMacrosOk.items.forEach((x, i)=>{
+        if(i===_swapIdx) return;
+        if(normalizeMealLabel(x.meal)!==mealKey) return;
+        others.kcal += Number(x.kcal)||0;
+        others.p += Number(x.p)||0;
+        others.c += Number(x.c)||0;
+        others.f += Number(x.f)||0;
+      });
 
     // remanente del bloque
-    const rem = target ? {
-      kcal: Math.max(0, (target.kcal||0) - others.kcal),
-      p: Math.max(0, (target.p||0) - others.p),
-      c: Math.max(0, (target.c||0) - others.c),
-      f: Math.max(0, (target.f||0) - others.f),
-    } : {kcal: it.kcal||0, p: it.p||0, c: it.c||0, f: it.f||0};
+      const rem = target ? {
+        kcal: Math.max(0, (Number(target.kcal)||0) - others.kcal),
+        p: Math.max(0, (Number(target.p)||0) - others.p),
+        c: Math.max(0, (Number(target.c)||0) - others.c),
+        f: Math.max(0, (Number(target.f)||0) - others.f),
+      } : {
+        kcal: Number(it.kcal)||0,
+        p: Number(it.p)||0,
+        c: Number(it.c)||0,
+        f: Number(it.f)||0
+      };
 
     // decide tipo (unit vs g)
-    const qtyType = (String(food.baseUnit||'').toLowerCase()==='unit') ? 'unit' : 'g';
+      if(!food || !food.id) throw new Error('Alimento inválido');
+      const qtyType = (String(food.baseUnit||'').toLowerCase()==='unit') ? 'unit' : 'g';
 
     // elige macro a cuadrar
-    const key = pickFitKey(food, rem);
+      const key = pickFitKey(food, rem);
 
     // objetivo (macro o kcal) para este item
-    const targetVal = (key==='kcal') ? rem.kcal : rem[key];
+      const targetVal = (key==='kcal') ? rem.kcal : rem[key];
 
     // resuelve cantidad
-    let qty = qtySolve(food, qtyType, key, targetVal);
-    qty = clampQty(qtyType, qty);
+      let qty = qtySolve(food, qtyType, key, targetVal);
+      qty = clampQty(qtyType, qty);
+      if(!Number.isFinite(qty) || qty<=0) throw new Error('No se pudo calcular una cantidad válida');
 
     // aplica cambio
-    it.foodId = food.id;
-    it.name = food.name;
-    it.qtyType = qtyType;
-    it.qty = qty;
-    it.qtyDisplay = qtyDisplay(qtyType, qty);
+      it.foodId = food.id;
+      it.name = food.name;
+      it.qtyType = qtyType;
+      it.qty = qty;
+      it.qtyDisplay = qtyDisplay(qtyType, qty);
 
-    const mac = macroFor(food, qtyType, qty);
-    it.kcal = mac.kcal; it.p = mac.p; it.c = mac.c; it.f = mac.f;
+      const mac = macroFor(food, qtyType, qty);
+      it.kcal = mac.kcal; it.p = mac.p; it.c = mac.c; it.f = mac.f;
 
-    recalcMacrosOkTotals();
-    renderMacrosOk();
-    closeSwapFoodModal();
+      recalcMacrosOkTotals();
+      renderMacrosOk();
+      closeSwapFoodModal();
+    }catch(e){
+      const msg = e?.message || String(e);
+      alert('Error al cambiar alimento: ' + msg);
+      console.error('Swap food error:', e, window.__lastAction);
+    }
   };
 
   // Eventos del modal
