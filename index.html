@@ -4132,6 +4132,7 @@ function freezeDayIfNeeded(dateKey, summary){
 
 
 <style>
+/* Swap modal (chips) */
 #mcSwapModal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:9999}
 #mcSwapModal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
 #mcSwapModal .sheet{position:relative;width:min(720px,100%);max-height:72vh;border-top-left-radius:18px;border-top-right-radius:18px;
@@ -4153,18 +4154,23 @@ function freezeDayIfNeeded(dateKey, summary){
   <div class="sheet" role="dialog" aria-modal="true">
     <div class="title" id="mcSwapTitle">Cambiar alimento</div>
     <div class="row">
-      <input id="mcSwapQuery" type="text" placeholder="Escribe: pavo, pollo, queso, atun..." autocomplete="off" autocapitalize="off" />
+      <input id="mcSwapQuery" type="text" placeholder="Escribe: pechuga, pavo, pollo, queso, atun..." autocomplete="off" autocapitalize="off" />
       <button class="closeBtn" id="mcSwapClose" type="button">Cerrar</button>
     </div>
     <div class="chips" id="mcSwapChips"></div>
-    <div class="hint">Escribe una palabra (ej. “pechuga”, “pavo”). Toca un chip para seleccionar; la app ajusta cantidad automáticamente sin pasarse.</div>
+    <div class="hint">Escribe una palabra y toca un chip. La app ajusta la cantidad automáticamente (modo Coach: no pasarse).</div>
   </div>
 </div>
 
-</body>
-</html
-  // ---------------- Chip modal UI (Safari-safe) ----------------
-  const __swapUI = { open:false, idx:null, foods:null };
+
+<script>
+(function(){
+  if(!window.App) window.App = {};
+  const App = window.App;
+  App.Engine = App.Engine || {};
+
+  // ---- Swap modal state ----
+  const swapUI = { open:false, idx:null, foods:[] };
 
   function norm(s){
     return (s||'').toString().toLowerCase()
@@ -4173,13 +4179,21 @@ function freezeDayIfNeeded(dateKey, summary){
       .replace(/\s+/g,' ').trim();
   }
 
-  function scoreMatch(food, qTokens){
+  function loadFoodsSafe(){
+    try{
+      if(typeof loadFoodsMerged==='function') return loadFoodsMerged() || [];
+    }catch(e){}
+    const st = (typeof window.state!=='undefined')? window.state : null;
+    return st?.foods || st?.foodsDB || [];
+  }
+
+  function scoreMatch(food, tokens){
     const name = norm(food.name || '');
     const id = norm(food.id || '');
-    let s = 0;
-    for(const t of qTokens){
+    let s=0;
+    for(const t of tokens){
       if(!t) continue;
-      if(name.includes(t)) s += 5;
+      if(name.includes(t)) s += 6;
       if(id.includes(t)) s += 3;
       if(name.startsWith(t)) s += 2;
     }
@@ -4190,7 +4204,7 @@ function freezeDayIfNeeded(dateKey, summary){
     const wrap = document.getElementById('mcSwapChips');
     if(!wrap) return;
     wrap.innerHTML = '';
-    if(!list || list.length === 0){
+    if(!list || list.length===0){
       wrap.innerHTML = '<div class="hint">Sin coincidencias. Prueba otra palabra.</div>';
       return;
     }
@@ -4199,61 +4213,58 @@ function freezeDayIfNeeded(dateKey, summary){
       chip.type = 'button';
       chip.className = 'chip';
       chip.textContent = (f.name || f.id);
-      chip.setAttribute('data-foodid', f.id || '');
+      chip.dataset.foodid = (f.id || '');
       wrap.appendChild(chip);
     }
   }
 
-  function openSwapModal(itemIdx){
-    try{
-      if(typeof currentMacrosOk === 'undefined' || !currentMacrosOk?.items?.length) return;
-      const it = currentMacrosOk.items[itemIdx];
-      if(!it) return;
+  function openModal(idx){
+    if(typeof currentMacrosOk==='undefined' || !currentMacrosOk?.items?.length) return;
+    const it = currentMacrosOk.items[idx];
+    if(!it) return;
 
-      __swapUI.idx = itemIdx;
-      __swapUI.foods = loadFoodsSafe();
+    swapUI.idx = idx;
+    swapUI.foods = loadFoodsSafe();
 
-      const modal = document.getElementById('mcSwapModal');
-      const title = document.getElementById('mcSwapTitle');
-      const input = document.getElementById('mcSwapQuery');
-      if(title) title.textContent = `Cambiar: ${it.name}`;
-      if(input){
-        input.value = '';
-        setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 50);
-      }
-      renderChips([]);
+    const modal = document.getElementById('mcSwapModal');
+    const title = document.getElementById('mcSwapTitle');
+    const input = document.getElementById('mcSwapQuery');
 
-      if(modal){
-        modal.style.display = 'flex';
-        modal.setAttribute('aria-hidden','false');
-      }
-      __swapUI.open = true;
-    }catch(err){
-      console.error(err);
-      alert('Error abriendo el selector de cambio.');
+    if(title) title.textContent = `Cambiar: ${it.name}`;
+    if(input){
+      input.value = '';
+      setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 60);
     }
+    renderChips([]);
+
+    if(modal){
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden','false');
+    }
+    swapUI.open = true;
   }
 
-  function closeSwapModal(){
+  function closeModal(){
     const modal = document.getElementById('mcSwapModal');
     if(modal){
       modal.style.display = 'none';
       modal.setAttribute('aria-hidden','true');
     }
-    __swapUI.open = false;
-    __swapUI.idx = null;
+    swapUI.open = false;
+    swapUI.idx = null;
   }
 
-  function updateSwapMatches(){
+  function updateMatches(){
     const input = document.getElementById('mcSwapQuery');
-    if(!input || !__swapUI.foods) return;
+    if(!input) return;
     const q = norm(input.value);
     const tokens = q.split(' ').filter(Boolean);
-    if(tokens.length === 0){
+    if(tokens.length===0){
       renderChips([]);
       return;
     }
-    const ranked = __swapUI.foods.map(f=>({f, s: scoreMatch(f, tokens)}))
+    const ranked = swapUI.foods
+      .map(f=>({f, s: scoreMatch(f,tokens)}))
       .filter(x=>x.s>0)
       .sort((a,b)=> b.s-a.s)
       .slice(0, 12)
@@ -4261,33 +4272,66 @@ function freezeDayIfNeeded(dateKey, summary){
     renderChips(ranked);
   }
 
-  // Bind modal events
+  // ---- Replace flow: select foodId -> reuse existing swap function if present ----
+  function applyReplacement(foodId){
+    if(!foodId) return;
+    // Prefer our swap function defined in fix5, but adapt if it expects query
+    try{
+      if(typeof App.Engine.swapMacrosOkItem === 'function'){
+        // If function arity==2 assume (idx, foodId). Else fallback to prompt-less path not available.
+        if(App.Engine.swapMacrosOkItem.length >= 2){
+          App.Engine.swapMacrosOkItem(swapUI.idx, foodId);
+        }else{
+          // fallback: emulate previous behavior by temporarily prompting with exact name
+          const f = swapUI.foods.find(x => (x.id||'') === foodId);
+          if(!f) return;
+          const oldPrompt = window.prompt;
+          window.prompt = ()=> (f.name || f.id);
+          App.Engine.swapMacrosOkItem(swapUI.idx);
+          window.prompt = oldPrompt;
+        }
+      }
+    }catch(e){
+      console.error(e);
+    }
+  }
+
+  // ---- Event bindings ----
   document.addEventListener('click', function(e){
     const modal = document.getElementById('mcSwapModal');
-    if(!modal || modal.style.display !== 'flex') return;
-
-    if(e.target.closest('#mcSwapModal .backdrop') || e.target.closest('#mcSwapClose')){
-      closeSwapModal();
-      return;
-    }
-
-    const chip = e.target.closest('#mcSwapChips .chip');
-    if(chip){
-      const foodId = chip.getAttribute('data-foodid') || '';
-      if(foodId){
-        App.Engine.swapMacrosOkItem(__swapUI.idx, foodId);
+    if(modal && modal.style.display === 'flex'){
+      if(e.target.closest('#mcSwapModal .backdrop') || e.target.closest('#mcSwapClose')){
+        closeModal();
+        return;
       }
-      closeSwapModal();
+      const chip = e.target.closest('#mcSwapChips .chip');
+      if(chip){
+        applyReplacement(chip.dataset.foodid);
+        closeModal();
+        return;
+      }
+    }
+
+    // Open modal when clicking "Cambiar" button that exists in plan list
+    const btn = e.target.closest('.mc-swap-btn');
+    if(btn){
+      const idxStr = btn.getAttribute('data-index') || btn.dataset.index;
+      const idx = Number(idxStr);
+      if(Number.isFinite(idx)) openModal(idx);
       return;
     }
-  });
+  }, true);
 
-  let __swapTimer = null;
+  let t=null;
   document.addEventListener('input', function(e){
     if(e.target && e.target.id === 'mcSwapQuery'){
-      clearTimeout(__swapTimer);
-      __swapTimer = setTimeout(updateSwapMatches, 80);
+      clearTimeout(t);
+      t = setTimeout(updateMatches, 90);
     }
   });
 
->
+})();
+</script>
+
+</body>
+</html>
