@@ -2492,7 +2492,21 @@ window.addEventListener('error', function(e){
       const d=document.createElement('div'); d.className='item';
       d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id}</small></div>
                      <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
-      d.onclick=()=>{
+      d.onclick=(ev)=>{
+          const act = ev && ev.target && ev.target.dataset ? ev.target.dataset.action : null;
+          if(act==='swap'){
+            ev.preventDefault(); ev.stopPropagation();
+            try{
+              const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
+    // Move foods used in previous plan to the end to force alternatives
+    const prevIds = (window.__macrosOkPrevIds && Array.isArray(window.__macrosOkPrevIds)) ? new Set(window.__macrosOkPrevIds) : null;
+    const foods2 = prevIds ? foods.slice().sort((a,b)=> (prevIds.has(a.id)?1:0) - (prevIds.has(b.id)?1:0)) : foods;
+
+              if(window.App && App.Engine && typeof App.Engine.swapMacrosOkItem==='function') App.Engine.swapMacrosOkItem(idx, foods);
+            }catch(e){console.error(e);}
+            return;
+          }
+
         $('foodPick').value = f.id;
         // scroll a cantidad (mejor UX)
         $('qty')?.focus();
@@ -2548,7 +2562,17 @@ window.addEventListener('error', function(e){
             }
           };
         }
-        d.onclick=()=>{
+        d.onclick=(ev)=>{
+          const act = ev && ev.target && ev.target.dataset ? ev.target.dataset.action : null;
+          if(act==='swap'){
+            ev.preventDefault(); ev.stopPropagation();
+            try{
+              const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
+              if(window.App && App.Engine && typeof App.Engine.swapMacrosOkItem==='function') App.Engine.swapMacrosOkItem(idx, foods);
+            }catch(e){console.error(e);}
+            return;
+          }
+
           if(!dev){
             try{ navigator.clipboard?.writeText(f.id); }catch(_){ }
             alert(`ID copiado: ${f.id}`);
@@ -2910,7 +2934,11 @@ window.addEventListener('error', function(e){
     rec.items.forEach(it=>{
       const d=document.createElement('div'); d.className='item';
       d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
-                     <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>`;
+                       <div class="right">
+                         <b>${it.kcal}</b><small> kcal</small><br>
+                         <small>P ${it.p} · C ${it.c} · F ${it.f}</small><br>
+                         <button class="btnSmall" data-action="swap" data-idx="${idx}" type="button">Cambiar</button>
+                       </div>`;
       list.appendChild(d);
     });
 
@@ -2989,7 +3017,17 @@ window.addEventListener('error', function(e){
           }
         };
 
-        d.onclick=()=>{
+        d.onclick=(ev)=>{
+          const act = ev && ev.target && ev.target.dataset ? ev.target.dataset.action : null;
+          if(act==='swap'){
+            ev.preventDefault(); ev.stopPropagation();
+            try{
+              const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
+              if(window.App && App.Engine && typeof App.Engine.swapMacrosOkItem==='function') App.Engine.swapMacrosOkItem(idx, foods);
+            }catch(e){console.error(e);}
+            return;
+          }
+
           const action = prompt(
             `Editar "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
             `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
@@ -3070,8 +3108,22 @@ window.addEventListener('error', function(e){
       arr.forEach(({it, idx})=>{
         const d=document.createElement('div'); d.className='item';
         d.innerHTML = `<div><b>${it.name}</b><br><small>${it.qtyDisplay}</small></div>
-                       <div class="right"><b>${it.kcal}</b><small> kcal</small><br><small>P ${it.p} · C ${it.c} · F ${it.f}</small></div>`;
-        d.onclick=()=>{
+                       <div class="right">
+                         <b>${it.kcal}</b><small> kcal</small><br>
+                         <small>P ${it.p} · C ${it.c} · F ${it.f}</small><br>
+                         <button class="btnSmall" data-action="swap" data-idx="${idx}" type="button">Cambiar</button>
+                       </div>`;
+        d.onclick=(ev)=>{
+          const act = ev && ev.target && ev.target.dataset ? ev.target.dataset.action : null;
+          if(act==='swap'){
+            ev.preventDefault(); ev.stopPropagation();
+            try{
+              const foods = (typeof loadFoodsMerged==='function') ? loadFoodsMerged() : [];
+              if(window.App && App.Engine && typeof App.Engine.swapMacrosOkItem==='function') App.Engine.swapMacrosOkItem(idx, foods);
+            }catch(e){console.error(e);}
+            return;
+          }
+
           const action = prompt(
             `Editar sugerencia "${it.name}"\n\nFormato: 200 g | 2 u | 250 ml\nPara borrar: DEL`,
             `${it.qty} ${it.qtyType==='unit'?'u':(it.qtyType==='ml'?'ml':'g')}`
@@ -4102,19 +4154,40 @@ function freezeDayIfNeeded(dateKey, summary){
     return scored[0]?.f || null;
   }
 
-  function pickQtyToMatchKcal(food, targetKcal){
+  function pickQtyToMatchKcal(food, targetKcal, targetP){
     targetKcal = Number(targetKcal)||0;
     if(targetKcal <= 0) targetKcal = 100;
 
     // Use existing macroFor if available, fallback approximate
-    const mf = (typeof macroFor==='function') ? macroFor : null;
+    const mf = null; // macroFor is scoped in the app; we reimplement below
+
+    const _round=(v,dec=0)=>{const p=Math.pow(10,dec);return Math.round((Number(v)||0)*p)/p;};
+    const _macroFor=(food,qtyType,qty)=>{
+      qty=Number(qty)||0; if(qty<=0) return {kcal:0,p:0,c:0,f:0};
+      let factor=0;
+      if(food.baseUnit==='100g'){
+        const grams = (qtyType==='g') ? qty : (qtyType==='unit' && food.unitGrams ? qty*food.unitGrams : qty);
+        factor = grams/100;
+      } else if(food.baseUnit==='100ml'){
+        const ml = (qtyType==='ml') ? qty : qty;
+        factor = ml/100;
+      } else {
+        const units = (qtyType==='unit') ? qty : qty;
+        factor = units;
+      }
+      return {kcal:_round((food.kcal||0)*factor), p:_round((food.p||0)*factor,1), c:_round((food.c||0)*factor,1), f:_round((food.f||0)*factor,1)};
+    };
 
     const best = {qtyType:'g', qty:100, tot:{kcal:0,p:0,c:0,f:0}, err:1e9};
 
     const evalCandidate = (qtyType, qty)=>{
-      const tot = mf ? mf(food, qtyType, qty) : {kcal:0,p:0,c:0,f:0};
+      const tot = _macroFor(food, qtyType, qty);
       const kcal = Number(tot.kcal)||0;
-      const err = (kcal <= targetKcal) ? (targetKcal - kcal) : (targetKcal - kcal) * 4; // overshoot heavily penalized
+      const p = Number(tot.p)||0;
+      const tP = Number(targetP)||0;
+      const pErr = tP>0 ? Math.abs(tP - p) * 12 : 0; // protein priority
+      const kErr = (kcal <= targetKcal) ? (targetKcal - kcal) : (kcal - targetKcal) * 6;
+      const err = kErr + pErr;
       if(err < best.err){
         best.qtyType = qtyType; best.qty = qty; best.tot = tot; best.err = err;
       }
@@ -4131,7 +4204,7 @@ function freezeDayIfNeeded(dateKey, summary){
 
     // grams mode
     // estimate kcal per 100g
-    let per100 = mf ? mf(food, 'g', 100).kcal : 0;
+    let per100 = _macroFor(food, 'g', 100).kcal;
     per100 = Number(per100)||0;
     if(per100 <= 0){
       // fallback: 100g
@@ -4183,7 +4256,7 @@ function freezeDayIfNeeded(dateKey, summary){
     App.Engine.registerRejection(it.id, it.pairingId);
     App.Engine.registerAcceptance(replacement.id, it.pairingId);
 
-    const best = pickQtyToMatchKcal(replacement, it.kcal);
+    const best = pickQtyToMatchKcal(replacement, it.kcal, it.p);
 
     // Update item
     it.id = replacement.id;
@@ -4197,6 +4270,7 @@ function freezeDayIfNeeded(dateKey, summary){
     it.qtyDisplay = qtyDisplayFor(it);
 
     // Rerender
+    try{ if(currentMacrosOk && currentMacrosOk.items){ window.__macrosOkPrevIds = currentMacrosOk.items.map(x=>x.id); } }catch(e){}
     try{ if(typeof renderMacrosOk==='function') renderMacrosOk(); }catch(e){ console.error(e); }
   };
 
@@ -4279,6 +4353,7 @@ function freezeDayIfNeeded(dateKey, summary){
     currentMacrosOk = planMacrosOk(shuffled, goal, logs, day);
     const ctxEl = document.getElementById('macrosOkContext');
     if(ctxEl) ctxEl.textContent = currentMacrosOk?.context || 'Sin sugerencia.';
+    try{ if(currentMacrosOk && currentMacrosOk.items){ window.__macrosOkPrevIds = currentMacrosOk.items.map(x=>x.id); } }catch(e){}
     try{ if(typeof renderMacrosOk==='function') renderMacrosOk(); }catch(e){ console.error(e); }
   };
 
