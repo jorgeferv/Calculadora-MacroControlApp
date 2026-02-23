@@ -2838,7 +2838,9 @@ window.addEventListener('error', function(e){
         .map(x=>x.f);
     }else{
       // sin query: muestra recientes si existen, si no top primeros
-      const rec = (loadRecentFoodIds && loadRecentFoodIds()) ? loadRecentFoodIds() : [];
+      // Nota: en builds anteriores puede no existir loadRecentFoodIds.
+      // Usar guardia con typeof para evitar ReferenceError en Safari iOS.
+      const rec = (typeof loadRecentFoodIds === 'function') ? (loadRecentFoodIds()||[]) : [];
       const recFoods = rec.map(id=>foodByIdSafe(_swapFoodsCache,id)).filter(Boolean);
       arr = recFoods.length ? recFoods.slice(0,18) : _swapFoodsCache.slice(0,18);
     }
