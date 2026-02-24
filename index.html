@@ -1530,7 +1530,22 @@ const LS = {
       throw new Error("OCR_ENDPOINT no está configurado.");
     }
     const fd = new FormData();
-    fd.append("image", file, file.name || "label.jpg");
+
+    // ===== r49 OCR.space compatibility =====
+    // OCR.space expects:
+    // - multipart field: "file"
+    // - api key field: "apikey"
+    // Docs: https://ocr.space/ocrapi
+    if(/api\.ocr\.space\/parse\/image/i.test(OCR_ENDPOINT)){
+      fd.append("file", file, file.name || "label.jpg");
+      fd.append("apikey", (typeof OCR_SPACE_APIKEY==='string' ? OCR_SPACE_APIKEY.trim() : ""));
+      fd.append("language", "spa");
+      fd.append("isOverlayRequired", "false");
+      fd.append("OCREngine", "2");
+    } else {
+      // Generic backend format (your own endpoint): expects multipart field "image"
+      fd.append("image", file, file.name || "label.jpg");
+    }
 
     const res = await fetch(OCR_ENDPOINT, { method:"POST", body: fd });
     if(!res.ok){
