@@ -749,7 +749,7 @@ pan_cristal 2u"></textarea>
         <label>Foto de la etiqueta</label>
         <div class="seg">
           <button id="ocrPickBtn" type="button">Hacer foto / seleccionar imagen</button>
-          <input id="ocrFile" type="file" accept="image/*" capture="environment" style="display:none;" />
+          <input id="ocrFile" type="file" accept="image/*"  style="display:none;" />
         </div>
         <div id="ocrFileHint" class="muted" style="margin-top:6px;">Sube una foto nítida (por 100 g si es posible).</div>
       </div>
@@ -3883,6 +3883,59 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
+
+
+// ======= r49 ENHANCED OCR PARSER (Per Unit Detection + Conversion) =======
+function extractUnitGramsFromText(text){
+  const m = text.match(/(\d+)\s*g\s*\)/i) || 
+            text.match(/(?:unidad|raci[oó]n|serving)[^\d]*(\d+)\s*g/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function detectBaseType(text){
+  return {
+    per100g: /100\s*g/i.test(text),
+    perUnit: /(por\s+unidad|por\s+raci[oó]n|per\s+serving)/i.test(text),
+    unitGrams: extractUnitGramsFromText(text)
+  };
+}
+
+function convertUnitTo100g(macros, unitGrams){
+  const factor = 100 / unitGrams;
+  return {
+    fat: macros.fat * factor,
+    protein: macros.protein * factor,
+    carbs: macros.carbs * factor,
+    kcal: macros.kcal ? macros.kcal * factor : null
+  };
+}
+
+function parseNutritionTextEnhanced(text){
+  const norm = text.replace(/,/g, '.');
+  const fat = parseFloat((norm.match(/grasas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  const protein = parseFloat((norm.match(/prote[ií]nas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  const carbs = parseFloat((norm.match(/hidratos|carbohidratos|carbs?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  const kcal = parseFloat((norm.match(/(\d+(?:\.\d+)?)\s*kcal/i)||[])[1]);
+
+  if(isNaN(fat) || isNaN(protein) || isNaN(carbs)) return null;
+
+  const baseInfo = detectBaseType(text);
+
+  let result = { fat, protein, carbs, kcal };
+
+  if(baseInfo.perUnit && baseInfo.unitGrams){
+    result = convertUnitTo100g(result, baseInfo.unitGrams);
+    result._convertedFromUnit = true;
+  }
+
+  if(!result.kcal){
+    result.kcal = Math.round(result.fat*9 + (result.protein+result.carbs)*4);
+    result._kcalEstimated = true;
+  }
+
+  return result;
+}
+// ======= END r49 OCR ENHANCEMENT =======
 
 </script>
 </body>
