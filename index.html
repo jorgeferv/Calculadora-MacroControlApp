@@ -586,7 +586,7 @@
         <div class="kpi">
           <div class="box"><div class="num" id="goalKcal">—</div><div class="lbl">Objetivo kcal</div></div>
           <div class="box"><div class="num" id="eatenKcal">—</div><div class="lbl">Consumidas</div></div>
-          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl">Restantes</div></div>
+          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl" id="remKcalLbl">Faltan</div></div>
           <div class="box"><div class="num" id="tdeeKcal">—</div><div class="lbl">TDEE estimado</div></div>
         </div>
 
@@ -1044,9 +1044,18 @@ const LS = {
       if(!preview) return;
       if(!obj){ preview.style.display='none'; preview.textContent=''; return; }
       const est = obj.kcalEstimated ? ' (estimada)' : '';
+      let s = `Por 100 g: G ${obj.fat} / P ${obj.protein} / C ${obj.carbs} / kcal ${obj.kcal}${est}`;
+      if(obj.serving && obj.serving.grams){
+        const sg = obj.serving.grams;
+        const sf = (obj.serving.fat!=null) ? obj.serving.fat : '—';
+        const sp = (obj.serving.protein!=null) ? obj.serving.protein : '—';
+        const sc = (obj.serving.carbs!=null) ? obj.serving.carbs : '—';
+        const sk = (obj.serving.kcal!=null) ? obj.serving.kcal : '—';
+        s += ` · Ración ${sg} g: G ${sf} / P ${sp} / C ${sc} / kcal ${sk}`;
+      }
       preview.style.display='';
-      preview.textContent = `Por 100 g: G ${obj.fat} / P ${obj.protein} / C ${obj.carbs} / kcal ${obj.kcal}${est}`;
-    };
+      preview.textContent = s;
+    };;
 
     const readInputs = ()=>{
       const fat = clampNum(parseNumLoose(fatIn?.value), 0, 100);
@@ -1500,29 +1509,39 @@ const LS = {
 
   // Local OCR parser fallback (ES/EN). Supports comma decimals.
   function parseNutritionFromText(text){
-    const t = String(text||"");
-    const norm = t.replace(/\u00A0/g,' ').toLowerCase();
+    // r51: Delegate to enhanced parser (supports 100g header, per-unit conversion, dual-column serving)
+    const parsed = (typeof parseNutritionTextEnhanced === 'function') ? parseNutritionTextEnhanced(String(text||'')) : null;
+    if(!parsed) return null;
 
-    function pick(re){
-      const m = norm.match(re);
-      if(!m) return null;
-      const raw = (m[1]||'').replace(',', '.');
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : null;
+    const fat = (parsed.fat!=null) ? +(+parsed.fat).toFixed(2) : null;
+    const protein = (parsed.protein!=null) ? +(+parsed.protein).toFixed(2) : null;
+    const carbs = (parsed.carbs!=null) ? +(+parsed.carbs).toFixed(2) : null;
+    const kcal = (parsed.kcal!=null) ? Math.round(parsed.kcal) : null;
+
+    const per100 = !!(parsed._baseInfo && parsed._baseInfo.per100g);
+    const baseInfo = parsed._baseInfo || null;
+
+    // Serving info (if label provides it). If grams exist but macro values missing, compute from per100.
+    let serving = parsed._serving || null;
+    if(serving && serving.grams && (serving.fat==null || serving.protein==null || serving.carbs==null || serving.kcal==null)){
+      const factor = serving.grams / 100;
+      serving = {
+        grams: serving.grams,
+        fat: (serving.fat!=null) ? serving.fat : (fat!=null ? +(fat*factor).toFixed(2) : null),
+        protein: (serving.protein!=null) ? serving.protein : (protein!=null ? +(protein*factor).toFixed(2) : null),
+        carbs: (serving.carbs!=null) ? serving.carbs : (carbs!=null ? +(carbs*factor).toFixed(2) : null),
+        kcal: (serving.kcal!=null) ? Math.round(serving.kcal) : (kcal!=null ? Math.round(kcal*factor) : null)
+      };
     }
 
-    // fat
-    const fat = pick(/(?:grasas?|fat)\s*(?:totales?)?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*g/);
-    // protein
-    const protein = pick(/(?:prote[ií]nas?|protein)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*g/);
-    // carbs
-    const carbs = pick(/(?:hidratos?\s*de\s*carbono|carbohidratos?|carbohydrates?|carbs?)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*g/);
-    // kcal
-    const kcal = pick(/(?:kcal|kilocalor(?:i|í)as?)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/);
-
-    const per100 = /por\s*100\s*g|per\s*100\s*g/.test(norm);
-
-    return { fat, protein, carbs, kcal, per100 };
+    return {
+      fat, protein, carbs, kcal,
+      per100,
+      serving,
+      baseInfo,
+      kcalEstimated: !!parsed._kcalEstimated,
+      convertedFromUnit: !!parsed._convertedFromUnit
+    };
   }
 
   async function sendImageToOCR(file){
@@ -2547,7 +2566,13 @@ const LS = {
     $('tdeeKcal').textContent=goal.tdee;
 
     $('eatenKcal').textContent=round(eaten.kcal);
-    $('remKcal').textContent=round(goal.goalKcal - eaten.kcal);
+    const _rem = round(goal.goalKcal - eaten.kcal);
+    const _remAbs = Math.abs(_rem);
+    $('remKcal').textContent = _remAbs;
+    const _lbl = $('remKcalLbl');
+    if(_lbl){
+      _lbl.textContent = (_rem < 0) ? 'Sobran' : 'Faltan';
+    }
 
     const elGoalP=$('goalP'); if(elGoalP) elGoalP.textContent=goal.p;
     const elGoalC=$('goalC'); if(elGoalC) elGoalC.textContent=goal.c;
