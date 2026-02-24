@@ -210,6 +210,22 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
+
+    /* ======= DEV OCR MODAL (r48) ======= */
+    .modalBack{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:9999;padding:16px;}
+    .modalBox{width:min(560px,100%);max-height:88vh;overflow:auto;background:rgba(18,18,18,.98);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px;}
+    .modalTop{display:flex;align-items:center;gap:10px;}
+    .modalTop b{font-size:16px}
+    .modalBox .field{margin-top:10px}
+    .modalBox label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .modalBox input[type="text"], .modalBox input[type="number"], .modalBox textarea{
+      width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.25);color:var(--text);font-size:16px;
+    }
+    .modalBox textarea{min-height:120px;font-size:13px;line-height:1.25}
+    .modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+    .previewLine{margin-top:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+
 </style>
 </head>
 
@@ -244,6 +260,14 @@
           <button id="exportFoods" type="button">Exportar JSON</button>
           <button id="importFoodsBtn" type="button">Importar JSON</button>
         </div>
+        <!-- DEV tool (r48): OCR label scanner -->
+        <div class="seg" style="margin-top:10px;">
+          <button id="ocrScanBtn" type="button">Escanear etiqueta (OCR)</button>
+        </div>
+        <div class="muted" style="margin-top:6px;">
+          DEV: crea/actualiza un alimento por 100 g a partir de una foto de la etiqueta.
+        </div>
+
         <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
         <div class="muted" style="margin-top:8px;">
           Consejo: exporta primero, edita el JSON en ordenador y reimporta.
@@ -312,15 +336,6 @@
           <input id="f_c" type="number" placeholder="C" />
           <input id="f_f" type="number" placeholder="F" />
         </div>
-
-        <label id="ocrLabelTitle" style="margin-top:10px;">OCR etiqueta</label>
-        <div class="seg" style="gap:8px;align-items:center;">
-          <button id="btnOcrLabel" type="button">📷 Leer etiqueta (OCR)</button>
-          <button id="btnOcrKey" type="button" class="miniBtn">API Key</button>
-        </div>
-        <input id="ocrFileInput" type="file" accept="image/*" capture="environment" style="display:none;" />
-        <div id="ocrStatus" class="muted" style="margin-top:6px;display:none;"></div>
-
 
         <label>Gramos por unidad (si aplica)</label>
         <input id="f_unitGrams" type="number" placeholder="Ej: 60 (pan cristal)" />
@@ -571,7 +586,7 @@
         <div class="kpi">
           <div class="box"><div class="num" id="goalKcal">—</div><div class="lbl">Objetivo kcal</div></div>
           <div class="box"><div class="num" id="eatenKcal">—</div><div class="lbl">Consumidas</div></div>
-          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl">Restantes</div></div>
+          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl" id="remKcalLbl">Faltan</div></div>
           <div class="box"><div class="num" id="tdeeKcal">—</div><div class="lbl">TDEE estimado</div></div>
         </div>
 
@@ -715,6 +730,72 @@ pan_cristal 2u"></textarea>
     <button id="tabAdd" type="button">Añadir</button>
   </div>
 
+
+  <!-- ======= MODAL OCR (DEV) - r48 ======= -->
+  <div class="modalBack" id="ocrBack" aria-hidden="true">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-label="Escáner nutricional">
+      <div class="modalTop">
+        <b>Escáner nutricional</b>
+        <span id="ocrConf" class="pill" style="margin-left:auto;display:none;">OCR</span>
+        <button class="iconBtn" id="ocrClose" type="button">✕</button>
+      </div>
+
+      <div class="field">
+        <label for="ocrName">Nombre del producto (obligatorio)</label>
+        <input id="ocrName" type="text" placeholder="Ej: Queso batido 0% Hacendado" />
+      </div>
+
+      <div class="field">
+        <label>Foto de la etiqueta</label>
+        <div class="seg">
+          <button id="ocrPickBtn" type="button">Hacer foto / seleccionar imagen</button>
+          <input id="ocrFile" type="file" accept="image/*"  style="display:none;" />
+        </div>
+        <div id="ocrFileHint" class="muted" style="margin-top:6px;">Sube una foto nítida (por 100 g si es posible).</div>
+      </div>
+
+      <details class="card" id="ocrTextBox" style="margin-top:12px;">
+        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <b>Texto OCR detectado</b>
+          <span class="muted">ver/ocultar</span>
+        </summary>
+        <div style="margin-top:10px;">
+          <textarea id="ocrText" placeholder="Aquí se mostrará el texto OCR…"></textarea>
+        </div>
+      </details>
+
+      <div class="field" style="margin-top:12px;">
+        <label>Macros por 100 g (editable)</label>
+        <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label for="ocrFat">Grasas (g)</label>
+            <input id="ocrFat" type="number" step="0.1" min="0" max="100" placeholder="Ej: 1.5" />
+          </div>
+          <div>
+            <label for="ocrProtein">Proteínas (g)</label>
+            <input id="ocrProtein" type="number" step="0.1" min="0" max="100" placeholder="Ej: 6" />
+          </div>
+          <div>
+            <label for="ocrCarbs">Carbohidratos (g)</label>
+            <input id="ocrCarbs" type="number" step="0.1" min="0" max="100" placeholder="Ej: 7" />
+          </div>
+          <div>
+            <label for="ocrKcal">kcal (opcional)</label>
+            <input id="ocrKcal" type="number" step="1" min="0" max="900" placeholder="Ej: 120" />
+          </div>
+        </div>
+
+        <div id="ocrPreview" class="previewLine muted" style="display:none;"></div>
+        <div id="ocrWarn" class="muted" style="margin-top:8px;display:none;"></div>
+      </div>
+
+      <div class="modalActions">
+        <button id="ocrCancel" type="button">Cancelar</button>
+        <button id="ocrSave" type="button">Guardar alimento</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
@@ -734,7 +815,21 @@ window.addEventListener('error', function(e){
   // =========================
   // STORAGE KEYS (estables)
   // =========================
-  const LS = {
+  
+  // ======= DEV OCR CONFIG (r48) =======
+  // OCR_ENDPOINT: endpoint OCR (multipart/form-data). Expected response:
+  // {
+  //   "text": "full_ocr_text",
+  //   "per100g": {"fat": 1.5, "protein": 6, "carbs": 7, "kcal": 120},
+  //   "confidence": 0..1
+  // }
+  // If backend returns only "text", we parse locally (regex ES/EN).
+  const OCR_ENDPOINT = "https://api.ocr.space/parse/image"; // OCR.space endpoint (DEV)
+  const OCR_SPACE_APIKEY = "K84237061588957"; // ⚠ Visible in client (DEV only)
+  const OCR_SPACE_LANG = "spa"; // "spa" or "eng"
+  const OCR_SPACE_ENGINE = "2"; // OCR engine 2 often better for labels
+
+const LS = {
     mode: 'mc_mode',
     modeLegacy: 'mc_mode_v9',
     settings: 'mc_settings',
@@ -912,6 +1007,217 @@ window.addEventListener('error', function(e){
     t.addEventListener('mouseup', cancel);
     t.addEventListener('mouseleave', cancel);
   };
+  // ======= DEV OCR: UI wiring (r48) =======
+  // Added button in DEV tools: #ocrScanBtn
+  // Modal: #ocrBack (Escáner nutricional)
+  const bindDevOCR = ()=>{
+    const btn = $('ocrScanBtn');
+    if(!btn) return;
+
+    const back = $('ocrBack');
+    const closeBtn = $('ocrClose');
+    const cancelBtn = $('ocrCancel');
+    const pickBtn = $('ocrPickBtn');
+    const fileIn = $('ocrFile');
+
+    const nameIn = $('ocrName');
+    const fatIn = $('ocrFat');
+    const proIn = $('ocrProtein');
+    const carbIn = $('ocrCarbs');
+    const kcalIn = $('ocrKcal');
+    const txt = $('ocrText');
+    const confPill = $('ocrConf');
+    const preview = $('ocrPreview');
+    const warn = $('ocrWarn');
+
+    let lastOCR = { text:'', confidence:null, per100:null, per100Detected:false };
+
+    const show = ()=>{ if(back){ back.style.display='flex'; back.setAttribute('aria-hidden','false'); } };
+    const hide = ()=>{
+      if(back){ back.style.display='none'; back.setAttribute('aria-hidden','true'); }
+      // reset file to allow re-pick
+      if(fileIn) fileIn.value='';
+    };
+
+    const setWarn = (msg)=>{ if(!warn) return; warn.style.display = msg ? '' : 'none'; warn.textContent = msg || ''; };
+    const setPreview = (obj)=>{
+      if(!preview) return;
+      if(!obj){ preview.style.display='none'; preview.textContent=''; return; }
+      const est = obj.kcalEstimated ? ' (estimada)' : '';
+      let s = `Por 100 g: G ${obj.fat} / P ${obj.protein} / C ${obj.carbs} / kcal ${obj.kcal}${est}`;
+      if(obj.serving && obj.serving.grams){
+        const sg = obj.serving.grams;
+        const sf = (obj.serving.fat!=null) ? obj.serving.fat : '—';
+        const sp = (obj.serving.protein!=null) ? obj.serving.protein : '—';
+        const sc = (obj.serving.carbs!=null) ? obj.serving.carbs : '—';
+        const sk = (obj.serving.kcal!=null) ? obj.serving.kcal : '—';
+        s += ` · Ración ${sg} g: G ${sf} / P ${sp} / C ${sc} / kcal ${sk}`;
+      }
+      preview.style.display='';
+      preview.textContent = s;
+    };;
+
+    const readInputs = ()=>{
+      const fat = clampNum(parseNumLoose(fatIn?.value), 0, 100);
+      const protein = clampNum(parseNumLoose(proIn?.value), 0, 100);
+      const carbs = clampNum(parseNumLoose(carbIn?.value), 0, 100);
+      let kcal = parseNumLoose(kcalIn?.value);
+      kcal = (kcal===null) ? null : clampNum(kcal, 0, 900);
+      const ok = (fat!==null && protein!==null && carbs!==null);
+      if(!ok) return null;
+
+      let kcalEstimated = false;
+      if(kcal===null){
+        kcal = Math.round(fat*9 + (protein+carbs)*4);
+        kcalEstimated = true;
+      } else {
+        kcal = Math.round(kcal);
+      }
+      return { fat, protein, carbs, kcal, kcalEstimated };
+    };
+
+    const refreshPreview = ()=>{
+      const m = readInputs();
+      if(!m){ setPreview(null); return; }
+      setPreview(m);
+    };
+
+    [fatIn, proIn, carbIn, kcalIn].forEach(el=>{
+      el?.addEventListener('input', refreshPreview);
+    });
+
+    async function runOCR(file){
+      setWarn('');
+      if(confPill){ confPill.style.display='inline-flex'; confPill.textContent='OCR…'; }
+      try{
+        const res = await sendImageToOCR(file);
+        const text = res?.text || '';
+        const per = res?.per100g || null;
+        const conf = (typeof res?.confidence === 'number') ? res.confidence : null;
+
+        lastOCR = { text, confidence: conf, per100: per, per100Detected:false };
+
+        if(txt) txt.value = text;
+
+        let parsed = null;
+        if(per && typeof per === 'object'){
+          parsed = {
+            fat: parseNumLoose(per.fat),
+            protein: parseNumLoose(per.protein),
+            carbs: parseNumLoose(per.carbs),
+            kcal: parseNumLoose(per.kcal)
+          };
+          lastOCR.per100Detected = true; // backend says per100g
+        } else if(text){
+          const loc = parseNutritionFromText(text);
+          parsed = loc;
+          lastOCR.per100Detected = !!loc.per100;
+        }
+
+        if(parsed){
+          if(parsed.fat!==null && fatIn) fatIn.value = String(parsed.fat);
+          if(parsed.protein!==null && proIn) proIn.value = String(parsed.protein);
+          if(parsed.carbs!==null && carbIn) carbIn.value = String(parsed.carbs);
+          if(parsed.kcal!==null && kcalIn) kcalIn.value = String(Math.round(parsed.kcal));
+          refreshPreview();
+        }
+
+        if(confPill){
+          confPill.style.display='inline-flex';
+          confPill.textContent = (conf===null) ? 'OCR' : `OCR ${(conf*100).toFixed(0)}%`;
+        }
+
+        if(!lastOCR.per100Detected){
+          setWarn('Aviso: no se detectó claramente “por 100 g”. Revisa macros antes de guardar.');
+        }
+
+      }catch(err){
+        if(confPill){ confPill.style.display='none'; }
+        setWarn('Fallo OCR: ' + (err?.message || err));
+      }
+    }
+
+    btn.addEventListener('click', ()=>{
+      if(!isDev()){
+        alert('Modo desarrollador BLOQUEADO.');
+        return;
+      }
+      // reset UI
+      if(confPill) confPill.style.display='none';
+      setWarn('');
+      if(txt) txt.value='';
+      if(fatIn) fatIn.value='';
+      if(proIn) proIn.value='';
+      if(carbIn) carbIn.value='';
+      if(kcalIn) kcalIn.value='';
+      setPreview(null);
+      show();
+      setTimeout(()=>nameIn?.focus(), 50);
+    });
+
+    closeBtn?.addEventListener('click', hide);
+    cancelBtn?.addEventListener('click', hide);
+    back?.addEventListener('click', (e)=>{ if(e.target===back) hide(); });
+
+    pickBtn?.addEventListener('click', ()=> fileIn?.click());
+    fileIn?.addEventListener('change', ()=>{
+      const f = fileIn.files && fileIn.files[0];
+      if(!f) return;
+      runOCR(f);
+    });
+
+    $('ocrSave')?.addEventListener('click', ()=>{
+      if(!isDev()){
+        alert('Modo desarrollador BLOQUEADO.');
+        return;
+      }
+      const name = String(nameIn?.value||'').trim();
+      if(!name){
+        alert('Falta el nombre del producto.');
+        return;
+      }
+      const m = readInputs();
+      if(!m){
+        alert('No se detectaron macros válidos. Revisa Grasas/Proteínas/Carbohidratos.');
+        return;
+      }
+
+      // Build food object (per 100g). NO ml. NO modo unit aquí.
+      const id = slugSafe(name);
+
+      // tags mínimos (mejorable después con rules engine)
+      const tags = [];
+      if(m.protein >= 10) tags.push('protein');
+      if(m.carbs >= 10) tags.push('carb');
+      if(m.fat >= 10) tags.push('fat');
+      // tags de uso: mantener estilo actual sin inventar estructuras
+      tags.push('comida_ok'); // genérico
+
+      const foodObj = normalizeFood({
+        id,
+        name,
+        baseUnit: '100g',
+        kcal: m.kcal,
+        p: m.protein,
+        c: m.carbs,
+        f: m.fat,
+        unitGrams: null,
+        tags
+      });
+
+      try{
+        upsertFoodFromApp(foodObj);
+        // refrescar UI foods drawer si está abierto
+        renderAll();
+        alert(`Guardado: ${foodObj.name}\n\n${preview?.textContent || ''}`);
+        hide();
+      }catch(err){
+        alert('Error al guardar: ' + (err?.message || err));
+      }
+    });
+  };
+
+
 
   // Barra de estado en Añadir (kcal + macros)e en pantallas principales.
   const updateAddStatusBar = (goal,eaten)=>{
@@ -1177,6 +1483,125 @@ window.addEventListener('error', function(e){
   };
 
   const foodById=(foods,id)=>foods.find(f=>f.id===id);
+
+  // ======= DEV OCR: helpers (r48) =======
+  function slugSafe(str){
+    str = String(str||"").trim().toLowerCase();
+    // quitar tildes
+    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    // espacios y símbolos -> _
+    str = str.replace(/[^a-z0-9]+/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,'');
+    return str || 'food';
+  }
+
+  function parseNumLoose(x){
+    if(x===null || x===undefined) return null;
+    const s = String(x).trim().replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function clampNum(n, lo, hi){
+    n = Number(n);
+    if(!Number.isFinite(n)) return null;
+    return Math.max(lo, Math.min(hi, n));
+  }
+
+  // Local OCR parser fallback (ES/EN). Supports comma decimals.
+  function parseNutritionFromText(text){
+    // r51: Delegate to enhanced parser (supports 100g header, per-unit conversion, dual-column serving)
+    const parsed = (typeof parseNutritionTextEnhanced === 'function') ? parseNutritionTextEnhanced(String(text||'')) : null;
+    if(!parsed) return null;
+
+    const fat = (parsed.fat!=null) ? +(+parsed.fat).toFixed(2) : null;
+    const protein = (parsed.protein!=null) ? +(+parsed.protein).toFixed(2) : null;
+    const carbs = (parsed.carbs!=null) ? +(+parsed.carbs).toFixed(2) : null;
+    const kcal = (parsed.kcal!=null) ? Math.round(parsed.kcal) : null;
+
+    const per100 = !!(parsed._baseInfo && parsed._baseInfo.per100g);
+    const baseInfo = parsed._baseInfo || null;
+
+    // Serving info (if label provides it). If grams exist but macro values missing, compute from per100.
+    let serving = parsed._serving || null;
+    if(serving && serving.grams && (serving.fat==null || serving.protein==null || serving.carbs==null || serving.kcal==null)){
+      const factor = serving.grams / 100;
+      serving = {
+        grams: serving.grams,
+        fat: (serving.fat!=null) ? serving.fat : (fat!=null ? +(fat*factor).toFixed(2) : null),
+        protein: (serving.protein!=null) ? serving.protein : (protein!=null ? +(protein*factor).toFixed(2) : null),
+        carbs: (serving.carbs!=null) ? serving.carbs : (carbs!=null ? +(carbs*factor).toFixed(2) : null),
+        kcal: (serving.kcal!=null) ? Math.round(serving.kcal) : (kcal!=null ? Math.round(kcal*factor) : null)
+      };
+    }
+
+    return {
+      fat, protein, carbs, kcal,
+      per100,
+      serving,
+      baseInfo,
+      kcalEstimated: !!parsed._kcalEstimated,
+      convertedFromUnit: !!parsed._convertedFromUnit
+    };
+  }
+
+  async function sendImageToOCR(file){
+    if(!OCR_ENDPOINT){
+      throw new Error("OCR_ENDPOINT no está configurado.");
+    }
+    const fd = new FormData();
+
+    // ===== OCR.space compatibility =====
+    // OCR.space expects:
+    // - multipart field: "file"
+    // - api key field: "apikey"
+    // Docs: https://ocr.space/ocrapi
+    const isOcrSpace = /api\.ocr\.space\/parse\/image/i.test(OCR_ENDPOINT);
+
+    if(isOcrSpace){
+      fd.append("file", file, file.name || "label.jpg");
+      fd.append("apikey", (typeof OCR_SPACE_APIKEY==='string' ? OCR_SPACE_APIKEY.trim() : ""));
+      fd.append("language", OCR_SPACE_LANG || "spa");
+      fd.append("isOverlayRequired", "false");
+      fd.append("OCREngine", OCR_SPACE_ENGINE || "2");
+      // Recomendado para etiquetas: escala y mejora contraste
+      fd.append("scale", "true");
+    } else {
+      // Generic backend format (your own endpoint): expects multipart field "image"
+      fd.append("image", file, file.name || "label.jpg");
+    }
+
+    const res = await fetch(OCR_ENDPOINT, { method:"POST", body: fd });
+    const rawText = await res.text().catch(()=> "");
+    if(!res.ok){
+      throw new Error("OCR HTTP " + res.status + (rawText ? (": " + rawText.slice(0,180)) : ""));
+    }
+
+    let json;
+    try{ json = rawText ? JSON.parse(rawText) : {}; }
+    catch(e){ throw new Error("Respuesta OCR no es JSON válido."); }
+
+    // Normalizar OCR.space -> {text}
+    if(isOcrSpace){
+      // OCR.space suele responder 200 aunque haya error: hay que validar
+      if(json && json.IsErroredOnProcessing){
+        const em = Array.isArray(json.ErrorMessage) ? json.ErrorMessage.join(' | ') : (json.ErrorMessage||'Error OCR.space');
+        throw new Error(em);
+      }
+      const parsed = Array.isArray(json?.ParsedResults) ? json.ParsedResults : [];
+      const text = parsed.map(x=>x?.ParsedText||'').filter(Boolean).join('\n').trim();
+      if(!text){
+        // a veces viene en "ParsedText" directo en algunos wrappers
+        const alt = String(json?.ParsedText||'').trim();
+        if(alt) return { text: alt };
+        throw new Error("OCR.space no devolvió texto legible.");
+      }
+      return { text };
+    }
+
+    // Backend propio: devolvemos tal cual
+    return json;
+  }
+
 
   const macroFor=(food,qtyType,qty)=>{
     qty=Number(qty)||0; if(qty<=0) return {kcal:0,p:0,c:0,f:0};
@@ -2168,7 +2593,13 @@ window.addEventListener('error', function(e){
     $('tdeeKcal').textContent=goal.tdee;
 
     $('eatenKcal').textContent=round(eaten.kcal);
-    $('remKcal').textContent=round(goal.goalKcal - eaten.kcal);
+    const _rem = round(goal.goalKcal - eaten.kcal);
+    const _remAbs = Math.abs(_rem);
+    $('remKcal').textContent = _remAbs;
+    const _lbl = $('remKcalLbl');
+    if(_lbl){
+      _lbl.textContent = (_rem < 0) ? 'Sobran' : 'Faltan';
+    }
 
     const elGoalP=$('goalP'); if(elGoalP) elGoalP.textContent=goal.p;
     const elGoalC=$('goalC'); if(elGoalC) elGoalC.textContent=goal.c;
@@ -3127,132 +3558,6 @@ window.addEventListener('error', function(e){
   };
 
   // CRUD alimentos
-
-  // ===== OCR etiqueta (DEV-friendly) =====
-  const OCR_KEY_LS = 'mc_ocr_api_key';
-  const getOcrKey = ()=> (localStorage.getItem(OCR_KEY_LS)||'').trim();
-  const setOcrKey = (k)=> localStorage.setItem(OCR_KEY_LS, (k||'').trim());
-  const ensureOcrKey = ()=>{
-    let k = getOcrKey();
-    if(k) return k;
-    k = prompt('Pega tu OCR API key (OCR.space). Se guarda en este dispositivo.');
-    if(k && k.trim()){
-      setOcrKey(k.trim());
-      return k.trim();
-    }
-    return '';
-  };
-
-  const setOcrStatus = (msg)=>{
-    const el = $('ocrStatus');
-    if(!el) return;
-    if(!msg){
-      el.style.display='none';
-      el.textContent='';
-      return;
-    }
-    el.style.display='block';
-    el.textContent=msg;
-  };
-
-  const _numFrom = (s)=>{
-    if(s==null) return null;
-    const t = String(s).replace(',', '.');
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
-  };
-
-  // Extrae kcal/P/C/F desde texto OCR (heurística práctica)
-  const parseMacrosFromOcrText = (raw)=>{
-    const t = _normOcrText(raw);
-
-    // kcal: primer "xxx kcal" razonable
-    let kcal = null;
-    const mK = t.match(/\b(\d{2,4})\s*kcal\b/);
-    if(mK) kcal = Number(mK[1]);
-
-    const grab = (labelRegex)=>{
-      const re = new RegExp(labelRegex.source + String.raw`[^\n]{0,60}?(\d+[\.,]?\d*)\s*g\b`);
-      const m = t.match(re);
-      return m ? _numFrom(m[1]) : null;
-    };
-
-    const f = grab(/grasas/);
-    const c = grab(/hidratos\s*de\s*carbono|hidratos/);
-    const p = grab(/proteinas|proteinas/);
-
-    return { kcal, p, c, f };
-  };
-
-  const runOcrOnImageFile = async(file)=>{
-    const apiKey = ensureOcrKey();
-    if(!apiKey) throw new Error('API key no configurada.');
-    const fd = new FormData();
-    fd.append('apikey', apiKey);
-    fd.append('language', 'spa');
-    fd.append('isOverlayRequired', 'false');
-    fd.append('file', file, file.name || 'label.jpg');
-
-    const res = await fetch('https://api.ocr.space/parse/image', { method:'POST', body: fd });
-
-    if(!res.ok){
-      const txt = await res.text().catch(()=> '');
-      throw new Error(`OCR HTTP ${res.status}: ${txt || res.statusText}`);
-    }
-    const data = await res.json();
-    const parsed = data?.ParsedResults?.[0]?.ParsedText || '';
-    if(!parsed.trim()){
-      const err = data?.ErrorMessage || data?.OCRExitCode;
-      throw new Error('OCR sin texto. ' + (err?String(err):''));
-    }
-    return parsed;
-  };
-
-  const applyOcrResultToFoodForm = (ocrText)=>{
-    const macros = parseMacrosFromOcrText(ocrText);
-
-    if(Number.isFinite(macros.kcal)) $('f_kcal').value = String(macros.kcal);
-    if(Number.isFinite(macros.p)) $('f_p').value = String(macros.p);
-    if(Number.isFinite(macros.c)) $('f_c').value = String(macros.c);
-    if(Number.isFinite(macros.f)) $('f_f').value = String(macros.f);
-
-    const gate = window.MC_ocrUnitGate ? window.MC_ocrUnitGate(ocrText, macros) : { baseUnit:null, warn:'' };
-
-    if(gate.baseUnit && $('f_baseUnit')) $('f_baseUnit').value = gate.baseUnit;
-    if(gate.warn) alert(gate.warn);
-  };
-
-  // Wire UI
-  $('btnOcrKey') && ($('btnOcrKey').onclick=()=>{
-    const cur = getOcrKey();
-    const next = prompt('OCR API key (OCR.space). Edita si quieres:', cur);
-    if(next===null) return;
-    setOcrKey(next);
-    alert(next.trim() ? 'API key guardada.' : 'API key borrada.');
-  });
-
-  $('btnOcrLabel') && ($('btnOcrLabel').onclick=()=>{
-    $('ocrFileInput') && $('ocrFileInput').click();
-  });
-
-  $('ocrFileInput') && ($('ocrFileInput').onchange=async(ev)=>{
-    const file = ev.target.files && ev.target.files[0];
-    if(!file) return;
-    try{
-      setOcrStatus('Leyendo etiqueta…');
-      const text = await runOcrOnImageFile(file);
-      setOcrStatus('OCR OK. Aplicando valores…');
-      applyOcrResultToFoodForm(text);
-      setOcrStatus('');
-    }catch(e){
-      setOcrStatus('');
-      alert('Fallo OCR: ' + (e?.message || e));
-    }finally{
-      ev.target.value = '';
-    }
-  });
-
-
   $('saveFood').onclick=()=>{
     const id=$('f_id').value.trim();
     const name=$('f_name').value.trim();
@@ -3599,6 +3904,7 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
+  bindDevOCR();
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
@@ -3644,6 +3950,139 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
+
+
+// ======= r50 ENHANCED OCR PARSER (Per 100g + Serving/Unit Column Support) =======
+// NOTE: App storage remains PER 100G (base 100g). Serving/Unit values are used for preview + validation only.
+// Supported labels (ES/EN):
+// - "por 100 g", "per 100 g", or standalone header "100 g"
+// - "por unidad", "por ración", "per serving" + grams (e.g. "15 g", "125 g")
+// - Dual-column tables like: "Grasas 47 g 7 g" (per 100g, per serving)
+
+function _ocrNum(x){
+  if(x==null) return null;
+  const s=String(x).replace(/,/g,'.');
+  const v=parseFloat(s);
+  return Number.isFinite(v) ? v : null;
+}
+
+function extractUnitGramsFromText(text){
+  // e.g. "por unidad (125 g)" or "por ración 125 g"
+  const m = text.match(/(?:unidad|raci[oó]n|serving)[^\d]*(\d+(?:[.,]\d+)?)\s*g/i);
+  return m ? _ocrNum(m[1]) : null;
+}
+
+function extractServingGramsHeader(text){
+  // Try to detect a dual header like "100 g ... 15 g" -> serving=15g
+  const norm = text.replace(/,/g,'.');
+  const all = [...norm.matchAll(/\b(\d+(?:\.\d+)?)\s*g\b/gi)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+  // If both 100g and another grams value exist, pick the first value !=100 as serving grams
+  if(all.length>=2){
+    const other = all.find(v=>Math.abs(v-100)>0.01);
+    if(other) return other;
+  }
+  return null;
+}
+
+function detectBaseType(text){
+  const norm = text.toLowerCase().replace(/,/g,'.');
+
+  // Señales explícitas típicas
+  const per100Phrase = /por\s*100\s*(g|gr)|per\s*100\s*g/.test(norm);
+  const perUnitPhrase = /(por\s+unidad|por\s+raci[oó]n|per\s+serving)/.test(norm);
+
+  // Aceptar encabezados tipo "100 g" / "100g" aunque el OCR meta basura al inicio.
+  // Buscamos en una ventana más amplia (los OCR suelen anteponer texto/ruido).
+  const headerSlice = norm.slice(0, 900);
+  const has100gHeader = /\b100\s*(g|gr)\b/.test(headerSlice) || /\b100g\b/.test(headerSlice);
+
+  const unitGrams = extractUnitGramsFromText(text);
+  const servingGrams = extractServingGramsHeader(text) || unitGrams;
+
+  return {
+    per100g: per100Phrase || has100gHeader,
+    perUnit: perUnitPhrase,
+    unitGrams,
+    servingGrams
+  };
+}
+
+function convertUnitTo100g(macros, unitGrams){
+  const factor = 100 / unitGrams;
+  return {
+    fat: macros.fat * factor,
+    protein: macros.protein * factor,
+    carbs: macros.carbs * factor,
+    kcal: macros.kcal!=null ? macros.kcal * factor : null
+  };
+}
+
+function parseLineDualValue(normText, keywordRegex){
+  const lines = normText.split(/\r?\n/);
+  for(const ln of lines){
+    if(keywordRegex.test(ln)){
+      const nums = [...ln.matchAll(/(\d+(?:\.\d+)?)/g)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+      if(nums.length>=1){
+        return { v1: nums[0], v2: (nums.length>=2 ? nums[1] : null), rawLine: ln };
+      }
+    }
+  }
+  return { v1:null, v2:null, rawLine:null };
+}
+
+function parseNutritionTextEnhanced(text){
+  const norm = text.replace(/,/g, '.');
+  const baseInfo = detectBaseType(text);
+
+  const fatLine = parseLineDualValue(norm, /grasas?|fat\b/i);
+  const proteinLine = parseLineDualValue(norm, /prote[ií]nas?|protein\b/i);
+  const carbLine = parseLineDualValue(norm, /hidratos|carbohidratos|carbohydrate|carbs?\b/i);
+  const kcalLine = parseLineDualValue(norm, /(kcal|energ[íi]a)/i);
+
+  // Si hay dos columnas en alguna fila (p.ej. \"Grasas 47 g 7 g\"), asumimos que la primera es por 100 g.
+  if(!baseInfo.per100g && (fatLine.v2!=null || proteinLine.v2!=null || carbLine.v2!=null || kcalLine.v2!=null)){
+    baseInfo.per100g = true;
+  }
+
+  let fat = fatLine.v1, protein = proteinLine.v1, carbs = carbLine.v1;
+  let kcal = kcalLine.v1;
+
+  if(fat==null) fat = _ocrNum((norm.match(/grasas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(protein==null) protein = _ocrNum((norm.match(/prote[ií]nas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(carbs==null) carbs = _ocrNum((norm.match(/hidratos[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]) 
+                    ?? _ocrNum((norm.match(/carb(?:ohidratos)?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1])
+                    ?? _ocrNum((norm.match(/carbohydrates?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(kcal==null) kcal = _ocrNum((norm.match(/(\d+(?:\.\d+)?)\s*kcal/i)||[])[1]);
+
+  if(fat==null || protein==null || carbs==null) return null;
+
+  const serving = {
+    grams: baseInfo.servingGrams || null,
+    fat: fatLine.v2,
+    protein: proteinLine.v2,
+    carbs: carbLine.v2,
+    kcal: kcalLine.v2
+  };
+
+  let result = { fat, protein, carbs, kcal };
+
+  if((!baseInfo.per100g) && baseInfo.perUnit && baseInfo.unitGrams){
+    result = convertUnitTo100g(result, baseInfo.unitGrams);
+    result._convertedFromUnit = true;
+  }
+
+  if(result.kcal==null){
+    result.kcal = Math.round(result.fat*9 + (result.protein+result.carbs)*4);
+    result._kcalEstimated = true;
+  } else {
+    result.kcal = Math.round(result.kcal);
+  }
+
+  result._baseInfo = baseInfo;
+  result._serving = serving;
+  return result;
+}
+// ======= END r50 OCR ENHANCEMENT =======
 
 </script>
 </body>
