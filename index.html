@@ -313,6 +313,15 @@
           <input id="f_f" type="number" placeholder="F" />
         </div>
 
+        <label id="ocrLabelTitle" style="margin-top:10px;">OCR etiqueta</label>
+        <div class="seg" style="gap:8px;align-items:center;">
+          <button id="btnOcrLabel" type="button">📷 Leer etiqueta (OCR)</button>
+          <button id="btnOcrKey" type="button" class="miniBtn">API Key</button>
+        </div>
+        <input id="ocrFileInput" type="file" accept="image/*" capture="environment" style="display:none;" />
+        <div id="ocrStatus" class="muted" style="margin-top:6px;display:none;"></div>
+
+
         <label>Gramos por unidad (si aplica)</label>
         <input id="f_unitGrams" type="number" placeholder="Ej: 60 (pan cristal)" />
 
@@ -994,86 +1003,6 @@ window.addEventListener('error', function(e){
   };
 
   const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
-
-  // =========================
-  // OCR helpers (detección robusta de unidad base)
-  // Nota: en etiquetas reales suele aparecer "100 g" (sin "por").
-  // =========================
-  const _normOcrText = (s)=>{
-    if(!s) return '';
-    let t = String(s).toLowerCase();
-    try{ t = t.normalize('NFD').replace(/[\u0300-\u036f]/g,''); }catch(_){ }
-    t = t.replace(/\u00a0/g,' ');
-    t = t.replace(/[|]/g,' ');
-    t = t.replace(/\s+/g,' ').trim();
-
-    // Correcciones típicas OCR (1oo, l00, i00, 10o -> 100)
-    t = t
-      .replace(/\b[li]\s*00\b/g,'100')
-      .replace(/\b1\s*oo\b/g,'100')
-      .replace(/\b1oo\b/g,'100')
-      .replace(/\b10o\b/g,'100');
-    return t;
-  };
-
-  // Devuelve { baseUnit:'100g'|'unit'|null, portionGrams:number|null, confidence:'high'|'mid'|'low' }
-  const detectBaseUnitFromOcrText = (rawText)=>{
-    const t = _normOcrText(rawText);
-
-    // Caso principal: 100 g (SIN exigir "por")
-    if(/\b100\s*g\b/.test(t) || /\b100g\b/.test(t)){
-      return { baseUnit:'100g', portionGrams:null, confidence:'high' };
-    }
-
-    // Variantes multilenguaje
-    if(/\b(per|pro|pour|por)\s*100\s*g\b/.test(t)){
-      return { baseUnit:'100g', portionGrams:null, confidence:'high' };
-    }
-
-    // Si hay varias columnas "X g" (p.ej. 100 g y 130 g / 15 g)
-    const grams=[];
-    const re=/\b(\d{1,4})\s*g\b/g;
-    let m;
-    while((m=re.exec(t))!==null){
-      const n=Number(m[1]);
-      if(Number.isFinite(n) && n>0 && n<5000) grams.push(n);
-    }
-    if(grams.includes(100)){
-      return { baseUnit:'100g', portionGrams:null, confidence:'mid' };
-    }
-
-    // Último recurso: detectamos una porción, pero no 100 g
-    if(grams.length){
-      const portion = grams.slice().sort((a,b)=>a-b)[0];
-      return { baseUnit:null, portionGrams:portion, confidence:'low' };
-    }
-
-    return { baseUnit:null, portionGrams:null, confidence:'low' };
-  };
-
-  // Exponer para módulos externos (si integras OCR en builds futuros)
-  window.MC_detectBaseUnitFromOcrText = detectBaseUnitFromOcrText;
-
-  // Política de aviso recomendada:
-  // - Si detecta 100g => no avisar.
-  // - Si NO detecta 100g pero las macros parecen coherentes => asumir 100g y aviso suave.
-  // - Si NO detecta 100g y macros flojas => aviso fuerte.
-  window.MC_ocrUnitGate = (ocrText, parsed)=>{
-    const info = detectBaseUnitFromOcrText(ocrText);
-    const kcal = Number(parsed?.kcal);
-    const p = Number(parsed?.p);
-    const c = Number(parsed?.c);
-    const f = Number(parsed?.f);
-    const macrosLookOk = Number.isFinite(kcal) && kcal>0 && [p,c,f].every(x=>Number.isFinite(x) && x>=0);
-
-    if(info.baseUnit==='100g'){
-      return { baseUnit:'100g', portionGrams:null, warn:'' };
-    }
-    if(macrosLookOk){
-      return { baseUnit:'100g', portionGrams: info.portionGrams||null, warn:'Aviso: no se detectó claramente la unidad base. He asumido “100 g”. Revisa macros antes de guardar.' };
-    }
-    return { baseUnit:null, portionGrams: info.portionGrams||null, warn:'Aviso: no se detectó claramente la unidad base (100 g / porción). Revisa macros antes de guardar.' };
-  };
 
   // =========================
   // RULES ENGINE (maridajes/caps) - configurable via JSON (DEV)
@@ -3198,6 +3127,132 @@ window.addEventListener('error', function(e){
   };
 
   // CRUD alimentos
+
+  // ===== OCR etiqueta (DEV-friendly) =====
+  const OCR_KEY_LS = 'mc_ocr_api_key';
+  const getOcrKey = ()=> (localStorage.getItem(OCR_KEY_LS)||'').trim();
+  const setOcrKey = (k)=> localStorage.setItem(OCR_KEY_LS, (k||'').trim());
+  const ensureOcrKey = ()=>{
+    let k = getOcrKey();
+    if(k) return k;
+    k = prompt('Pega tu OCR API key (OCR.space). Se guarda en este dispositivo.');
+    if(k && k.trim()){
+      setOcrKey(k.trim());
+      return k.trim();
+    }
+    return '';
+  };
+
+  const setOcrStatus = (msg)=>{
+    const el = $('ocrStatus');
+    if(!el) return;
+    if(!msg){
+      el.style.display='none';
+      el.textContent='';
+      return;
+    }
+    el.style.display='block';
+    el.textContent=msg;
+  };
+
+  const _numFrom = (s)=>{
+    if(s==null) return null;
+    const t = String(s).replace(',', '.');
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // Extrae kcal/P/C/F desde texto OCR (heurística práctica)
+  const parseMacrosFromOcrText = (raw)=>{
+    const t = _normOcrText(raw);
+
+    // kcal: primer "xxx kcal" razonable
+    let kcal = null;
+    const mK = t.match(/\b(\d{2,4})\s*kcal\b/);
+    if(mK) kcal = Number(mK[1]);
+
+    const grab = (labelRegex)=>{
+      const re = new RegExp(labelRegex.source + String.raw`[^\n]{0,60}?(\d+[\.,]?\d*)\s*g\b`);
+      const m = t.match(re);
+      return m ? _numFrom(m[1]) : null;
+    };
+
+    const f = grab(/grasas/);
+    const c = grab(/hidratos\s*de\s*carbono|hidratos/);
+    const p = grab(/proteinas|proteinas/);
+
+    return { kcal, p, c, f };
+  };
+
+  const runOcrOnImageFile = async(file)=>{
+    const apiKey = ensureOcrKey();
+    if(!apiKey) throw new Error('API key no configurada.');
+    const fd = new FormData();
+    fd.append('apikey', apiKey);
+    fd.append('language', 'spa');
+    fd.append('isOverlayRequired', 'false');
+    fd.append('file', file, file.name || 'label.jpg');
+
+    const res = await fetch('https://api.ocr.space/parse/image', { method:'POST', body: fd });
+
+    if(!res.ok){
+      const txt = await res.text().catch(()=> '');
+      throw new Error(`OCR HTTP ${res.status}: ${txt || res.statusText}`);
+    }
+    const data = await res.json();
+    const parsed = data?.ParsedResults?.[0]?.ParsedText || '';
+    if(!parsed.trim()){
+      const err = data?.ErrorMessage || data?.OCRExitCode;
+      throw new Error('OCR sin texto. ' + (err?String(err):''));
+    }
+    return parsed;
+  };
+
+  const applyOcrResultToFoodForm = (ocrText)=>{
+    const macros = parseMacrosFromOcrText(ocrText);
+
+    if(Number.isFinite(macros.kcal)) $('f_kcal').value = String(macros.kcal);
+    if(Number.isFinite(macros.p)) $('f_p').value = String(macros.p);
+    if(Number.isFinite(macros.c)) $('f_c').value = String(macros.c);
+    if(Number.isFinite(macros.f)) $('f_f').value = String(macros.f);
+
+    const gate = window.MC_ocrUnitGate ? window.MC_ocrUnitGate(ocrText, macros) : { baseUnit:null, warn:'' };
+
+    if(gate.baseUnit && $('f_baseUnit')) $('f_baseUnit').value = gate.baseUnit;
+    if(gate.warn) alert(gate.warn);
+  };
+
+  // Wire UI
+  $('btnOcrKey') && ($('btnOcrKey').onclick=()=>{
+    const cur = getOcrKey();
+    const next = prompt('OCR API key (OCR.space). Edita si quieres:', cur);
+    if(next===null) return;
+    setOcrKey(next);
+    alert(next.trim() ? 'API key guardada.' : 'API key borrada.');
+  });
+
+  $('btnOcrLabel') && ($('btnOcrLabel').onclick=()=>{
+    $('ocrFileInput') && $('ocrFileInput').click();
+  });
+
+  $('ocrFileInput') && ($('ocrFileInput').onchange=async(ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+    try{
+      setOcrStatus('Leyendo etiqueta…');
+      const text = await runOcrOnImageFile(file);
+      setOcrStatus('OCR OK. Aplicando valores…');
+      applyOcrResultToFoodForm(text);
+      setOcrStatus('');
+    }catch(e){
+      setOcrStatus('');
+      alert('Fallo OCR: ' + (e?.message || e));
+    }finally{
+      ev.target.value = '';
+    }
+  });
+
+
   $('saveFood').onclick=()=>{
     const id=$('f_id').value.trim();
     const name=$('f_name').value.trim();
