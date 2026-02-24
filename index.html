@@ -4019,14 +4019,46 @@ function convertUnitTo100g(macros, unitGrams){
 
 function parseLineDualValue(normText, keywordRegex){
   const lines = normText.split(/\r?\n/);
-  for(const ln of lines){
-    if(keywordRegex.test(ln)){
-      const nums = [...ln.matchAll(/(\d+(?:\.\d+)?)/g)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
-      if(nums.length>=1){
-        return { v1: nums[0], v2: (nums.length>=2 ? nums[1] : null), rawLine: ln };
+
+  for(const ln0 of lines){
+    const ln = String(ln0 || '');
+
+    // Ojo: keywordRegex puede ser reutilizado. Creamos uno sin flags globales.
+    const m = ln.match(keywordRegex);
+    if(!m) continue;
+
+    // Priorizamos números DESPUÉS de la palabra clave, para evitar capturar "100 g"
+    const tail = ln.slice((m.index ?? 0) + m[0].length);
+
+    // Extrae números del tail
+    let nums = [...tail.matchAll(/(\d+(?:\.\d+)?)/g)]
+      .map(x => _ocrNum(x[1]))
+      .filter(v => v != null);
+
+    // Si por OCR la línea viene como "100 g ... grasas 47 g 7 g", puede que el tail aún empiece con "100 g".
+    // En ese caso descartamos el 100 si hay más números.
+    const has100g = /\b100\s*g\b/i.test(ln);
+    if(has100g && nums.length >= 2 && nums[0] === 100){
+      nums = nums.slice(1);
+    }
+
+    // Si no encontramos nada tras la keyword, fallback: mirar la línea completa pero descartando "100 g".
+    if(nums.length === 0){
+      const cleaned = ln.replace(/\b100\s*g\b/ig, ' ');
+      nums = [...cleaned.matchAll(/(\d+(?:\.\d+)?)/g)]
+        .map(x => _ocrNum(x[1]))
+        .filter(v => v != null);
+
+      if(has100g && nums.length >= 2 && nums[0] === 100){
+        nums = nums.slice(1);
       }
     }
+
+    if(nums.length >= 1){
+      return { v1: nums[0], v2: (nums.length >= 2 ? nums[1] : null), rawLine: ln };
+    }
   }
+
   return { v1:null, v2:null, rawLine:null };
 }
 
