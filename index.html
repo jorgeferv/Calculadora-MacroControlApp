@@ -3900,18 +3900,55 @@ function freezeDayIfNeeded(dateKey, summary){
 
 
 
-// ======= r49 ENHANCED OCR PARSER (Per Unit Detection + Conversion) =======
+// ======= r50 ENHANCED OCR PARSER (Per 100g + Serving/Unit Column Support) =======
+// NOTE: App storage remains PER 100G (base 100g). Serving/Unit values are used for preview + validation only.
+// Supported labels (ES/EN):
+// - "por 100 g", "per 100 g", or standalone header "100 g"
+// - "por unidad", "por ración", "per serving" + grams (e.g. "15 g", "125 g")
+// - Dual-column tables like: "Grasas 47 g 7 g" (per 100g, per serving)
+
+function _ocrNum(x){
+  if(x==null) return null;
+  const s=String(x).replace(/,/g,'.');
+  const v=parseFloat(s);
+  return Number.isFinite(v) ? v : null;
+}
+
 function extractUnitGramsFromText(text){
-  const m = text.match(/(\d+)\s*g\s*\)/i) || 
-            text.match(/(?:unidad|raci[oó]n|serving)[^\d]*(\d+)\s*g/i);
-  return m ? parseFloat(m[1]) : null;
+  // e.g. "por unidad (125 g)" or "por ración 125 g"
+  const m = text.match(/(?:unidad|raci[oó]n|serving)[^\d]*(\d+(?:[.,]\d+)?)\s*g/i);
+  return m ? _ocrNum(m[1]) : null;
+}
+
+function extractServingGramsHeader(text){
+  // Try to detect a dual header like "100 g ... 15 g" -> serving=15g
+  const norm = text.replace(/,/g,'.');
+  const all = [...norm.matchAll(/\b(\d+(?:\.\d+)?)\s*g\b/gi)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+  // If both 100g and another grams value exist, pick the first value !=100 as serving grams
+  if(all.length>=2){
+    const other = all.find(v=>Math.abs(v-100)>0.01);
+    if(other) return other;
+  }
+  return null;
 }
 
 function detectBaseType(text){
+  const norm = text.toLowerCase().replace(/,/g,'.');
+  const per100Phrase = /por\s*100\s*g|per\s*100\s*g/.test(norm);
+  const perUnitPhrase = /(por\s+unidad|por\s+raci[oó]n|per\s+serving)/.test(norm);
+
+  // accept standalone header "100 g" near the top (common on EU labels)
+  const headerSlice = norm.slice(0, 220);
+  const has100gHeader = /\b100\s*g\b/.test(headerSlice);
+
+  const unitGrams = extractUnitGramsFromText(text);
+  const servingGrams = extractServingGramsHeader(text) || unitGrams;
+
   return {
-    per100g: /100\s*g/i.test(text),
-    perUnit: /(por\s+unidad|por\s+raci[oó]n|per\s+serving)/i.test(text),
-    unitGrams: extractUnitGramsFromText(text)
+    per100g: per100Phrase || has100gHeader,
+    perUnit: perUnitPhrase,
+    unitGrams,
+    servingGrams
   };
 }
 
@@ -3921,36 +3958,71 @@ function convertUnitTo100g(macros, unitGrams){
     fat: macros.fat * factor,
     protein: macros.protein * factor,
     carbs: macros.carbs * factor,
-    kcal: macros.kcal ? macros.kcal * factor : null
+    kcal: macros.kcal!=null ? macros.kcal * factor : null
   };
+}
+
+function parseLineDualValue(normText, keywordRegex){
+  const lines = normText.split(/\r?\n/);
+  for(const ln of lines){
+    if(keywordRegex.test(ln)){
+      const nums = [...ln.matchAll(/(\d+(?:\.\d+)?)/g)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+      if(nums.length>=1){
+        return { v1: nums[0], v2: (nums.length>=2 ? nums[1] : null), rawLine: ln };
+      }
+    }
+  }
+  return { v1:null, v2:null, rawLine:null };
 }
 
 function parseNutritionTextEnhanced(text){
   const norm = text.replace(/,/g, '.');
-  const fat = parseFloat((norm.match(/grasas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
-  const protein = parseFloat((norm.match(/prote[ií]nas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
-  const carbs = parseFloat((norm.match(/hidratos|carbohidratos|carbs?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
-  const kcal = parseFloat((norm.match(/(\d+(?:\.\d+)?)\s*kcal/i)||[])[1]);
-
-  if(isNaN(fat) || isNaN(protein) || isNaN(carbs)) return null;
-
   const baseInfo = detectBaseType(text);
+
+  const fatLine = parseLineDualValue(norm, /grasas?|fat\b/i);
+  const proteinLine = parseLineDualValue(norm, /prote[ií]nas?|protein\b/i);
+  const carbLine = parseLineDualValue(norm, /hidratos|carbohidratos|carbohydrate|carbs?\b/i);
+  const kcalLine = parseLineDualValue(norm, /(kcal|energ[íi]a)/i);
+
+  let fat = fatLine.v1, protein = proteinLine.v1, carbs = carbLine.v1;
+  let kcal = kcalLine.v1;
+
+  if(fat==null) fat = _ocrNum((norm.match(/grasas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(protein==null) protein = _ocrNum((norm.match(/prote[ií]nas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(carbs==null) carbs = _ocrNum((norm.match(/hidratos[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]) 
+                    ?? _ocrNum((norm.match(/carb(?:ohidratos)?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1])
+                    ?? _ocrNum((norm.match(/carbohydrates?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(kcal==null) kcal = _ocrNum((norm.match(/(\d+(?:\.\d+)?)\s*kcal/i)||[])[1]);
+
+  if(fat==null || protein==null || carbs==null) return null;
+
+  const serving = {
+    grams: baseInfo.servingGrams || null,
+    fat: fatLine.v2,
+    protein: proteinLine.v2,
+    carbs: carbLine.v2,
+    kcal: kcalLine.v2
+  };
 
   let result = { fat, protein, carbs, kcal };
 
-  if(baseInfo.perUnit && baseInfo.unitGrams){
+  if((!baseInfo.per100g) && baseInfo.perUnit && baseInfo.unitGrams){
     result = convertUnitTo100g(result, baseInfo.unitGrams);
     result._convertedFromUnit = true;
   }
 
-  if(!result.kcal){
+  if(result.kcal==null){
     result.kcal = Math.round(result.fat*9 + (result.protein+result.carbs)*4);
     result._kcalEstimated = true;
+  } else {
+    result.kcal = Math.round(result.kcal);
   }
 
+  result._baseInfo = baseInfo;
+  result._serving = serving;
   return result;
 }
-// ======= END r49 OCR ENHANCEMENT =======
+// ======= END r50 OCR ENHANCEMENT =======
 
 </script>
 </body>
