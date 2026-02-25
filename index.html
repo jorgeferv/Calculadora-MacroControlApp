@@ -301,6 +301,8 @@
           <div class="seg">
             <button id="exportRules" type="button">Exportar reglas</button>
             <button id="importRulesBtn" type="button">Importar reglas</button>
+            <button id="viewLastTrace" type="button">Ver trace Cuadrar Día</button>
+            <button id="clearLastTrace" type="button">Borrar trace</button>
           </div>
           <div class="seg" style="margin-top:8px;">
             <button id="resetRules" type="button">Restaurar por defecto</button>
@@ -1550,55 +1552,28 @@ const LS = {
     }
     const fd = new FormData();
 
-    // ===== OCR.space compatibility =====
+    // ===== r49 OCR.space compatibility =====
     // OCR.space expects:
     // - multipart field: "file"
     // - api key field: "apikey"
     // Docs: https://ocr.space/ocrapi
-    const isOcrSpace = /api\.ocr\.space\/parse\/image/i.test(OCR_ENDPOINT);
-
-    if(isOcrSpace){
+    if(/api\.ocr\.space\/parse\/image/i.test(OCR_ENDPOINT)){
       fd.append("file", file, file.name || "label.jpg");
       fd.append("apikey", (typeof OCR_SPACE_APIKEY==='string' ? OCR_SPACE_APIKEY.trim() : ""));
-      fd.append("language", OCR_SPACE_LANG || "spa");
+      fd.append("language", "spa");
       fd.append("isOverlayRequired", "false");
-      fd.append("OCREngine", OCR_SPACE_ENGINE || "2");
-      // Recomendado para etiquetas: escala y mejora contraste
-      fd.append("scale", "true");
+      fd.append("OCREngine", "2");
     } else {
       // Generic backend format (your own endpoint): expects multipart field "image"
       fd.append("image", file, file.name || "label.jpg");
     }
 
     const res = await fetch(OCR_ENDPOINT, { method:"POST", body: fd });
-    const rawText = await res.text().catch(()=> "");
     if(!res.ok){
-      throw new Error("OCR HTTP " + res.status + (rawText ? (": " + rawText.slice(0,180)) : ""));
+      const msg = await res.text().catch(()=> "");
+      throw new Error("OCR HTTP " + res.status + (msg ? (": " + msg.slice(0,180)) : ""));
     }
-
-    let json;
-    try{ json = rawText ? JSON.parse(rawText) : {}; }
-    catch(e){ throw new Error("Respuesta OCR no es JSON válido."); }
-
-    // Normalizar OCR.space -> {text}
-    if(isOcrSpace){
-      // OCR.space suele responder 200 aunque haya error: hay que validar
-      if(json && json.IsErroredOnProcessing){
-        const em = Array.isArray(json.ErrorMessage) ? json.ErrorMessage.join(' | ') : (json.ErrorMessage||'Error OCR.space');
-        throw new Error(em);
-      }
-      const parsed = Array.isArray(json?.ParsedResults) ? json.ParsedResults : [];
-      const text = parsed.map(x=>x?.ParsedText||'').filter(Boolean).join('\n').trim();
-      if(!text){
-        // a veces viene en "ParsedText" directo en algunos wrappers
-        const alt = String(json?.ParsedText||'').trim();
-        if(alt) return { text: alt };
-        throw new Error("OCR.space no devolvió texto legible.");
-      }
-      return { text };
-    }
-
-    // Backend propio: devolvemos tal cual
+    const json = await res.json();
     return json;
   }
 
@@ -1692,11 +1667,79 @@ const LS = {
     return {k,items:logs[k]};
   };
 
-  const saveLogs=(dateKey, items)=>{
+  
+  // =========================
+  // LEARNING (auto-aprendizaje)
+  // Aprende combinaciones reales (pairings) cuando tú registras comidas manualmente.
+  // Guarda scores en localStorage bajo rules.learning.storeKey (default: mc_pairing_scores)
+  const mcLearningKey=()=>{
+    const r=loadRulesEngine?.();
+    return (r?.learning?.storeKey) || 'mc_pairing_scores';
+  };
+
+  const mcLoadPairScores=()=> loadJSON(mcLearningKey(), {});
+  const mcSavePairScores=(obj)=> saveJSON(mcLearningKey(), obj);
+
+  const mcPairKey=(a,b)=>{
+    if(!a||!b) return null;
+    const x=String(a), y=String(b);
+    return (x<y) ? (x+'|'+y) : (y+'|'+x);
+  };
+
+  const mcLearnFromLogs = (items)=>{
+    if(!Array.isArray(items) || !items.length) return;
+    const rules = loadRulesEngine?.();
+    const inc = Number(rules?.learning?.increment ?? 1) || 1;
+
+    // Agrupa por meal y aprende co-ocurrencias dentro del mismo bloque
+    const byMeal = {};
+    for(const it of items){
+      const meal = normalizeMealLabel(it.meal);
+      if(!meal) continue;
+      (byMeal[meal] ||= []).push(it);
+    }
+
+    const store = mcLoadPairScores();
+
+    for(const meal of Object.keys(byMeal)){
+      const ids = Array.from(new Set(byMeal[meal].map(x=>x.foodId).filter(Boolean)));
+      if(ids.length < 2) continue;
+
+      // actualiza todos los pares (comida humana real)
+      for(let i=0;i<ids.length;i++){
+        for(let j=i+1;j<ids.length;j++){
+          const k = mcPairKey(ids[i], ids[j]);
+          if(!k) continue;
+          store[k] = (Number(store[k]) || 0) + inc;
+        }
+      }
+    }
+
+    mcSavePairScores(store);
+  };
+
+  const mcGetPairScore=(a,b)=>{
+    const k = mcPairKey(a,b);
+    if(!k) return 0;
+    const s = mcLoadPairScores();
+    return Number(s[k]) || 0;
+  };
+
+  // =========================
+  // TRACE (auditoría Cuadrar Día)
+  const mcSaveLastPlanTrace = (trace)=>{
+    try{ saveJSON('mc_last_plan_trace', trace); }catch(e){}
+    try{ window.__mc_lastPlanTrace = trace; }catch(e){}
+  };
+  const mcLoadLastPlanTrace = ()=> loadJSON('mc_last_plan_trace', null);
+
+const saveLogs=(dateKey, items)=>{
     const k=dateKey || todayKey();
     const logs=loadJSON(LS.logs,{});
     logs[k]=items;
     saveJSON(LS.logs,logs);
+    // Auto-learning: aprende de tus combinaciones reales (manual o Cuadrar Día)
+    try{ mcLearnFromLogs(items); }catch(e){ /* no-op */ }
   };
 
   const sumMacros=(items)=>items.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
@@ -1932,6 +1975,18 @@ const LS = {
 
     const eaten = sumMacros(logs);
 
+    // ===== trace (auditoría) =====
+    const __trace = {
+      ts: Date.now(),
+      goal: { kcal: goal.goalKcal, p: goal.p, c: goal.c, f: goal.f },
+      eaten: { kcal: eaten.kcal, p: eaten.p, c: eaten.c, f: eaten.f },
+      postActive: !!postActive,
+      slotsToPlan: [],
+      slots: {}, // por slot: ctx, caps, decisiones, items
+      notes: []
+    };
+
+
     // qué slots ya están “rellenos” (tienen al menos 1 item)
     const filled = new Set();
     for(const it of logs){
@@ -1941,6 +1996,7 @@ const LS = {
 
     // slots a completar = los activos que NO estén rellenos
     let slotsToPlan = allSlots.filter(s => !filled.has(s));
+    __trace.slotsToPlan = slotsToPlan.slice();
 
     // Caso especial: si no queda ningún slot activo pero faltan kcal, permitir “pre_entreno”
     // SOLO si ya existe cena (última comida tradicional) y aún falta por cuadrar.
@@ -1984,6 +2040,40 @@ const LS = {
         arr = preferOrder(arr, ['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light']);
       }
       return arr;
+    };
+
+    // ===== aprendizaje: preferir combinaciones reales =====
+    const scoringConf = (rules?.selection?.scoring) || { useLearnedScore:true, learnedWeight:0.55, baseWeight:0.45 };
+    const useLearned = scoringConf.useLearnedScore !== false;
+    const learnedW = Number(scoringConf.learnedWeight ?? 0.55);
+    const learnedScale = 6; // escala práctica: evita aleatoriedad, sin dominar el motor
+
+    const pickPartnerByLearning = (baseFoodId, pool)=>{
+      if(!pool || !pool.length) return null;
+      if(!useLearned || !baseFoodId) return pool[0];
+
+      let best = pool[0];
+      let bestS = -1;
+
+      for(const f of pool){
+        const s = mcGetPairScore(baseFoodId, f.id);
+        if(s > bestS){
+          bestS = s;
+          best = f;
+        }
+      }
+      return best;
+    };
+
+    const learnedBonusForIds = (ids)=>{
+      if(!useLearned || !Array.isArray(ids)) return 0;
+      let sum=0;
+      for(let i=0;i<ids.length;i++){
+        for(let j=i+1;j<ids.length;j++){
+          sum += mcGetPairScore(ids[i], ids[j]);
+        }
+      }
+      return sum;
     };
 
     const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
@@ -2040,6 +2130,11 @@ const LS = {
         qtyDisplay: qtyDisplay(qtyType, qty),
         kcal: mac.kcal, p: mac.p, c: mac.c, f: mac.f
       });
+      try{
+        const slotKey = normalizeMealLabel(slot);
+        __trace.slots[slotKey] ||= { ctx: ctxForSlot(slotKey), caps: capsForCtx(ctxForSlot(slotKey)), decisions: {}, items: [] };
+        __trace.slots[slotKey].items.push({ foodId: food.id, name: food.name, qtyType, qty, kcal: mac.kcal, p: mac.p, c: mac.c, f: mac.f });
+      }catch(e){}
     };
 
     const buildSlot = (slot, rem, slotsLeft)=>{
@@ -2055,6 +2150,20 @@ const LS = {
 
       if(!proteins.length) return;
 
+
+      // trace init para este slot
+      try{
+        __trace.slots[slot] ||= { ctx, caps, decisions: {}, items: [] };
+        __trace.slots[slot].decisions.kcalTarget = kcalTarget;
+        __trace.slots[slot].decisions.remBefore = { kcal: rem.kcal, p: rem.p, c: rem.c, f: rem.f };
+        // Ranking aprendido (top 5) para partners
+        const topLearn = (baseId, pool)=> (pool||[]).slice(0,6).map(x=>({id:x.id, s: mcGetPairScore(baseId,x.id)})).sort((a,b)=>b.s-a.s).slice(0,5);
+        __trace.slots[slot].decisions.learned = {};
+        __trace.slots[slot].decisions.learned.protein = proteins[0]?.id || null;
+        __trace.slots[slot].decisions.learned.carbsTop = proteins[0] ? topLearn(proteins[0].id, carbs) : [];
+        __trace.slots[slot].decisions.learned.fatsTop  = proteins[0] ? topLearn(proteins[0].id, fats) : [];
+      }catch(e){}
+
       // 1) Proteína base
       const pFood = proteins[0];
       // Proteína por bloque: humana y capada (evita 60g)
@@ -2068,7 +2177,7 @@ const LS = {
 
       const needCarb = (rem.c / Math.max(1, slotsLeft)) > 18 || localRem.kcal > 220;
       if(needCarb){
-        const cFood = carbs[0] || fruits[0];
+        const cFood = pickPartnerByLearning(pFood.id, carbs) || pickPartnerByLearning(pFood.id, fruits);
         if(cFood){
           const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, caps.cMax);
           const cQty = (cFood.id==='banana'||cFood.id==='uva'||cFood.id==='freson'||cFood.id==='manzana')
@@ -2087,13 +2196,30 @@ const LS = {
       const needFat = (rem.f / Math.max(1, slotsLeft)) > 12 || (kcalTarget - afterP.kcal) > 180;
 
       if(needFat && fats.length){
-        const fFood = fats[0];
+        const fFood = pickPartnerByLearning(pFood.id, fats) || fats[0];
         // target grasa moderada
         const fNeed = clamp(rem.f / Math.max(1, slotsLeft), Math.max(6, caps.fMin), caps.fMax);
         const fQty = qtyForMacro(fFood, 'f', fNeed);
         const existingCount = plannedItems.filter(x=>x.meal===slot).length;
         if(existingCount < caps.maxItems){
           addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
+        }
+      }
+
+
+      // 3.5) Micro-ajuste: evitar residuales raros (ej. faltan ~60 kcal => 10g chocolate 85)
+      const afterMain = sumMacros(plannedItems.filter(x=>x.meal===slot));
+      const microKcal = kcalTarget - afterMain.kcal;
+      if(microKcal >= 35 && microKcal <= 95){
+        const microFood = foods.find(x=>x.id==='chocolate_85' && allowedForSlot(slot)(x));
+        const existingCount2 = plannedItems.filter(x=>x.meal===slot).length;
+        if(microFood && existingCount2 < caps.maxItems){
+          const kcalPerG = (Number(microFood.kcal)||0) / 100;
+          if(kcalPerG > 0){
+            let g = Math.round((microKcal / kcalPerG) / 5) * 5;
+            g = clamp(g, 5, 20);
+            addItem(slot, microFood, 'g', g);
+          }
         }
       }
 
@@ -2171,6 +2297,7 @@ const LS = {
 
     const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
     const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
+    mcSaveLastPlanTrace(__trace);
     return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
   };
   // ======= ESTADO =======
@@ -3690,6 +3817,35 @@ $('exportFoods').onclick=()=>{
     renderAll();
   });
 
+
+  // Trace Cuadrar Día (DEV)
+  $('viewLastTrace') && ($('viewLastTrace').onclick=()=>{
+    const t = mcLoadLastPlanTrace();
+    if(!t){ alert('No hay trace guardado. Genera Cuadrar Día primero.'); return; }
+    $('traceText').value = JSON.stringify(t, null, 2);
+    $('traceModal').style.display='block';
+  });
+
+  $('clearLastTrace') && ($('clearLastTrace').onclick=()=>{
+    localStorage.removeItem('mc_last_plan_trace');
+    try{ delete window.__mc_lastPlanTrace; }catch(e){}
+    alert('Trace borrado.');
+  });
+
+  $('closeTrace') && ($('closeTrace').onclick=()=>{ $('traceModal').style.display='none'; });
+
+  $('copyTrace') && ($('copyTrace').onclick=async()=>{
+    try{
+      await navigator.clipboard.writeText($('traceText').value || '');
+      alert('Copiado.');
+    }catch(e){
+      // fallback iOS
+      $('traceText').select();
+      document.execCommand('copy');
+      alert('Copiado.');
+    }
+  });
+
   // Backup rápido (DEV): export/import estado completo (perfil + settings + logs + foods usuario)
   const applyBackupState = (state)=>{
     if(!state || typeof state!=='object') throw new Error('Backup inválido');
@@ -3986,15 +4142,12 @@ function extractServingGramsHeader(text){
 
 function detectBaseType(text){
   const norm = text.toLowerCase().replace(/,/g,'.');
-
-  // Señales explícitas típicas
-  const per100Phrase = /por\s*100\s*(g|gr)|per\s*100\s*g/.test(norm);
+  const per100Phrase = /por\s*100\s*g|per\s*100\s*g/.test(norm);
   const perUnitPhrase = /(por\s+unidad|por\s+raci[oó]n|per\s+serving)/.test(norm);
 
-  // Aceptar encabezados tipo "100 g" / "100g" aunque el OCR meta basura al inicio.
-  // Buscamos en una ventana más amplia (los OCR suelen anteponer texto/ruido).
-  const headerSlice = norm.slice(0, 900);
-  const has100gHeader = /\b100\s*(g|gr)\b/.test(headerSlice) || /\b100g\b/.test(headerSlice);
+  // accept standalone header "100 g" near the top (common on EU labels)
+  const headerSlice = norm.slice(0, 220);
+  const has100gHeader = /\b100\s*g\b/.test(headerSlice);
 
   const unitGrams = extractUnitGramsFromText(text);
   const servingGrams = extractServingGramsHeader(text) || unitGrams;
@@ -4019,46 +4172,14 @@ function convertUnitTo100g(macros, unitGrams){
 
 function parseLineDualValue(normText, keywordRegex){
   const lines = normText.split(/\r?\n/);
-
-  for(const ln0 of lines){
-    const ln = String(ln0 || '');
-
-    // Ojo: keywordRegex puede ser reutilizado. Creamos uno sin flags globales.
-    const m = ln.match(keywordRegex);
-    if(!m) continue;
-
-    // Priorizamos números DESPUÉS de la palabra clave, para evitar capturar "100 g"
-    const tail = ln.slice((m.index ?? 0) + m[0].length);
-
-    // Extrae números del tail
-    let nums = [...tail.matchAll(/(\d+(?:\.\d+)?)/g)]
-      .map(x => _ocrNum(x[1]))
-      .filter(v => v != null);
-
-    // Si por OCR la línea viene como "100 g ... grasas 47 g 7 g", puede que el tail aún empiece con "100 g".
-    // En ese caso descartamos el 100 si hay más números.
-    const has100g = /\b100\s*g\b/i.test(ln);
-    if(has100g && nums.length >= 2 && nums[0] === 100){
-      nums = nums.slice(1);
-    }
-
-    // Si no encontramos nada tras la keyword, fallback: mirar la línea completa pero descartando "100 g".
-    if(nums.length === 0){
-      const cleaned = ln.replace(/\b100\s*g\b/ig, ' ');
-      nums = [...cleaned.matchAll(/(\d+(?:\.\d+)?)/g)]
-        .map(x => _ocrNum(x[1]))
-        .filter(v => v != null);
-
-      if(has100g && nums.length >= 2 && nums[0] === 100){
-        nums = nums.slice(1);
+  for(const ln of lines){
+    if(keywordRegex.test(ln)){
+      const nums = [...ln.matchAll(/(\d+(?:\.\d+)?)/g)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+      if(nums.length>=1){
+        return { v1: nums[0], v2: (nums.length>=2 ? nums[1] : null), rawLine: ln };
       }
     }
-
-    if(nums.length >= 1){
-      return { v1: nums[0], v2: (nums.length >= 2 ? nums[1] : null), rawLine: ln };
-    }
   }
-
   return { v1:null, v2:null, rawLine:null };
 }
 
@@ -4070,11 +4191,6 @@ function parseNutritionTextEnhanced(text){
   const proteinLine = parseLineDualValue(norm, /prote[ií]nas?|protein\b/i);
   const carbLine = parseLineDualValue(norm, /hidratos|carbohidratos|carbohydrate|carbs?\b/i);
   const kcalLine = parseLineDualValue(norm, /(kcal|energ[íi]a)/i);
-
-  // Si hay dos columnas en alguna fila (p.ej. \"Grasas 47 g 7 g\"), asumimos que la primera es por 100 g.
-  if(!baseInfo.per100g && (fatLine.v2!=null || proteinLine.v2!=null || carbLine.v2!=null || kcalLine.v2!=null)){
-    baseInfo.per100g = true;
-  }
 
   let fat = fatLine.v1, protein = proteinLine.v1, carbs = carbLine.v1;
   let kcal = kcalLine.v1;
@@ -4117,5 +4233,20 @@ function parseNutritionTextEnhanced(text){
 // ======= END r50 OCR ENHANCEMENT =======
 
 </script>
+
+  <!-- Trace Modal (DEV) -->
+  <div id="traceModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
+    <div class="card" style="max-width:820px;margin:40px auto 0;position:relative;">
+      <button id="closeTrace" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">Cerrar</button>
+      <h1 style="margin:0 0 6px;">Trace: Cuadrar Día</h1>
+      <div class="muted">Esto muestra por qué la app eligió cada alimento (candidatos, caps, aprendizaje y resultado).</div>
+      <label>JSON</label>
+      <textarea id="traceText" spellcheck="false" style="min-height:260px;"></textarea>
+      <div class="seg" style="margin-top:8px;">
+        <button id="copyTrace" type="button">Copiar</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
