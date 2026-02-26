@@ -1973,6 +1973,8 @@ const saveLogs=(dateKey, items)=>{
     const postActive = ((Number(day?.wod)||0) > 0) || ((Number(day?.cardioKcal)||0) > 0);
     const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
 
+    const dateKey = activeDayKey || todayKey();
+
     const eaten = sumMacros(logs);
 
     // ===== trace (auditoría) =====
@@ -1996,6 +1998,9 @@ const saveLogs=(dateKey, items)=>{
 
     // slots a completar = los activos que NO estén rellenos
     let slotsToPlan = allSlots.filter(s => !filled.has(s));
+    // Barajar slots (determinista por día) para no repetir siempre el mismo orden
+    const __slotSeed = mcSeedFromString(String(dateKey||''));
+    slotsToPlan = mcShuffleDet(slotsToPlan, __slotSeed);
     __trace.slotsToPlan = slotsToPlan.slice();
 
     // Caso especial: si no queda ningún slot activo pero faltan kcal, permitir “pre_entreno”
@@ -2008,6 +2013,104 @@ const saveLogs=(dateKey, items)=>{
         c: Math.max(0, goal.c - e.c),
         f: Math.max(0, goal.f - e.f),
       };
+    };
+
+    // ===== variedad y anti-repetición (r51.1) =====
+    // Evita que "Cuadrar Día" repita siempre las mismas comidas en el mismo orden.
+    // Estrategia:
+    // - Baraja slots a planificar con semilla por día (determinista, no caótica).
+    // - Penaliza alimentos usados en los últimos N días (recency penalty).
+    // - Mantiene preferencia histórica, pero no secuestra la elección.
+
+    const mcSeedFromString = (s)=>{
+      let h=2166136261;
+      for(let i=0;i<s.length;i++){
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return (h>>>0);
+    };
+    const mcMulberry32 = (a)=>()=>{
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const mcShuffleDet = (arr, seed)=>{
+      const out = arr.slice();
+      const rnd = mcMulberry32(seed||1);
+      for(let i=out.length-1;i>0;i--){
+        const j = Math.floor(rnd()*(i+1));
+        [out[i], out[j]] = [out[j], out[i]];
+      }
+      return out;
+    };
+    const mcParseDateKey = (k)=>{
+      const m = String(k||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(!m) return null;
+      return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+    };
+    const mcDateKeyOf = (d)=>{
+      const y=d.getFullYear();
+      const m=String(d.getMonth()+1).padStart(2,'0');
+      const da=String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`;
+    };
+    const mcGetPrevDateKeys = (dayKey, daysBack)=>{
+      const base = mcParseDateKey(dayKey);
+      if(!base) return [];
+      const out=[];
+      for(let i=1;i<=daysBack;i++){
+        const d = new Date(base);
+        d.setDate(d.getDate()-i);
+        out.push(mcDateKeyOf(d));
+      }
+      return out;
+    };
+
+    const mcGetRecentFoodCounts = (dayKey, daysBack)=>{
+      const all = loadJSON(LS.logs, {});
+      const keys = mcGetPrevDateKeys(dayKey, daysBack);
+      const counts = {};
+      for(const k of keys){
+        const items = all?.[k] || [];
+        for(const it of items){
+          const id = it?.foodId;
+          if(!id) continue;
+          counts[id] = (counts[id]||0) + 1;
+        }
+      }
+      return counts;
+    };
+
+    // Penalización por recencia. 0 = no usado; 1..N = repetido recientemente.
+    const __recentCounts = mcGetRecentFoodCounts(dateKey, 4);
+    const mcRecentCount = (id)=> (__recentCounts?.[id] || 0);
+
+    const mcVarietySort = (arr, tag, slot)=>{
+      if(!Array.isArray(arr) || arr.length<=1) return arr;
+
+      // semilla por día+slot+tag: determinista pero varía entre días
+      const seed = mcSeedFromString(String(dateKey||'')+'|'+String(slot||'')+'|'+String(tag||''));
+      const rnd = mcMulberry32(seed);
+
+      // Rank de preferencia (si ya se aplicó preferOrder, esto solo es desempate)
+      const prefRank = {};
+      for(let i=0;i<arr.length;i++) prefRank[arr[i].id]=i;
+
+      // Orden:
+      // 1) Menos repetido en últimos días
+      // 2) Mantener el orden de preferencia actual
+      // 3) Desempate pseudo-aleatorio (sembrado)
+      return arr.slice().sort((a,b)=>{
+        const ra = mcRecentCount(a.id);
+        const rb = mcRecentCount(b.id);
+        if(ra !== rb) return ra - rb;
+        const pa = prefRank[a.id] ?? 9999;
+        const pb = prefRank[b.id] ?? 9999;
+        if(pa !== pb) return pa - pb;
+        return (rnd() - 0.5);
+      });
     };
 
     // ===== helpers selección =====
@@ -2039,7 +2142,7 @@ const saveLogs=(dateKey, items)=>{
       if(tag==='fat'){
         arr = preferOrder(arr, ['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light']);
       }
-      return arr;
+      return mcVarietySort(arr, tag, slot);
     };
 
     // ===== aprendizaje: preferir combinaciones reales =====
