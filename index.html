@@ -2785,7 +2785,7 @@ const LS = {
     const deviation = (real - planned) / denom;
 
     // Corrección suave: repartir desfase en 5 días
-    const correctionPerDay = Math.round((planned - real) / 5);
+    const correctionPerDay = Math.round((real - planned) / 5); // + = come más, - = come menos
 
     const absDev = Math.abs(deviation);
     let sev='ok';
@@ -2794,14 +2794,21 @@ const LS = {
 
     const pct = Math.round(deviation*100);
     let msg='';
+    const adjAbs = Math.abs(correctionPerDay);
+    const adjSign = (correctionPerDay>0) ? '+' : (correctionPerDay<0 ? '−' : '');
+    const adjTxt = (correctionPerDay===0) ? '0' : `${adjSign}${adjAbs}`;
+
     if(storedMode.modeKey==='deficit'){
-      if(real < planned) msg = `Déficit real por debajo del plan (${pct}%). Recomiendo −${Math.abs(correctionPerDay)} kcal/día (5 días).`;
-      else if(real > planned) msg = `Déficit real por encima del plan (+${pct}%). Recomiendo +${Math.abs(correctionPerDay)} kcal/día (5 días).`;
+      // real y planned son "déficit" (TDEE - kcal consumidas / objetivo). Si real > planned -> déficit mayor de lo previsto -> come MÁS.
+      if(real > planned) msg = `Déficit real por ENCIMA del plan (+${pct}%). Ajuste recomendado: +${adjAbs} kcal/día durante 5 días.`;
+      else if(real < planned) msg = `Déficit real por DEBAJO del plan (${pct}%). Ajuste recomendado: −${adjAbs} kcal/día durante 5 días.`;
       else msg = 'Déficit semanal en línea con el plan.';
     } else if(storedMode.modeKey==='maint'){
-      msg = `Mantenimiento: balance 7d ${pct}% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
+      msg = `Mantenimiento: balance 7d ${pct}% vs plan. Ajuste sugerido: ${adjTxt} kcal/día durante 5 días.`;
     } else {
-      msg = `Superávit: balance 7d ${pct}% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
+      msg = `Superávit: balance 7d ${pct}% vs plan. Ajuste sugerido: ${adjTxt} kcal/día durante 5 días.`;
+    }
+% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
     }
 
     return {real, planned, deviation, correctionPerDay, sev, msg, dataDays};
@@ -3766,7 +3773,7 @@ $('exportFoods').onclick=()=>{
 
       const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot '+dot;
 
-      const correction = Math.round((dev.planned - dev.real)/5);
+      const correction = Math.round((dev.real - dev.planned)/5); // + = come más, - = come menos
       msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
       $('statDevText').textContent = msg;
     }catch(e){

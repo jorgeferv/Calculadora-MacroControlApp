@@ -1,5 +1,5 @@
 // sw.js (r51.1) - cache bump to force update
-const CACHE = "mcapp-cache-r52-hotfix";
+const CACHE = "mcapp-cache-r53-correccion";
 const ASSETS = [
   "./",
   "./index.html",
