@@ -721,7 +721,7 @@ pan_cristal 2u"></textarea>
       </div>
       <div class="hr"></div>
       <div class="status" id="statDevBox">
-        <div class="badge"><span class="dot ok" id="statDevDot"></span> Corrección</div>
+        <div class="badge"><span class="dot ok" id="statDevDot"></span> Estado del plan</div>
         <div class="muted" id="statDevText" style="margin-top:6px;">—</div>
       </div>
     </div>
@@ -3052,9 +3052,15 @@ const saveLogs=(dateKey, items)=>{
     const pct = Math.round(deviation*100);
     let msg='';
     if(storedMode.modeKey==='deficit'){
-      if(real < planned) msg = `Déficit real por debajo del plan (${pct}%). Recomiendo −${Math.abs(correctionPerDay)} kcal/día (5 días).`;
-      else if(real > planned) msg = `Déficit real por encima del plan (+${pct}%). Recomiendo +${Math.abs(correctionPerDay)} kcal/día (5 días).`;
-      else msg = 'Déficit semanal en línea con el plan.';
+      const diff = real - planned; // + => déficit real mayor (comes menos); - => déficit real menor (comes más)
+      const adj = Math.round(Math.abs(diff)/5); // ajuste diario sugerido durante 5 días
+      if(Math.abs(deviation) <= 0.10){
+        msg = 'Déficit semanal según el plan. Sigue así.';
+      } else if(diff > 0){
+        msg = `Déficit demasiado alto (vas ${Math.round(diff)} kcal por debajo del plan en 7d). Come ~${adj} kcal más al día durante 5 días.`;
+      } else {
+        msg = `Déficit demasiado bajo (vas ${Math.round(Math.abs(diff))} kcal por encima del plan en 7d). Come ~${adj} kcal menos al día durante 5 días.`;
+      }
     } else if(storedMode.modeKey==='maint'){
       msg = `Mantenimiento: balance 7d ${pct}% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
     } else {
@@ -3476,7 +3482,7 @@ const saveLogs=(dateKey, items)=>{
     let recCtx = `${tc.ctx} · ${prettyMeal(slot)}: ${tc.detail}`;
     if(guidance && guidance.dataDays>=3){
       const absDev = Math.abs(guidance.deviation);
-      if(absDev>0.15) recCtx += ` · Corrección 7d: ${guidance.correctionPerDay>0?'-':'+'}${Math.abs(guidance.correctionPerDay)} kcal/día (5d)`;
+      if(absDev>0.15) recCtx += ` · Ajuste 7d: ${guidance.correctionPerDay>0?'-':'+'}${Math.abs(guidance.correctionPerDay)} kcal/día (5d)`;
     }
     $('recContext').textContent = recCtx;
 
@@ -4044,16 +4050,31 @@ $('exportFoods').onclick=()=>{
         return;
       }
       const pct = Math.round(dev.deviation*100);
-      let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
-      let dot = 'ok';
-      if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
-      else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
-      else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
+      const diff = dev.real - dev.planned; // + => déficit real mayor (comes menos)
+      const adj = Math.round(Math.abs(diff)/5);
+
+      // Texto claro y accionable (déficit)
+      let dot = 'good';
+      let title = 'En rango';
+      let action = 'Sigue así.';
+      if(Math.abs(dev.deviation) <= 0.10){
+        dot = 'good';
+        title = 'Déficit según el plan';
+        action = 'Sigue así.';
+      } else if(diff > 0){
+        dot = 'bad';
+        title = 'Déficit demasiado alto';
+        action = `Sube un poco las calorías: come ~${adj} kcal más al día (5 días).`;
+      } else {
+        dot = 'mid';
+        title = 'Déficit demasiado bajo';
+        action = `Baja un poco las calorías: come ~${adj} kcal menos al día (5 días).`;
+      }
 
       const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot '+dot;
 
-      const correction = Math.round((dev.planned - dev.real)/5);
-      msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
+      // Desglose numérico (útil, sin confundir)
+      const msg = `${title}. Déficit 7d: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal (desviación ${pct}%). ${action}`;
       $('statDevText').textContent = msg;
     }catch(e){
       console.error(e);
