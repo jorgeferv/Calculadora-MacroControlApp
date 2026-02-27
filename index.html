@@ -301,8 +301,6 @@
           <div class="seg">
             <button id="exportRules" type="button">Exportar reglas</button>
             <button id="importRulesBtn" type="button">Importar reglas</button>
-            <button id="viewLastTrace" type="button">Ver trace Cuadrar Día</button>
-            <button id="clearLastTrace" type="button">Borrar trace</button>
           </div>
           <div class="seg" style="margin-top:8px;">
             <button id="resetRules" type="button">Restaurar por defecto</button>
@@ -721,7 +719,7 @@ pan_cristal 2u"></textarea>
       </div>
       <div class="hr"></div>
       <div class="status" id="statDevBox">
-        <div class="badge"><span class="dot ok" id="statDevDot"></span> Estado del plan</div>
+        <div class="badge"><span class="dot ok" id="statDevDot"></span> Corrección</div>
         <div class="muted" id="statDevText" style="margin-top:6px;">—</div>
       </div>
     </div>
@@ -735,7 +733,7 @@ pan_cristal 2u"></textarea>
 
   <!-- ======= MODAL OCR (DEV) - r48 ======= -->
   <div class="modalBack" id="ocrBack" aria-hidden="true">
-    <div class="modalBox" role="dialog" aria-modal="true" aria-label="Escáner nutricional">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-label="Escáner nutricional · build r52-hotfix-tdz-ocr">
       <div class="modalTop">
         <b>Escáner nutricional</b>
         <span id="ocrConf" class="pill" style="margin-left:auto;display:none;">OCR</span>
@@ -1667,79 +1665,11 @@ const LS = {
     return {k,items:logs[k]};
   };
 
-  
-  // =========================
-  // LEARNING (auto-aprendizaje)
-  // Aprende combinaciones reales (pairings) cuando tú registras comidas manualmente.
-  // Guarda scores en localStorage bajo rules.learning.storeKey (default: mc_pairing_scores)
-  const mcLearningKey=()=>{
-    const r=loadRulesEngine?.();
-    return (r?.learning?.storeKey) || 'mc_pairing_scores';
-  };
-
-  const mcLoadPairScores=()=> loadJSON(mcLearningKey(), {});
-  const mcSavePairScores=(obj)=> saveJSON(mcLearningKey(), obj);
-
-  const mcPairKey=(a,b)=>{
-    if(!a||!b) return null;
-    const x=String(a), y=String(b);
-    return (x<y) ? (x+'|'+y) : (y+'|'+x);
-  };
-
-  const mcLearnFromLogs = (items)=>{
-    if(!Array.isArray(items) || !items.length) return;
-    const rules = loadRulesEngine?.();
-    const inc = Number(rules?.learning?.increment ?? 1) || 1;
-
-    // Agrupa por meal y aprende co-ocurrencias dentro del mismo bloque
-    const byMeal = {};
-    for(const it of items){
-      const meal = normalizeMealLabel(it.meal);
-      if(!meal) continue;
-      (byMeal[meal] ||= []).push(it);
-    }
-
-    const store = mcLoadPairScores();
-
-    for(const meal of Object.keys(byMeal)){
-      const ids = Array.from(new Set(byMeal[meal].map(x=>x.foodId).filter(Boolean)));
-      if(ids.length < 2) continue;
-
-      // actualiza todos los pares (comida humana real)
-      for(let i=0;i<ids.length;i++){
-        for(let j=i+1;j<ids.length;j++){
-          const k = mcPairKey(ids[i], ids[j]);
-          if(!k) continue;
-          store[k] = (Number(store[k]) || 0) + inc;
-        }
-      }
-    }
-
-    mcSavePairScores(store);
-  };
-
-  const mcGetPairScore=(a,b)=>{
-    const k = mcPairKey(a,b);
-    if(!k) return 0;
-    const s = mcLoadPairScores();
-    return Number(s[k]) || 0;
-  };
-
-  // =========================
-  // TRACE (auditoría Cuadrar Día)
-  const mcSaveLastPlanTrace = (trace)=>{
-    try{ saveJSON('mc_last_plan_trace', trace); }catch(e){}
-    try{ window.__mc_lastPlanTrace = trace; }catch(e){}
-  };
-  const mcLoadLastPlanTrace = ()=> loadJSON('mc_last_plan_trace', null);
-
-const saveLogs=(dateKey, items)=>{
+  const saveLogs=(dateKey, items)=>{
     const k=dateKey || todayKey();
     const logs=loadJSON(LS.logs,{});
     logs[k]=items;
     saveJSON(LS.logs,logs);
-    // Auto-learning: aprende de tus combinaciones reales (manual o Cuadrar Día)
-    try{ mcLearnFromLogs(items); }catch(e){ /* no-op */ }
   };
 
   const sumMacros=(items)=>items.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
@@ -1973,21 +1903,7 @@ const saveLogs=(dateKey, items)=>{
     const postActive = ((Number(day?.wod)||0) > 0) || ((Number(day?.cardioKcal)||0) > 0);
     const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
 
-    const dateKey = activeDayKey || todayKey();
-
     const eaten = sumMacros(logs);
-
-    // ===== trace (auditoría) =====
-    const __trace = {
-      ts: Date.now(),
-      goal: { kcal: goal.goalKcal, p: goal.p, c: goal.c, f: goal.f },
-      eaten: { kcal: eaten.kcal, p: eaten.p, c: eaten.c, f: eaten.f },
-      postActive: !!postActive,
-      slotsToPlan: [],
-      slots: {}, // por slot: ctx, caps, decisiones, items
-      notes: []
-    };
-
 
     // qué slots ya están “rellenos” (tienen al menos 1 item)
     const filled = new Set();
@@ -1998,10 +1914,6 @@ const saveLogs=(dateKey, items)=>{
 
     // slots a completar = los activos que NO estén rellenos
     let slotsToPlan = allSlots.filter(s => !filled.has(s));
-    // Barajar slots (determinista por día) para no repetir siempre el mismo orden
-    const __slotSeed = mcSeedFromString(String(dateKey||''));
-    slotsToPlan = mcShuffleDet(slotsToPlan, __slotSeed);
-    __trace.slotsToPlan = slotsToPlan.slice();
 
     // Caso especial: si no queda ningún slot activo pero faltan kcal, permitir “pre_entreno”
     // SOLO si ya existe cena (última comida tradicional) y aún falta por cuadrar.
@@ -2013,104 +1925,6 @@ const saveLogs=(dateKey, items)=>{
         c: Math.max(0, goal.c - e.c),
         f: Math.max(0, goal.f - e.f),
       };
-    };
-
-    // ===== variedad y anti-repetición (r51.1) =====
-    // Evita que "Cuadrar Día" repita siempre las mismas comidas en el mismo orden.
-    // Estrategia:
-    // - Baraja slots a planificar con semilla por día (determinista, no caótica).
-    // - Penaliza alimentos usados en los últimos N días (recency penalty).
-    // - Mantiene preferencia histórica, pero no secuestra la elección.
-
-    const mcSeedFromString = (s)=>{
-      let h=2166136261;
-      for(let i=0;i<s.length;i++){
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return (h>>>0);
-    };
-    const mcMulberry32 = (a)=>()=>{
-      let t = a += 0x6D2B79F5;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-    const mcShuffleDet = (arr, seed)=>{
-      const out = arr.slice();
-      const rnd = mcMulberry32(seed||1);
-      for(let i=out.length-1;i>0;i--){
-        const j = Math.floor(rnd()*(i+1));
-        [out[i], out[j]] = [out[j], out[i]];
-      }
-      return out;
-    };
-    const mcParseDateKey = (k)=>{
-      const m = String(k||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if(!m) return null;
-      return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
-    };
-    const mcDateKeyOf = (d)=>{
-      const y=d.getFullYear();
-      const m=String(d.getMonth()+1).padStart(2,'0');
-      const da=String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${da}`;
-    };
-    const mcGetPrevDateKeys = (dayKey, daysBack)=>{
-      const base = mcParseDateKey(dayKey);
-      if(!base) return [];
-      const out=[];
-      for(let i=1;i<=daysBack;i++){
-        const d = new Date(base);
-        d.setDate(d.getDate()-i);
-        out.push(mcDateKeyOf(d));
-      }
-      return out;
-    };
-
-    const mcGetRecentFoodCounts = (dayKey, daysBack)=>{
-      const all = loadJSON(LS.logs, {});
-      const keys = mcGetPrevDateKeys(dayKey, daysBack);
-      const counts = {};
-      for(const k of keys){
-        const items = all?.[k] || [];
-        for(const it of items){
-          const id = it?.foodId;
-          if(!id) continue;
-          counts[id] = (counts[id]||0) + 1;
-        }
-      }
-      return counts;
-    };
-
-    // Penalización por recencia. 0 = no usado; 1..N = repetido recientemente.
-    const __recentCounts = mcGetRecentFoodCounts(dateKey, 4);
-    const mcRecentCount = (id)=> (__recentCounts?.[id] || 0);
-
-    const mcVarietySort = (arr, tag, slot)=>{
-      if(!Array.isArray(arr) || arr.length<=1) return arr;
-
-      // semilla por día+slot+tag: determinista pero varía entre días
-      const seed = mcSeedFromString(String(dateKey||'')+'|'+String(slot||'')+'|'+String(tag||''));
-      const rnd = mcMulberry32(seed);
-
-      // Rank de preferencia (si ya se aplicó preferOrder, esto solo es desempate)
-      const prefRank = {};
-      for(let i=0;i<arr.length;i++) prefRank[arr[i].id]=i;
-
-      // Orden:
-      // 1) Menos repetido en últimos días
-      // 2) Mantener el orden de preferencia actual
-      // 3) Desempate pseudo-aleatorio (sembrado)
-      return arr.slice().sort((a,b)=>{
-        const ra = mcRecentCount(a.id);
-        const rb = mcRecentCount(b.id);
-        if(ra !== rb) return ra - rb;
-        const pa = prefRank[a.id] ?? 9999;
-        const pb = prefRank[b.id] ?? 9999;
-        if(pa !== pb) return pa - pb;
-        return (rnd() - 0.5);
-      });
     };
 
     // ===== helpers selección =====
@@ -2142,41 +1956,7 @@ const saveLogs=(dateKey, items)=>{
       if(tag==='fat'){
         arr = preferOrder(arr, ['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light']);
       }
-      return mcVarietySort(arr, tag, slot);
-    };
-
-    // ===== aprendizaje: preferir combinaciones reales =====
-    const scoringConf = (rules?.selection?.scoring) || { useLearnedScore:true, learnedWeight:0.55, baseWeight:0.45 };
-    const useLearned = scoringConf.useLearnedScore !== false;
-    const learnedW = Number(scoringConf.learnedWeight ?? 0.55);
-    const learnedScale = 6; // escala práctica: evita aleatoriedad, sin dominar el motor
-
-    const pickPartnerByLearning = (baseFoodId, pool)=>{
-      if(!pool || !pool.length) return null;
-      if(!useLearned || !baseFoodId) return pool[0];
-
-      let best = pool[0];
-      let bestS = -1;
-
-      for(const f of pool){
-        const s = mcGetPairScore(baseFoodId, f.id);
-        if(s > bestS){
-          bestS = s;
-          best = f;
-        }
-      }
-      return best;
-    };
-
-    const learnedBonusForIds = (ids)=>{
-      if(!useLearned || !Array.isArray(ids)) return 0;
-      let sum=0;
-      for(let i=0;i<ids.length;i++){
-        for(let j=i+1;j<ids.length;j++){
-          sum += mcGetPairScore(ids[i], ids[j]);
-        }
-      }
-      return sum;
+      return arr;
     };
 
     const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
@@ -2233,11 +2013,6 @@ const saveLogs=(dateKey, items)=>{
         qtyDisplay: qtyDisplay(qtyType, qty),
         kcal: mac.kcal, p: mac.p, c: mac.c, f: mac.f
       });
-      try{
-        const slotKey = normalizeMealLabel(slot);
-        __trace.slots[slotKey] ||= { ctx: ctxForSlot(slotKey), caps: capsForCtx(ctxForSlot(slotKey)), decisions: {}, items: [] };
-        __trace.slots[slotKey].items.push({ foodId: food.id, name: food.name, qtyType, qty, kcal: mac.kcal, p: mac.p, c: mac.c, f: mac.f });
-      }catch(e){}
     };
 
     const buildSlot = (slot, rem, slotsLeft)=>{
@@ -2253,20 +2028,6 @@ const saveLogs=(dateKey, items)=>{
 
       if(!proteins.length) return;
 
-
-      // trace init para este slot
-      try{
-        __trace.slots[slot] ||= { ctx, caps, decisions: {}, items: [] };
-        __trace.slots[slot].decisions.kcalTarget = kcalTarget;
-        __trace.slots[slot].decisions.remBefore = { kcal: rem.kcal, p: rem.p, c: rem.c, f: rem.f };
-        // Ranking aprendido (top 5) para partners
-        const topLearn = (baseId, pool)=> (pool||[]).slice(0,6).map(x=>({id:x.id, s: mcGetPairScore(baseId,x.id)})).sort((a,b)=>b.s-a.s).slice(0,5);
-        __trace.slots[slot].decisions.learned = {};
-        __trace.slots[slot].decisions.learned.protein = proteins[0]?.id || null;
-        __trace.slots[slot].decisions.learned.carbsTop = proteins[0] ? topLearn(proteins[0].id, carbs) : [];
-        __trace.slots[slot].decisions.learned.fatsTop  = proteins[0] ? topLearn(proteins[0].id, fats) : [];
-      }catch(e){}
-
       // 1) Proteína base
       const pFood = proteins[0];
       // Proteína por bloque: humana y capada (evita 60g)
@@ -2280,7 +2041,7 @@ const saveLogs=(dateKey, items)=>{
 
       const needCarb = (rem.c / Math.max(1, slotsLeft)) > 18 || localRem.kcal > 220;
       if(needCarb){
-        const cFood = pickPartnerByLearning(pFood.id, carbs) || pickPartnerByLearning(pFood.id, fruits);
+        const cFood = carbs[0] || fruits[0];
         if(cFood){
           const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, caps.cMax);
           const cQty = (cFood.id==='banana'||cFood.id==='uva'||cFood.id==='freson'||cFood.id==='manzana')
@@ -2299,30 +2060,13 @@ const saveLogs=(dateKey, items)=>{
       const needFat = (rem.f / Math.max(1, slotsLeft)) > 12 || (kcalTarget - afterP.kcal) > 180;
 
       if(needFat && fats.length){
-        const fFood = pickPartnerByLearning(pFood.id, fats) || fats[0];
+        const fFood = fats[0];
         // target grasa moderada
         const fNeed = clamp(rem.f / Math.max(1, slotsLeft), Math.max(6, caps.fMin), caps.fMax);
         const fQty = qtyForMacro(fFood, 'f', fNeed);
         const existingCount = plannedItems.filter(x=>x.meal===slot).length;
         if(existingCount < caps.maxItems){
           addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
-        }
-      }
-
-
-      // 3.5) Micro-ajuste: evitar residuales raros (ej. faltan ~60 kcal => 10g chocolate 85)
-      const afterMain = sumMacros(plannedItems.filter(x=>x.meal===slot));
-      const microKcal = kcalTarget - afterMain.kcal;
-      if(microKcal >= 35 && microKcal <= 95){
-        const microFood = foods.find(x=>x.id==='chocolate_85' && allowedForSlot(slot)(x));
-        const existingCount2 = plannedItems.filter(x=>x.meal===slot).length;
-        if(microFood && existingCount2 < caps.maxItems){
-          const kcalPerG = (Number(microFood.kcal)||0) / 100;
-          if(kcalPerG > 0){
-            let g = Math.round((microKcal / kcalPerG) / 5) * 5;
-            g = clamp(g, 5, 20);
-            addItem(slot, microFood, 'g', g);
-          }
         }
       }
 
@@ -2400,7 +2144,6 @@ const saveLogs=(dateKey, items)=>{
 
     const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
     const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
-    mcSaveLastPlanTrace(__trace);
     return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
   };
   // ======= ESTADO =======
@@ -3052,15 +2795,9 @@ const saveLogs=(dateKey, items)=>{
     const pct = Math.round(deviation*100);
     let msg='';
     if(storedMode.modeKey==='deficit'){
-      const diff = real - planned; // + => déficit real mayor (comes menos); - => déficit real menor (comes más)
-      const adj = Math.round(Math.abs(diff)/5); // ajuste diario sugerido durante 5 días
-      if(Math.abs(deviation) <= 0.10){
-        msg = 'Déficit semanal según el plan. Sigue así.';
-      } else if(diff > 0){
-        msg = `Déficit demasiado alto (vas ${Math.round(diff)} kcal por debajo del plan en 7d). Come ~${adj} kcal más al día durante 5 días.`;
-      } else {
-        msg = `Déficit demasiado bajo (vas ${Math.round(Math.abs(diff))} kcal por encima del plan en 7d). Come ~${adj} kcal menos al día durante 5 días.`;
-      }
+      if(real < planned) msg = `Déficit real por debajo del plan (${pct}%). Recomiendo −${Math.abs(correctionPerDay)} kcal/día (5 días).`;
+      else if(real > planned) msg = `Déficit real por encima del plan (+${pct}%). Recomiendo +${Math.abs(correctionPerDay)} kcal/día (5 días).`;
+      else msg = 'Déficit semanal en línea con el plan.';
     } else if(storedMode.modeKey==='maint'){
       msg = `Mantenimiento: balance 7d ${pct}% vs plan. Ajuste sugerido ${correctionPerDay>0?'−':''}+${Math.abs(correctionPerDay)} kcal/día.`;
     } else {
@@ -3482,7 +3219,7 @@ const saveLogs=(dateKey, items)=>{
     let recCtx = `${tc.ctx} · ${prettyMeal(slot)}: ${tc.detail}`;
     if(guidance && guidance.dataDays>=3){
       const absDev = Math.abs(guidance.deviation);
-      if(absDev>0.15) recCtx += ` · Ajuste 7d: ${guidance.correctionPerDay>0?'-':'+'}${Math.abs(guidance.correctionPerDay)} kcal/día (5d)`;
+      if(absDev>0.15) recCtx += ` · Corrección 7d: ${guidance.correctionPerDay>0?'-':'+'}${Math.abs(guidance.correctionPerDay)} kcal/día (5d)`;
     }
     $('recContext').textContent = recCtx;
 
@@ -3926,35 +3663,6 @@ $('exportFoods').onclick=()=>{
     renderAll();
   });
 
-
-  // Trace Cuadrar Día (DEV)
-  $('viewLastTrace') && ($('viewLastTrace').onclick=()=>{
-    const t = mcLoadLastPlanTrace();
-    if(!t){ alert('No hay trace guardado. Genera Cuadrar Día primero.'); return; }
-    $('traceText').value = JSON.stringify(t, null, 2);
-    $('traceModal').style.display='block';
-  });
-
-  $('clearLastTrace') && ($('clearLastTrace').onclick=()=>{
-    localStorage.removeItem('mc_last_plan_trace');
-    try{ delete window.__mc_lastPlanTrace; }catch(e){}
-    alert('Trace borrado.');
-  });
-
-  $('closeTrace') && ($('closeTrace').onclick=()=>{ $('traceModal').style.display='none'; });
-
-  $('copyTrace') && ($('copyTrace').onclick=async()=>{
-    try{
-      await navigator.clipboard.writeText($('traceText').value || '');
-      alert('Copiado.');
-    }catch(e){
-      // fallback iOS
-      $('traceText').select();
-      document.execCommand('copy');
-      alert('Copiado.');
-    }
-  });
-
   // Backup rápido (DEV): export/import estado completo (perfil + settings + logs + foods usuario)
   const applyBackupState = (state)=>{
     if(!state || typeof state!=='object') throw new Error('Backup inválido');
@@ -4050,31 +3758,16 @@ $('exportFoods').onclick=()=>{
         return;
       }
       const pct = Math.round(dev.deviation*100);
-      const diff = dev.real - dev.planned; // + => déficit real mayor (comes menos)
-      const adj = Math.round(Math.abs(diff)/5);
-
-      // Texto claro y accionable (déficit)
-      let dot = 'good';
-      let title = 'En rango';
-      let action = 'Sigue así.';
-      if(Math.abs(dev.deviation) <= 0.10){
-        dot = 'good';
-        title = 'Déficit según el plan';
-        action = 'Sigue así.';
-      } else if(diff > 0){
-        dot = 'bad';
-        title = 'Déficit demasiado alto';
-        action = `Sube un poco las calorías: come ~${adj} kcal más al día (5 días).`;
-      } else {
-        dot = 'mid';
-        title = 'Déficit demasiado bajo';
-        action = `Baja un poco las calorías: come ~${adj} kcal menos al día (5 días).`;
-      }
+      let msg = `En 7 días: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal. Desviación ${pct}%.`;
+      let dot = 'ok';
+      if(Math.abs(dev.deviation) <= 0.10){ dot='good'; msg += ' Dentro de rango.'; }
+      else if(Math.abs(dev.deviation) <= 0.20){ dot='ok'; msg += ' Ajuste suave recomendado.'; }
+      else { dot='bad'; msg += ' Ajuste recomendado para corregir rumbo.'; }
 
       const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot '+dot;
 
-      // Desglose numérico (útil, sin confundir)
-      const msg = `${title}. Déficit 7d: real ${Math.round(dev.real)} kcal vs plan ${Math.round(dev.planned)} kcal (desviación ${pct}%). ${action}`;
+      const correction = Math.round((dev.planned - dev.real)/5);
+      msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
       $('statDevText').textContent = msg;
     }catch(e){
       console.error(e);
@@ -4357,20 +4050,5 @@ function parseNutritionTextEnhanced(text){
 // ======= END r50 OCR ENHANCEMENT =======
 
 </script>
-
-  <!-- Trace Modal (DEV) -->
-  <div id="traceModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
-    <div class="card" style="max-width:820px;margin:40px auto 0;position:relative;">
-      <button id="closeTrace" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">Cerrar</button>
-      <h1 style="margin:0 0 6px;">Trace: Cuadrar Día</h1>
-      <div class="muted">Esto muestra por qué la app eligió cada alimento (candidatos, caps, aprendizaje y resultado).</div>
-      <label>JSON</label>
-      <textarea id="traceText" spellcheck="false" style="min-height:260px;"></textarea>
-      <div class="seg" style="margin-top:8px;">
-        <button id="copyTrace" type="button">Copiar</button>
-      </div>
-    </div>
-  </div>
-
 </body>
 </html>
