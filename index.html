@@ -3,11 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-<title>MacroControl r57c3</title>
+  <title>MacroControlAPP</title>
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -105,33 +101,7 @@
     .groupWrap{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
     .miniBtn{width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
 
-    
-    /* Registro por bloques: cabecera más marcada y coherente */
-    details > summary.groupSummary{
-      list-style:none;
-    }
-    summary.groupSummary::-webkit-details-marker{display:none;}
-    .groupSummary{
-      position:relative;
-      padding:10px 12px;
-      background:#0b0e14;
-      border:1px solid #2a3242;
-    }
-    .groupSummary::before{
-      content:'';
-      position:absolute;left:0;top:0;bottom:0;width:4px;
-      border-radius:12px 0 0 12px;
-      background:rgba(122,162,255,0.35);
-    }
-    .groupWrap .item{
-      background:#0a0d12;
-      border:1px solid #242c3b;
-    }
-    .groupWrap .item b{font-size:15px;}
-    .delBtn{
-      border-radius:12px;
-    }
-/* Macro status (P/C/F consumido) */
+    /* Macro status (P/C/F consumido) */
     .macroBox.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
     .macroBox.ok{outline:2px solid rgba(255,200,0,.18);border-color:rgba(255,200,0,.35);}
     .macroBox.bad{outline:2px solid rgba(255,70,70,.18);border-color:rgba(255,70,70,.35);}
@@ -239,72 +209,6 @@
     .unitToggle .miniBtn{min-width:60px}
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
-
-
-    /* Ajustes del día: plegable con resumen */
-    details#dayAdjustDetails { margin-top: 10px; }
-    details#dayAdjustDetails > summary {
-      list-style: none;
-      cursor: pointer;
-      user-select: none;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.02);
-      border-radius: 16px;
-      padding: 12px 12px;
-    }
-    details#dayAdjustDetails > summary::-webkit-details-marker { display:none; }
-    .sumHead { display:block; }
-    .sumTitle {
-      font-weight: 900;
-      letter-spacing: 0.2px;
-      margin-bottom: 10px;
-      color: var(--text);
-    }
-    .sumGrid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    @media (min-width: 700px) {
-      .sumGrid { grid-template-columns: repeat(5, 1fr); }
-    }
-    .sumPill {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 14px;
-      padding: 10px 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      color: var(--muted);
-      font-weight: 800;
-      font-size: 12px;
-      white-space: nowrap;
-    }
-    .sumPill b { color: var(--text); font-weight: 950; font-size: 12px; }
-
-  
-    /* Build badge (diagnóstico) */
-    #buildBadge{
-      position:fixed;right:10px;bottom:10px;z-index:9999;
-      padding:6px 10px;border-radius:999px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(0,0,0,0.35);
-      color:rgba(255,255,255,0.75);
-      font-weight:800;font-size:11px;letter-spacing:0.2px;
-      backdrop-filter: blur(10px);
-    }
-    #swBadge{
-      position:fixed;right:10px;bottom:44px;z-index:9999;
-      padding:6px 10px;border-radius:999px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(0,0,0,0.35);
-      color:rgba(255,255,255,0.75);
-      font-weight:800;font-size:11px;letter-spacing:0.2px;
-      backdrop-filter: blur(10px);
-      display:none;
-    }
 
 </style>
 </head>
@@ -471,6 +375,7 @@
           <div class="pill" id="stageChipPill" style="cursor:pointer;">Objetivo: <b id="stageChip">—</b></div>
           <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
           <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
+          <button class="iconBtn" id="openOCR" type="button" title="OCR">📷</button>
           <button class="iconBtn" id="openStatsTop" type="button" title="Estadísticas">📊</button>
         </div>
 
@@ -512,21 +417,7 @@
           <summary>PERFIL DE COMPOSICIÓN CORPORAL</summary>
           <div class="two" style="margin-top:10px;">
             <div>
-              <label>S
-        <!-- AJUSTES DEL DÍA (PLEGABLE) -->
-        <details id="dayAdjustDetails">
-          <summary class="sumHead">
-            <div class="sumTitle">Ajustes del día</div>
-            <div class="sumGrid" aria-label="Resumen ajustes del día">
-              <div class="sumPill"><span>⚖️ Peso</span><b id="sumWeight">—</b></div>
-              <div class="sumPill"><span>📉 Déficit</span><b id="sumDef7">—</b></div>
-              <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
-              <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
-              <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
-            </div>
-          </summary>
-
-exo</label>
+              <label>Sexo</label>
               <select id="sex">
                 <option value="m" selected>Hombre</option>
                 <option value="f">Mujer</option>
@@ -555,23 +446,37 @@ exo</label>
           </div>
         </details>
 
+        <div class="hr"></div>
 
-<!-- AJUSTES DEL DÍA (PLEGABLE SEPARADO DEL PERFIL) -->
-<details id="dayAdjustDetails" class="blkDetails">
-  <summary class="sumHead">
-    <div class="sumTitle">Ajustes del día</div>
-    <div class="sumGrid" aria-label="Resumen ajustes del día">
-      <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
-      <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
-      <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
-      <div class="sumPill"><span>PAL</span><b id="sumPal">—</b></div>
-      <div class="sumPill"><span>🔥 Activas</span><b id="sumActive">—</b></div>
-    </div>
-  </summary>
 
-  <div class="hr"></div>
+        <div class="card" id="daySummaryCard" style="margin-top:12px;">
+          <div class="row" style="align-items:center;justify-content:space-between;">
+            <b>🧾 Ajustes del día</b>
+            <span class="muted" id="daySummaryHint">Previsualización (lo que has metido)</span>
+          </div>
 
-        <!-- NEAT -->
+          <div class="two" style="margin-top:10px;">
+            <div class="box"><div class="num" id="sumTrain">—</div><div class="lbl">⏰ Entreno</div></div>
+            <div class="box"><div class="num" id="sumWod">—</div><div class="lbl">🏋️ WOD</div></div>
+          </div>
+          <div class="two" style="margin-top:10px;">
+            <div class="box"><div class="num" id="sumNeat">—</div><div class="lbl">🚶 NEAT</div></div>
+            <div class="box"><div class="num" id="sumPal">—</div><div class="lbl">PAL</div></div>
+          </div>
+          <div class="two" style="margin-top:10px;">
+            <div class="box"><div class="num" id="sumActivas">—</div><div class="lbl">🔥 Activas</div></div>
+            <div class="box"><div class="num" id="sumGoal">—</div><div class="lbl">🎯 Objetivo</div></div>
+          </div>
+          <div class="muted" id="sumDetail" style="margin-top:8px;">—</div>
+        </div>
+
+        <details id="daySettingsBox" style="margin-top:12px;">
+          <summary class="groupSummary">
+            <b>⚙️ Ajustes del día</b>
+            <small id="daySettingsSummary">—</small>
+          </summary>
+          <div class="groupWrap">
+<!-- NEAT -->
         <label>NEAT diario</label>
         <div class="two">
           <div>
@@ -620,7 +525,11 @@ exo</label>
           <button class="primary" id="saveDay" type="button">Guardar ajustes del día</button>
           <button class="danger" id="panicBtn" type="button" title="Aplica déficit fijo de emergencia">Pánico</button>
         </div>
-        <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).</div>
+        <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).
+          </div>
+        </details>
+
+</div>
       </div>
 
       <div class="card">
@@ -681,16 +590,6 @@ exo</label>
             <div class="balScale muted"><span>-800</span><span>0</span><span>+800</span></div>
           </div>
 
-
-        </details>
-
-
-</details>
-
-
-
-
-        
 <div class="hr"></div>
 
         <div class="kpi">
@@ -751,14 +650,14 @@ exo</label>
   <section id="screen-add" style="display:none;">
     <div class="row">
       <div class="card">
-        <label>🍽 Comida</label>
+        <label>🍗 Comida</label>
         <select id="mealSlot">
-          <option value="desayuno">🍳 Desayuno</option>
-          <option value="comida" selected>🍽 Comida</option>
-          <option value="merienda">🥪 Merienda</option>
+          <option value="desayuno">🥣 Desayuno</option>
+          <option value="comida" selected>🍗 Comida</option>
+          <option value="merienda">🍎 Merienda</option>
           <option value="cena">🌙 Cena</option>
-          <option value="post_entreno">⚡ Post-entreno</option>
-          <option value="pre_entreno">🏋️ Pre-entreno</option>
+          <option value="post_entreno">Post-entreno</option>
+          <option value="pre_entreno">Pre-entreno</option>
         </select>
 
         <label>Buscar</label>
@@ -834,6 +733,38 @@ pan_cristal 2u"></textarea>
       </div>
     </div>
   </div>
+
+
+  <!-- OCR (captura + pegar texto) -->
+  <div id="ocrModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
+    <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
+      <button id="closeOCR" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
+      <h2 style="margin:0 0 8px;font-size:16px;">OCR nutricional</h2>
+      <div class="muted" style="margin-bottom:10px;">
+        En iPhone: haz foto a la etiqueta → usa <b>Texto en vivo</b> → copia y pega aquí. La app extrae kcal/P/C/F.
+      </div>
+
+      <label>Pega el texto de la etiqueta</label>
+      <textarea id="ocrText" placeholder="Ej: por 100 g: 155 kcal, grasas 6.8 g, hidratos 21 g, proteínas 2 g"></textarea>
+
+      <div class="two" style="margin-top:10px;">
+        <div><label>Kcal</label><input id="ocrKcal" type="number" inputmode="numeric" placeholder="—"></div>
+        <div><label>Proteína (g)</label><input id="ocrP" type="number" inputmode="decimal" placeholder="—"></div>
+      </div>
+      <div class="two">
+        <div><label>Carbohidratos (g)</label><input id="ocrC" type="number" inputmode="decimal" placeholder="—"></div>
+        <div><label>Grasas (g)</label><input id="ocrF" type="number" inputmode="decimal" placeholder="—"></div>
+      </div>
+
+      <div class="seg" style="margin-top:12px;">
+        <button id="parseOCR" type="button">Analizar</button>
+        <button class="primary" id="fillFoodEditor" type="button">Rellenar editor de alimento</button>
+      </div>
+
+      <div class="hint">“Rellenar editor” abre Alimentos y copia valores al formulario. Guardar requiere modo DEV.</div>
+    </div>
+  </div>
+
 
 <div class="tabs">
     <button id="tabDay" class="active" type="button">Día</button>
@@ -1447,6 +1378,83 @@ window.addEventListener('error', function(e){
     const carbs = Math.floor(carbKcal/4);
 
     return {tdee, goalKcal:round(goalKcal), p:pTarget, c:carbs, f:fat};
+
+
+  // =========================
+  // AJUSTES DEL DÍA (RESUMEN SIEMPRE VISIBLE)
+  // =========================
+  const neatLabelES = (k)=>{
+    if(k==='low') return 'Bajo';
+    if(k==='med') return 'Medio';
+    return 'Alto';
+  };
+
+  const updateDaySummaryCard = ()=>{
+    try{
+      const profile = loadProfile();
+      const modeStored = loadMode();
+
+      // Leemos la UI (siempre refleja lo “metido”), con fallback al settings del día activo.
+      const { day } = loadDaySettings(activeDayKey, modeStored.modeKey);
+
+      const trainTime = ($('trainTime')?.value ?? day.trainTime ?? '').trim();
+      const wod = Number($('wod')?.value ?? day.wod ?? 0);
+      const neatLevel = ($('neatLevel')?.value ?? day.neatLevel ?? 'high');
+      const steps = String($('steps')?.value ?? day.steps ?? '').trim();
+      const cardioRaw = Number($('cardioKcal')?.value ?? day.cardioKcal ?? 0);
+
+      const pal = PAL[neatLevel] || PAL.high;
+      const cardioReal = round(cardioRaw * (1 - CARDIO_DISCOUNT));
+
+      // Construimos un day “preview” coherente para el cálculo
+      const dayPreview = {
+        ...day,
+        trainTime,
+        wod,
+        neatLevel,
+        steps,
+        cardioKcal: cardioRaw
+      };
+
+      const goal = computeGoal(profile, dayPreview, modeStored);
+      const tdee = goal.tdee;
+      const goalKcal = goal.goalKcal;
+
+      const setTxt = (id, v)=>{ const el=$(id); if(el) el.textContent = v; };
+
+      setTxt('sumTrain', trainTime ? trainTime : '—');
+      setTxt('sumWod', wod ? String(wod) : '—');
+      setTxt('sumNeat', neatLabelES(neatLevel));
+      setTxt('sumPal', pal.toFixed(2));
+
+      // Activas: mostramos bruto y real si hay dato
+      if(cardioRaw>0){
+        setTxt('sumActivas', `${cardioRaw}→${cardioReal}`);
+      } else {
+        setTxt('sumActivas', '—');
+      }
+
+      setTxt('sumGoal', String(goalKcal));
+
+      // Resumen compacto para el desplegable "Ajustes del día"
+      const ds = $('daySettingsSummary');
+      if(ds){
+        const t = trainTime ? trainTime : '—';
+        const w = wod ? String(wod) : '—';
+        const n = neatLabelES(neatLevel);
+        const a = (cardioRaw>0) ? `${cardioRaw}→${cardioReal}` : '—';
+        ds.textContent = `${t} · WOD ${w} · ${n} (PAL ${pal.toFixed(2)}) · Act ${a}`;
+      }
+
+
+      const det = [];
+      det.push(`TDEE: ${tdee} kcal`);
+      if(steps) det.push(`Pasos: ${steps}`);
+      const detEl = $('sumDetail');
+      if(detEl) detEl.textContent = det.join(' · ') || '—';
+    }catch(_){}
+  };
+
   };
 
   // ======= CONTEXTO =======
@@ -1482,33 +1490,16 @@ window.addEventListener('error', function(e){
     return m;
   };
 
-  const MEAL_META = {
-    desayuno: { icon: '🍳', label: 'Desayuno' },
-    comida: { icon: '🍽', label: 'Comida' },
-    merienda: { icon: '🥪', label: 'Merienda' },
-    cena: { icon: '🌙', label: 'Cena' },
-    post_entreno: { icon: '⚡', label: 'Post-entreno' },
-    pre_entreno: { icon: '🏋️', label: 'Pre-entreno' },
-    otros: { icon: '•', label: 'Otros' }
-  };
-
-  const mealIcon = (m)=>{
+  const prettyMeal = (m)=>{
     m = normalizeMealLabel(m);
-    return (MEAL_META[m]||MEAL_META.otros).icon;
+    if(m==='desayuno') return 'Desayuno';
+    if(m==='comida') return 'Comida';
+    if(m==='merienda') return 'Merienda';
+    if(m==='cena') return 'Cena';
+    if(m==='post_entreno') return 'Post-entreno';
+    if(m==='pre_entreno') return 'Pre-entreno';
+    return 'Otros';
   };
-
-  const prettyMealIcon = (m)=>{
-    m = normalizeMealLabel(m);
-    const meta = MEAL_META[m] || MEAL_META.otros;
-    return `${meta.icon} ${meta.label}`;
-  };
-
-  const prettyMealLabel = (m)=>{
-    m = normalizeMealLabel(m);
-    return (MEAL_META[m]||MEAL_META.otros).label;
-  };
-
-  const prettyMeal = (m)=> prettyMealLabel(m);
 
   const mealOrder = (m)=>{
     m = normalizeMealLabel(m);
@@ -2677,7 +2668,7 @@ window.addEventListener('error', function(e){
       sum.className='groupSummary';
       sum.innerHTML = `
         <div>
-          <b>${prettyMealIcon(mealKey)}</b><br>
+          <b>${prettyMeal(mealKey)}</b><br>
           <small><b>${round(tot.kcal)}</b> kcal · P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small>
         </div>
         <button class="miniBtn" type="button">+ Añadir</button>
@@ -2911,6 +2902,7 @@ window.addEventListener('error', function(e){
     $('trainTime').value = day.trainTime || '';
     $('wod').value = String(day.wod ?? 350);
     $('cardioKcal').value = day.cardioKcal ?? '';
+    updateDaySummaryCard();
     $('steps').value = day.steps ?? '';
     $('neatLevel').value = day.neatLevel ?? defaultNeatByMode(storedMode.modeKey);
 
@@ -3615,6 +3607,62 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
+
+  // Resumen en vivo: cuando cambias inputs, el resumen se actualiza sin guardar.
+  ['trainTime','wod','neatLevel','steps','cardioKcal'].forEach(id=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('input', updateDaySummaryCard);
+    el.addEventListener('change', updateDaySummaryCard);
+  });
+
+  // OCR UI
+  const openOCR = ()=>{ const m=$('ocrModal'); if(m) m.style.display='block'; };
+  const closeOCR = ()=>{ const m=$('ocrModal'); if(m) m.style.display='none'; };
+
+  const parseOCRText = (txt)=>{
+    const t = String(txt||'').toLowerCase().replace(/,/g,'.');
+    // patrones flexibles
+    const kcal = (t.match(/(\d+(?:\.\d+)?)\s*kcal/)||[])[1];
+    const p = (t.match(/prote(?:i|í)nas?\s*(\d+(?:\.\d+)?)/)||[])[1] || (t.match(/protein\s*(\d+(?:\.\d+)?)/)||[])[1];
+    const c = (t.match(/hidr(?:a|á)tos?\s*(\d+(?:\.\d+)?)/)||[])[1] || (t.match(/carbo(?:hidratos?)?\s*(\d+(?:\.\d+)?)/)||[])[1];
+    const f = (t.match(/grasas?\s*(\d+(?:\.\d+)?)/)||[])[1] || (t.match(/fat\s*(\d+(?:\.\d+)?)/)||[])[1];
+    return {kcal, p, c, f};
+  };
+
+  const btnOCR = $('openOCR');
+  if(btnOCR) btnOCR.addEventListener('click', openOCR);
+  const btnCloseOCR = $('closeOCR');
+  if(btnCloseOCR) btnCloseOCR.addEventListener('click', closeOCR);
+
+  const btnParse = $('parseOCR');
+  if(btnParse) btnParse.addEventListener('click', ()=>{
+    const txt = $('ocrText')?.value || '';
+    const r = parseOCRText(txt);
+    if(r.kcal) $('ocrKcal').value = r.kcal;
+    if(r.p) $('ocrP').value = r.p;
+    if(r.c) $('ocrC').value = r.c;
+    if(r.f) $('ocrF').value = r.f;
+  });
+
+  const btnFill = $('fillFoodEditor');
+  if(btnFill) btnFill.addEventListener('click', ()=>{
+    // Abre drawer alimentos y rellena formulario (guardar requiere DEV)
+    const kcal = $('ocrKcal')?.value || '';
+    const p = $('ocrP')?.value || '';
+    const c = $('ocrC')?.value || '';
+    const f = $('ocrF')?.value || '';
+    openDrawer();
+    setTimeout(()=>{
+      if($('f_kcal')) $('f_kcal').value = kcal;
+      if($('f_p')) $('f_p').value = p;
+      if($('f_c')) $('f_c').value = c;
+      if($('f_f')) $('f_f').value = f;
+      alert('Valores OCR copiados al editor. Revisa nombre/id y guarda (DEV).');
+    }, 150);
+    closeOCR();
+  });
+
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
@@ -3661,125 +3709,6 @@ function freezeDayIfNeeded(dateKey, summary){
 // ===== End Ledger System =====
 
 
-
-/* ===== Service Worker (GitHub Pages) ===== */
-(function(){
-  const swBadge = document.getElementById('swBadge');
-  function setSwBadge(txt) {
-    if(!swBadge) return;
-    swBadge.style.display = 'block';
-    swBadge.textContent = txt;
-  }
-  if (!('serviceWorker' in navigator)) {
-    setSwBadge('SW: no soportado');
-    return;
-  }
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
-      setSwBadge('SW: registrado');
-      // Forzar actualización si hay nueva versión
-      reg.update();
-      // Mostrar estado
-      if (reg.waiting) setSwBadge('SW: update pendiente');
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        setSwBadge('SW: actualizado');
-      });
-    } catch (e) {
-      setSwBadge('SW: error');
-      console.warn('SW register error', e);
-    }
-  });
-})();
-
-
-/* ===== Ajustes del día (bloque separado): resumen + auto-NEAT por pasos ===== */
-(function(){
-  const $ = (id) => document.getElementById(id);
-
-  function neatBandFromSteps(steps){
-    if(!Number.isFinite(steps) || steps <= 0) return null;
-    if(steps < 6000) return "low";
-    if(steps < 10000) return "med";
-    return "high";
-  }
-  function neatLabel(val){
-    if(val === "low") return "Bajo";
-    if(val === "med") return "Medio";
-    if(val === "high") return "Alto";
-    return "—";
-  }
-  function wodLabel(raw){
-    const v = (raw ?? "").toString();
-    if(v.includes("+")) return v.replace("Normal (", "").replace(")", "");
-    if(v === "0") return "Sin";
-    return v || "—";
-  }
-
-  function syncNeatFromSteps(){
-    const stepsEl = $("steps");
-    const neatEl = $("neatLevel");
-    const infoEl = $("neatInfo");
-    if(!stepsEl || !neatEl) return;
-
-    const steps = parseInt(stepsEl.value || "", 10);
-    const band = neatBandFromSteps(steps);
-    if(band){
-      neatEl.value = band;
-      if(infoEl){
-        infoEl.textContent = `Auto por pasos: ${steps.toLocaleString("es-ES")} → NEAT ${neatLabel(band)}.`;
-      }
-    }
-  }
-
-  function updateSummary(){
-    const tt = $("trainTime")?.value || "—";
-    if($("sumTrain")) $("sumTrain").textContent = tt;
-
-    const wod = $("wod")?.value;
-    if($("sumWod")) $("sumWod").textContent = wodLabel(wod);
-
-    const steps = parseInt($("steps")?.value || "", 10);
-    const neatSel = $("neatLevel")?.value;
-    const band = neatBandFromSteps(steps);
-    const neatTxt = band ? `${steps.toLocaleString("es-ES")} · ${neatLabel(band)}` : (neatSel ? neatLabel(neatSel) : "—");
-    if($("sumNeat")) $("sumNeat").textContent = neatTxt;
-
-    // PAL aplicado (ya aparece en una línea: "PAL aplicado: X · TMB: Y")
-    const palLine = document.querySelector(".palLine")?.textContent || document.querySelector("[data-pal-line]")?.textContent || "";
-    // fallback: buscar en el DOM el texto 'PAL aplicado'
-    let pal = "—";
-    const palNode = Array.from(document.querySelectorAll("div,span,p")).find(n => (n.textContent || "").includes("PAL aplicado"));
-    if(palNode){
-      const m = palNode.textContent.match(/PAL aplicado:\s*([0-9.]+)/);
-      if(m) pal = m[1];
-    }
-    if($("sumPal")) $("sumPal").textContent = pal;
-
-    const active = $("activeKcal")?.value;
-    if($("sumActive")) $("sumActive").textContent = active ? `${active} kcal` : "—";
-  }
-
-  // Eventos
-  ["steps","neatLevel","trainTime","wod","activeKcal"].forEach((id)=>{
-    const el = $(id);
-    if(!el) return;
-    el.addEventListener("input", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
-    el.addEventListener("change", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
-  });
-
-  // Arranque
-  syncNeatFromSteps();
-  updateSummary();
-
-  // Cerrar por defecto siempre
-  const det = $("dayAdjustDetails");
-  if(det) det.open = false;
-})();
-
 </script>
-
-  <div id="swBadge">SW: —</div>
-  <div id="buildBadge">BUILD r57c3</div>
 </body>
 </html>
