@@ -1,19 +1,15 @@
-/* Service Worker - MacroControl (r57c6)
-   Deploy: GitHub Pages
-   - HTML/JSON: Network-first (anti-caché iOS)
+/* Service Worker - MacroControl (r57c7)
+   GitHub Pages + iOS: anti-caché
+   - HTML/JSON: Network-first
    - Assets: Cache-first
 */
-
-const CACHE_NAME = "macrocontrol-r57c6";
-const CORE = [
-  "./",
-  "./index.html"
-];
+const CACHE_NAME = "macrocontrol-r57c7b";
+const CORE = ["./", "./index.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    try { await cache.addAll(CORE); } catch (e) {}
+    try { await cache.addAll(CORE); } catch(e) {}
     self.skipWaiting();
   })());
 });
@@ -29,22 +25,9 @@ self.addEventListener("activate", (event) => {
 function isHTML(req) {
   return req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html");
 }
-
-function isJSON(url) {
-  return url.pathname.endsWith(".json");
-}
-
+function isJSON(url) { return url.pathname.endsWith(".json"); }
 function isStatic(url) {
-  return (
-    url.pathname.endsWith(".js") ||
-    url.pathname.endsWith(".css") ||
-    url.pathname.endsWith(".png") ||
-    url.pathname.endsWith(".jpg") ||
-    url.pathname.endsWith(".jpeg") ||
-    url.pathname.endsWith(".webp") ||
-    url.pathname.endsWith(".svg") ||
-    url.pathname.endsWith(".ico")
-  );
+  return /\.(js|css|png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname);
 }
 
 async function networkFirst(request) {
@@ -59,7 +42,6 @@ async function networkFirst(request) {
     throw e;
   }
 }
-
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request, { ignoreSearch: true });
@@ -72,13 +54,11 @@ async function cacheFirst(request) {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
-
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
   if (isHTML(req)) return event.respondWith(networkFirst(req));
   if (isJSON(url)) return event.respondWith(networkFirst(req));
   if (isStatic(url)) return event.respondWith(cacheFirst(req));
-
   event.respondWith(networkFirst(req));
 });

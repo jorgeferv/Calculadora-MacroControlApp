@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-<title>MacroControl r57c6</title>
+<title>MacroControl r57c7b</title>
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -791,6 +791,19 @@ pan_cristal 2u"></textarea>
   </div>
 
 <script>
+function bindClick(id, handler){
+  const el = $(id);
+  if(!el) return false;
+  el.addEventListener('click', handler);
+  return true;
+}
+function bindOn(id, evt, handler){
+  const el = $(id);
+  if(!el) return false;
+  el.addEventListener(evt, handler);
+  return true;
+}
+
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
   try{
@@ -1983,8 +1996,10 @@ window.addEventListener('error', function(e){
     renderAll();
   bindStatsModal();
   };
-  $('tabDay').onclick=()=>setTab('day');
-  $('tabAdd').onclick=()=>setTab('add');
+  const __el_tabDay = $('tabDay');
+if (__el_tabDay) __el_tabDay.onclick = ()=>setTab('day');
+  const __el_tabAdd = $('tabAdd');
+if (__el_tabAdd) __el_tabAdd.onclick = ()=>setTab('add');
 
   // Drawer open/close
   const openDrawer=()=>{
@@ -1997,8 +2012,10 @@ window.addEventListener('error', function(e){
     $('drawerBack').style.display='none';
     document.body.style.overflow='';
   };
-  $('openFoods').onclick=openDrawer;
-  $('closeDrawer').onclick=closeDrawer;
+  const __el_openFoods = $('openFoods');
+if (__el_openFoods) __el_openFoods.onclick = openDrawer;
+  const __el_closeDrawer = $('closeDrawer');
+if (__el_closeDrawer) __el_closeDrawer.onclick = closeDrawer;
 
   // Buscador rápido (pantalla Día) -> filtra lista de alimentos en el drawer
   const openDrawerWithSearch = (q)=>{
@@ -2010,7 +2027,8 @@ window.addEventListener('error', function(e){
     setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
   };
 
-  $('globalFoodSearchBtn').onclick=()=> openDrawerWithSearch($('globalFoodSearch').value);
+  const __el_globalFoodSearchBtn = $('globalFoodSearchBtn');
+if (__el_globalFoodSearchBtn) __el_globalFoodSearchBtn.onclick = ()=> openDrawerWithSearch($('globalFoodSearch').value);
   $('globalFoodSearch').addEventListener('keydown',(e)=>{
     if(e.key==='Enter'){ e.preventDefault(); openDrawerWithSearch($('globalFoodSearch').value); }
   });
@@ -2025,7 +2043,8 @@ window.addEventListener('error', function(e){
     }
   };
 
-  $('toggleGlobalSearch').onclick=(e)=>{
+  const __el_toggleGlobalSearch = $('toggleGlobalSearch');
+if (__el_toggleGlobalSearch) __el_toggleGlobalSearch.onclick = (e)=>{
     e.preventDefault();
     const pop=$('globalSearchPop');
     const isOpen = pop?.getAttribute('aria-hidden')==='false';
@@ -2140,7 +2159,8 @@ window.addEventListener('error', function(e){
     renderAll();
   };
 
-  $('stageChipPill').onclick=()=>cycleLevelByChip();
+  const __el_stageChipPill = $('stageChipPill');
+if (__el_stageChipPill) __el_stageChipPill.onclick = ()=>cycleLevelByChip();
 
   // ======= RENDER FOODS (drawer + add tab) =======
   const renderFoodPicker=(foods)=>{
@@ -2950,7 +2970,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('saveProfile').onclick=()=>{
+  const __el_saveProfile = $('saveProfile');
+if (__el_saveProfile) __el_saveProfile.onclick = ()=>{
     const p = loadProfile();
 
     const next = {
@@ -2982,13 +3003,15 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('overrideStage').onclick=()=>{
+  const __el_overrideStage = $('overrideStage');
+if (__el_overrideStage) __el_overrideStage.onclick = ()=>{
     stageOverride = !stageOverride;
     alert(stageOverride ? 'Override etapa activado.' : 'Override etapa desactivado.');
     renderAll();
   };
 
-  $('saveStage').onclick=()=>{
+  const __el_saveStage = $('saveStage');
+if (__el_saveStage) __el_saveStage.onclick = ()=>{
     const stored=loadMode();
     const wantsChangeMode = modeDraft.modeKey !== stored.modeKey;
 
@@ -3010,7 +3033,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     alert('Objetivo sin cambios. El nivel diario se guarda al seleccionarlo.');
   };
 
-  $('panicBtn').onclick=()=>{
+  const __el_panicBtn = $('panicBtn');
+if (__el_panicBtn) __el_panicBtn.onclick = ()=>{
     const storedMode=loadMode();
     const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
 
@@ -3023,7 +3047,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('saveDay').onclick=()=>{
+  const __el_saveDay = $('saveDay');
+if (__el_saveDay) __el_saveDay.onclick = ()=>{
     const storedMode=loadMode();
     const {day:cur}=loadDaySettings(activeDayKey, storedMode.modeKey);
     const day={
@@ -3041,7 +3066,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
 
   $('foodSearch').addEventListener('input', ()=>renderAll());
   $('foodsSearch').addEventListener('input', ()=>renderAll());
-  $('clearFoodsSearch').onclick=()=>{
+  const __el_clearFoodsSearch = $('clearFoodsSearch');
+if (__el_clearFoodsSearch) __el_clearFoodsSearch.onclick = ()=>{
     $('foodsSearch').value='';
     renderAll();
   };
@@ -3059,7 +3085,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     });
   };
 
-  $('addItem').onclick=()=>{
+  const __el_addItem = $('addItem');
+if (__el_addItem) __el_addItem.onclick = ()=>{
     const foods=loadFoodsMerged();
     const f=foodById(foods,$('foodPick').value);
     const qtyType=$('qtyType').value;
@@ -3085,7 +3112,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('parseQuick').onclick=()=>{
+  const __el_parseQuick = $('parseQuick');
+if (__el_parseQuick) __el_parseQuick.onclick = ()=>{
     const txt=$('quickText').value.trim();
     if(!txt){ alert('Pega texto.'); return; }
 
@@ -3124,7 +3152,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('regenRec').onclick=()=>{
+  const __el_regenRec = $('regenRec');
+if (__el_regenRec) __el_regenRec.onclick = ()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
     const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
@@ -3146,7 +3175,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderRec(currentRec);
   };
 
-  $('addRecToLog').onclick=()=>{
+  const __el_addRecToLog = $('addRecToLog');
+if (__el_addRecToLog) __el_addRecToLog.onclick = ()=>{
     if(!currentRec){ alert('No hay recomendación.'); return; }
     const logs=loadLogs(activeDayKey).items;
 
@@ -3166,7 +3196,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('clearToday').onclick=()=>{
+  const __el_clearToday = $('clearToday');
+if (__el_clearToday) __el_clearToday.onclick = ()=>{
     if(confirm('¿Borrar todo HOY?')){
       saveLogs(activeDayKey, []);
       renderAll();
@@ -3174,7 +3205,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
   };
 
   // Macros OK
-  $('macrosOkGen').onclick=()=>{
+  const __el_macrosOkGen = $('macrosOkGen');
+if (__el_macrosOkGen) __el_macrosOkGen.onclick = ()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
     const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
@@ -3194,7 +3226,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderMacrosOk();
   };
 
-  $('macrosOkConfirm').onclick=()=>{
+  const __el_macrosOkConfirm = $('macrosOkConfirm');
+if (__el_macrosOkConfirm) __el_macrosOkConfirm.onclick = ()=>{
     if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
       alert('No hay sugerencia para confirmar.');
       return;
@@ -3220,7 +3253,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
   };
 
   // CRUD alimentos
-  $('saveFood').onclick=()=>{
+  const __el_saveFood = $('saveFood');
+if (__el_saveFood) __el_saveFood.onclick = ()=>{
     const id=$('f_id').value.trim();
     const name=$('f_name').value.trim();
     if(!id || !name){ alert('id y nombre obligatorios'); return; }
@@ -3248,7 +3282,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
 
   
   // Eliminar alimento (solo usuario) + ocultar/mostrar root (dev)
-  $('deleteFood').onclick=()=>{
+  const __el_deleteFood = $('deleteFood');
+if (__el_deleteFood) __el_deleteFood.onclick = ()=>{
     if(!isDev()){ alert('Bloqueado.'); return; }
     const id=$('f_id').value.trim();
     if(!id){ alert('Selecciona un alimento.'); return; }
@@ -3267,7 +3302,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     renderAll();
   };
 
-  $('toggleHideFood').onclick=()=>{
+  const __el_toggleHideFood = $('toggleHideFood');
+if (__el_toggleHideFood) __el_toggleHideFood.onclick = ()=>{
     if(!isDev()){ alert('Bloqueado.'); return; }
     const id=$('f_id').value.trim();
     if(!id){ alert('Selecciona un alimento.'); return; }
@@ -3283,7 +3319,8 @@ if (overrideBtn) overrideBtn.onclick = () => {
     alert(isHiddenId(id) ? 'Ocultado (root).' : 'Visible (root).');
     renderAll();
   };
-$('exportFoods').onclick=()=>{
+const __el_exportFoods = $('exportFoods');
+if (__el_exportFoods) __el_exportFoods.onclick = ()=>{
     const foods=loadFoodsMerged();
     const blob=new Blob([JSON.stringify(foods,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
@@ -3291,8 +3328,10 @@ $('exportFoods').onclick=()=>{
     URL.revokeObjectURL(url);
   };
 
-  $('importFoodsBtn').onclick=()=>$('importFoodsFile').click();
-  $('importFoodsFile').onchange=(ev)=>{
+  const __el_importFoodsBtn = $('importFoodsBtn');
+if (__el_importFoodsBtn) __el_importFoodsBtn.onclick = ()=>$('importFoodsFile').click();
+  const __el_change_importFoodsFile = $('importFoodsFile');
+if (__el_change_importFoodsFile) __el_change_importFoodsFile.onchange = (ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
     r.onload=()=>{
@@ -3316,7 +3355,8 @@ $('exportFoods').onclick=()=>{
   };
 
   // Rules Engine (DEV): import/export configuración de maridajes/caps
-  $('exportRules') && ($('exportRules').onclick=()=>{
+  $('exportRules') && (const __el_exportRules = $('exportRules');
+if (__el_exportRules) __el_exportRules.onclick = ()=>{
     try{
       const rules = loadJSON(LS.rulesEngine, null) || DEFAULT_RULES_ENGINE;
       const blob=new Blob([JSON.stringify(rules,null,2)],{type:'application/json'});
@@ -3326,8 +3366,10 @@ $('exportFoods').onclick=()=>{
     }catch(e){ alert('No se pudieron exportar las reglas.'); }
   });
 
-  $('importRulesBtn') && ($('importRulesBtn').onclick=()=>$('importRulesFile').click());
-  $('importRulesFile') && ($('importRulesFile').onchange=(ev)=>{
+  $('importRulesBtn') && (const __el_importRulesBtn = $('importRulesBtn');
+if (__el_importRulesBtn) __el_importRulesBtn.onclick = ()=>$('importRulesFile').click());
+  $('importRulesFile') && (const __el_change_importRulesFile = $('importRulesFile');
+if (__el_change_importRulesFile) __el_change_importRulesFile.onchange = (ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
     r.onload=()=>{
@@ -3345,7 +3387,8 @@ $('exportFoods').onclick=()=>{
     ev.target.value='';
   });
 
-  $('resetRules') && ($('resetRules').onclick=()=>{
+  $('resetRules') && (const __el_resetRules = $('resetRules');
+if (__el_resetRules) __el_resetRules.onclick = ()=>{
     if(!confirm('Restaurar reglas por defecto eliminará tu Rules Engine personalizado. ¿Continuar?')) return;
     localStorage.removeItem(LS.rulesEngine);
     alert('Rules Engine restaurado (por defecto).');
@@ -3373,7 +3416,8 @@ $('exportFoods').onclick=()=>{
     return `macrocontrol_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   };
 
-  $('exportBackup') && ($('exportBackup').onclick=()=>{
+  $('exportBackup') && (const __el_exportBackup = $('exportBackup');
+if (__el_exportBackup) __el_exportBackup.onclick = ()=>{
     try{
       const blob=new Blob([JSON.stringify(snapshotState(),null,2)],{type:'application/json'});
       const url=URL.createObjectURL(blob);
@@ -3382,12 +3426,14 @@ $('exportFoods').onclick=()=>{
     }catch(e){ alert('No se pudo exportar el backup.'); }
   });
 
-  $('makeBackupNow') && ($('makeBackupNow').onclick=()=>{
+  $('makeBackupNow') && (const __el_makeBackupNow = $('makeBackupNow');
+if (__el_makeBackupNow) __el_makeBackupNow.onclick = ()=>{
     saveBackupLast();
     alert('Copia guardada (local).');
   });
 
-  $('restoreLastBackup') && ($('restoreLastBackup').onclick=()=>{
+  $('restoreLastBackup') && (const __el_restoreLastBackup = $('restoreLastBackup');
+if (__el_restoreLastBackup) __el_restoreLastBackup.onclick = ()=>{
     try{
       const raw=localStorage.getItem(BACKUP_LAST_KEY);
       if(!raw) return alert('No hay backup local.');
@@ -3399,8 +3445,10 @@ $('exportFoods').onclick=()=>{
     }catch(e){ alert('No se pudo restaurar el backup.'); }
   });
 
-  $('importBackupBtn') && ($('importBackupBtn').onclick=()=>$('importBackupFile').click());
-  $('importBackupFile') && ($('importBackupFile').onchange=(ev)=>{
+  $('importBackupBtn') && (const __el_importBackupBtn = $('importBackupBtn');
+if (__el_importBackupBtn) __el_importBackupBtn.onclick = ()=>$('importBackupFile').click());
+  $('importBackupFile') && (const __el_change_importBackupFile = $('importBackupFile');
+if (__el_change_importBackupFile) __el_change_importBackupFile.onchange = (ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
     r.onload=()=>{
@@ -3551,7 +3599,8 @@ $('exportFoods').onclick=()=>{
   // Guardar recientes al añadir
   const _addItem = $('addItem')?.onclick;
   if(_addItem){
-    $('addItem').onclick=()=>{
+    const __el_addItem = $('addItem');
+if (__el_addItem) __el_addItem.onclick = ()=>{
       const foods=loadFoodsMerged();
       const f=foodById(foods,$('foodPick').value);
       _addItem();
@@ -3836,6 +3885,6 @@ function safeOnClick(id, fn){ const el = $(id); if(el) el.onclick = fn; }
 </script>
 
   <div id="swBadge">SW: —</div>
-  <div id="buildBadge">BUILD r57c6</div>
+  <div id="buildBadge">BUILD r57c7b</div>
 </body>
 </html>
