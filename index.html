@@ -101,7 +101,33 @@
     .groupWrap{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
     .miniBtn{width:auto;white-space:nowrap;padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);}
 
-    /* Macro status (P/C/F consumido) */
+    
+    /* Registro por bloques: cabecera más marcada y coherente */
+    details > summary.groupSummary{
+      list-style:none;
+    }
+    summary.groupSummary::-webkit-details-marker{display:none;}
+    .groupSummary{
+      position:relative;
+      padding:10px 12px;
+      background:#0b0e14;
+      border:1px solid #2a3242;
+    }
+    .groupSummary::before{
+      content:'';
+      position:absolute;left:0;top:0;bottom:0;width:4px;
+      border-radius:12px 0 0 12px;
+      background:rgba(122,162,255,0.35);
+    }
+    .groupWrap .item{
+      background:#0a0d12;
+      border:1px solid #242c3b;
+    }
+    .groupWrap .item b{font-size:15px;}
+    .delBtn{
+      border-radius:12px;
+    }
+/* Macro status (P/C/F consumido) */
     .macroBox.good{outline:2px solid rgba(0,255,120,.25);border-color:rgba(0,255,120,.35);}
     .macroBox.ok{outline:2px solid rgba(255,200,0,.18);border-color:rgba(255,200,0,.35);}
     .macroBox.bad{outline:2px solid rgba(255,70,70,.18);border-color:rgba(255,70,70,.35);}
@@ -199,9 +225,6 @@
 
     #foodsControlBox > summary{padding:2px 0;}
 
-    .subDetails{border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:10px;background:rgba(10,12,18,.25);}
-    .subDetails[open]{background:rgba(10,12,18,.35);}
-
 
     /* iOS anti-zoom on inputs */
     input, select, textarea, button { font-size:16px; }
@@ -213,7 +236,51 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
-</style>
+
+    /* Ajustes del día: plegable con resumen */
+    details#dayAdjustDetails { margin-top: 10px; }
+    details#dayAdjustDetails > summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+      border-radius: 16px;
+      padding: 12px 12px;
+    }
+    details#dayAdjustDetails > summary::-webkit-details-marker { display:none; }
+    .sumHead { display:block; }
+    .sumTitle {
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .sumGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    @media (min-width: 700px) {
+      .sumGrid { grid-template-columns: repeat(5, 1fr); }
+    }
+    .sumPill {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 14px;
+      padding: 10px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .sumPill b { color: var(--text); font-weight: 950; font-size: 12px; }
+
+  </style>
 </head>
 
 <body>
@@ -230,87 +297,66 @@
     <div class="drawer">
       <div class="drawerTop">
         <b id="drawerTitle">Alimentos</b><span id="devBadge" class="pill" style="display:none; margin-left:auto;">DEV</span>
-        <button class="iconBtn" id="drawerMenuBtn" type="button" title="Control">☰</button>
         <button class="iconBtn" id="closeDrawer" type="button">Cerrar</button>
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <details class="card" id="foodsControlBox" style="margin-bottom:12px;">
+      <details class="card" id="foodsControlBox" style="margin-bottom:12px;" >
   <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
     <b>Control</b>
-    <span class="muted">Herramientas</span>
+    <span class="muted">Importar/Exportar</span>
   </summary>
   <div style="margin-top:10px;">
 
-    <div id="devLockedHint" class="muted" style="margin-top:6px;">
-      Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.
-    </div>
-
-    <div id="devControlActions" style="display:none;">
-
-      <details class="subDetails" id="foodsJsonDetails">
-        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-          <b>JSON alimentos</b>
-          <span class="muted">Importar / exportar</span>
-        </summary>
-        <div style="margin-top:10px;">
-          <div class="seg">
-            <button id="exportFoods" type="button">Exportar</button>
-            <button id="importFoodsBtn" type="button">Importar</button>
+<div id="devLockedHint" class="muted" style="margin-top:6px;">Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.</div>
+<div id="devControlActions" style="display:none;">
+<div class="seg">
+          <button id="exportFoods" type="button">Exportar JSON</button>
+          <button id="importFoodsBtn" type="button">Importar JSON</button>
+        </div>
+        <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
+        <div class="muted" style="margin-top:8px;">
+          Consejo: exporta primero, edita el JSON en ordenador y reimporta.
+        </div>
+        <div id="devBackupBlock" style="margin-top:12px; display:none;">
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b>Backup rápido (DEV)</b>
+            <span class="muted">Estado completo</span>
           </div>
-          <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
+          <div class="seg">
+            <button id="exportBackup" type="button">Exportar backup</button>
+            <button id="importBackupBtn" type="button">Importar backup</button>
+          </div>
+          <div class="seg" style="margin-top:8px;">
+            <button id="restoreLastBackup" type="button">Restaurar último</button>
+            <button id="makeBackupNow" type="button">Guardar copia</button>
+          </div>
+          <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
           <div class="muted" style="margin-top:8px;">
-            Consejo: exporta primero, edita el JSON en ordenador y reimporta.
+            Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
           </div>
         </div>
-      </details>
 
-      <div id="devBackupBlock" style="margin-top:10px; display:none;">
-        <details class="subDetails" id="foodsBackupDetails">
-          <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-            <b>Backup rápido (DEV)</b>
-            <span class="muted">Copia completa</span>
-          </summary>
-          <div style="margin-top:10px;">
-            <div class="seg">
-              <button id="exportBackup" type="button">Exportar</button>
-              <button id="importBackupBtn" type="button">Importar</button>
-            </div>
-            <div class="seg" style="margin-top:8px;">
-              <button id="restoreLastBackup" type="button">Restaurar</button>
-              <button id="makeBackupNow" type="button">Guardar</button>
-            </div>
-            <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
-            <div class="muted" style="margin-top:8px;">
-              Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
-            </div>
-          </div>
-        </details>
-      </div>
-
-      <div id="devRulesBlock" style="margin-top:10px; display:none;">
-        <details class="subDetails" id="foodsRulesDetails">
-          <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+        <div id="devRulesBlock" style="margin-top:12px; display:none;">
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
             <b>Rules Engine (DEV)</b>
             <span class="muted">Maridajes & caps</span>
-          </summary>
-          <div style="margin-top:10px;">
-            <div class="seg">
-              <button id="exportRules" type="button">Exportar</button>
-              <button id="importRulesBtn" type="button">Importar</button>
-            </div>
-            <div class="seg" style="margin-top:8px;">
-              <button id="resetRules" type="button">Reset</button>
-            </div>
-            <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
-            <div class="muted" style="margin-top:8px;">
-              Consejo: exporta, edita el JSON y reimporta. Si el archivo es inválido, se ignora.
-            </div>
           </div>
-        </details>
-      </div>
-
-    </div>
+          <div class="seg">
+            <button id="exportRules" type="button">Exportar reglas</button>
+            <button id="importRulesBtn" type="button">Importar reglas</button>
+          </div>
+          <div class="seg" style="margin-top:8px;">
+            <button id="resetRules" type="button">Restaurar por defecto</button>
+          </div>
+          <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
+          <div class="muted" style="margin-top:8px;">
+            Consejo: exporta, edita el JSON y reimporta. Si el archivo es inválido, se ignora.
+          </div>
+        </div>
+</div>
   </div>
 </details>
       </div>
@@ -320,28 +366,14 @@
         <input id="f_id" placeholder="id (sin espacios)" />
         <input id="f_name" placeholder="Nombre" />
 
-        <div class="seg" style="margin-top:10px;">
-          <button id="ocrScanBtn" type="button" class="iconBtn" title="OCR (DEV)">📷 OCR etiqueta</button>
-          <button id="ocrKeyBtn" type="button" class="iconBtn" title="Configurar clave OCR">🔑 Clave</button>
-        </div>
-        <input id="ocrFile" type="file" accept="image/*" capture="environment" style="display:none;" />
-
-
         <label>Unidad base</label>
-        <!-- Selector interno (oculto): mantenemos compatibilidad del motor -->
-        <select id="f_baseUnit" style="display:none;">
+        <select id="f_baseUnit">
           <option value="100g" selected>por 100 g</option>
+          <option value="100ml" disabled>por 100 ml (legacy)</option>
           <option value="unit">por unidad</option>
         </select>
 
-        <!-- UI rápida: 2 botones (sin 'ml' legacy) -->
-        <div class="unitToggle">
-          <button id="unitBtnG" type="button" class="miniBtn active">g</button>
-          <button id="unitBtnU" type="button" class="miniBtn">unidades</button>
-          <span class="muted" style="margin-left:auto;">base</span>
-        </div>
-
-<label>Macros por unidad base</label>
+        <label>Macros por unidad base</label>
         <div class="stack">
           <input id="f_kcal" type="number" placeholder="kcal" />
           <input id="f_p" type="number" placeholder="P" />
@@ -454,7 +486,21 @@
           <summary>PERFIL DE COMPOSICIÓN CORPORAL</summary>
           <div class="two" style="margin-top:10px;">
             <div>
-              <label>Sexo</label>
+              <label>S
+        <!-- AJUSTES DEL DÍA (PLEGABLE) -->
+        <details id="dayAdjustDetails">
+          <summary class="sumHead">
+            <div class="sumTitle">Ajustes del día</div>
+            <div class="sumGrid" aria-label="Resumen ajustes del día">
+              <div class="sumPill"><span>⚖️ Peso</span><b id="sumWeight">—</b></div>
+              <div class="sumPill"><span>📉 Déficit</span><b id="sumDef7">—</b></div>
+              <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
+              <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
+              <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
+            </div>
+          </summary>
+
+exo</label>
               <select id="sex">
                 <option value="m" selected>Hombre</option>
                 <option value="f">Mujer</option>
@@ -595,6 +641,9 @@
             <div class="balScale muted"><span>-800</span><span>0</span><span>+800</span></div>
           </div>
 
+
+        </details>
+
 <div class="hr"></div>
 
         <div class="kpi">
@@ -655,14 +704,14 @@
   <section id="screen-add" style="display:none;">
     <div class="row">
       <div class="card">
-        <label>🍗 Comida</label>
+        <label>🍽 Comida</label>
         <select id="mealSlot">
-          <option value="desayuno">🥣 Desayuno</option>
-          <option value="comida" selected>🍗 Comida</option>
-          <option value="merienda">🍎 Merienda</option>
+          <option value="desayuno">🍳 Desayuno</option>
+          <option value="comida" selected>🍽 Comida</option>
+          <option value="merienda">🥪 Merienda</option>
           <option value="cena">🌙 Cena</option>
-          <option value="post_entreno">Post-entreno</option>
-          <option value="pre_entreno">Pre-entreno</option>
+          <option value="post_entreno">⚡ Post-entreno</option>
+          <option value="pre_entreno">🏋️ Pre-entreno</option>
         </select>
 
         <label>Buscar</label>
@@ -898,12 +947,6 @@ window.addEventListener('error', function(e){
     // Guardar alimento: solo dev
     const saveBtn = $('saveFood');
     if(saveBtn) saveBtn.disabled = !dev;
-
-    // OCR (DEV): visible solo en modo desarrollador
-    const ocrBtn = $('ocrScanBtn');
-    const ocrKeyBtn = $('ocrKeyBtn');
-    if(ocrBtn) ocrBtn.style.display = dev ? '' : 'none';
-    if(ocrKeyBtn) ocrKeyBtn.style.display = dev ? '' : 'none';
   };
 
   const promptDevUnlock = ()=>{
@@ -1392,16 +1435,33 @@ window.addEventListener('error', function(e){
     return m;
   };
 
-  const prettyMeal = (m)=>{
-    m = normalizeMealLabel(m);
-    if(m==='desayuno') return 'Desayuno';
-    if(m==='comida') return 'Comida';
-    if(m==='merienda') return 'Merienda';
-    if(m==='cena') return 'Cena';
-    if(m==='post_entreno') return 'Post-entreno';
-    if(m==='pre_entreno') return 'Pre-entreno';
-    return 'Otros';
+  const MEAL_META = {
+    desayuno: { icon: '🍳', label: 'Desayuno' },
+    comida: { icon: '🍽', label: 'Comida' },
+    merienda: { icon: '🥪', label: 'Merienda' },
+    cena: { icon: '🌙', label: 'Cena' },
+    post_entreno: { icon: '⚡', label: 'Post-entreno' },
+    pre_entreno: { icon: '🏋️', label: 'Pre-entreno' },
+    otros: { icon: '•', label: 'Otros' }
   };
+
+  const mealIcon = (m)=>{
+    m = normalizeMealLabel(m);
+    return (MEAL_META[m]||MEAL_META.otros).icon;
+  };
+
+  const prettyMealIcon = (m)=>{
+    m = normalizeMealLabel(m);
+    const meta = MEAL_META[m] || MEAL_META.otros;
+    return `${meta.icon} ${meta.label}`;
+  };
+
+  const prettyMealLabel = (m)=>{
+    m = normalizeMealLabel(m);
+    return (MEAL_META[m]||MEAL_META.otros).label;
+  };
+
+  const prettyMeal = (m)=> prettyMealLabel(m);
 
   const mealOrder = (m)=>{
     m = normalizeMealLabel(m);
@@ -1932,7 +1992,6 @@ window.addEventListener('error', function(e){
   // Drawer open/close
   const openDrawer=()=>{
     $('drawerBack').style.display='block';
-    try{ const d=$('foodsControlBox'); if(d) d.open=false; }catch(e){}
     document.body.style.overflow='hidden';
     // foco al buscador de lista
     setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
@@ -1943,101 +2002,6 @@ window.addEventListener('error', function(e){
   };
   $('openFoods').onclick=openDrawer;
   $('closeDrawer').onclick=closeDrawer;
-  const drawerMenuBtn = $('drawerMenuBtn');
-  if(drawerMenuBtn){
-    drawerMenuBtn.onclick = ()=>{
-      const d = $('foodsControlBox');
-      if(d) d.open = !d.open;
-    };
-  }
-
-  // Unidad base: UI rápida (g / unidades)
-  const syncUnitUI = ()=>{
-    const v = $('f_baseUnit')?.value || '100g';
-    const bg = $('unitBtnG'), bu = $('unitBtnU');
-    if(!bg || !bu) return;
-    bg.classList.toggle('active', v==='100g');
-    bu.classList.toggle('active', v==='unit');
-  };
-  const setBaseUnit = (v)=>{
-    const sel = $('f_baseUnit');
-    if(sel){ sel.value = v; }
-    syncUnitUI();
-  };
-  const bg = $('unitBtnG'), bu = $('unitBtnU');
-  if(bg) bg.onclick = ()=> setBaseUnit('100g');
-  if(bu) bu.onclick = ()=> setBaseUnit('unit');
-  syncUnitUI();
-
-  // OCR (DEV): captura foto -> Tesseract -> rellena macros (por 100g)
-  const OCR_KEY = 'mc_ocr_openai_key_v1'; // por si luego migras a OCR via API; hoy lo dejamos local con Tesseract
-  const ensureTesseract = ()=>{
-    return new Promise((resolve, reject)=>{
-      if(window.Tesseract) return resolve(window.Tesseract);
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-      s.onload = ()=> resolve(window.Tesseract);
-      s.onerror = ()=> reject(new Error('No se pudo cargar Tesseract'));
-      document.head.appendChild(s);
-    });
-  };
-  const parseNutrition = (raw)=>{
-    const t = String(raw||'').toLowerCase().replace(/\s+/g,' ');
-    const num = (re)=>{
-      const m = t.match(re);
-      if(!m) return null;
-      const v = m[1].replace(',', '.');
-      const f = parseFloat(v);
-      return Number.isFinite(f) ? f : null;
-    };
-    const kcal = num(/(kcal|energ[ií]a)\s*[:\-]?\s*(\d{2,4}[\.,]?\d*)/i) ?? num(/(\d{2,4}[\.,]?\d*)\s*kcal/i);
-    const fat  = num(/grasas?\s*[:\-]?\s*(\d+[\.,]?\d*)\s*g/i);
-    const carb = num(/(hidratos?|carbohidratos?)\s*(de\s*carbono)?\s*[:\-]?\s*(\d+[\.,]?\d*)\s*g/i) ?? num(/hidratos?\s*[:\-]?\s*(\d+[\.,]?\d*)\s*g/i);
-    const prot = num(/prote[ií]nas?\s*[:\-]?\s*(\d+[\.,]?\d*)\s*g/i);
-    return {kcal, prot, carb, fat};
-  };
-  const ocrBtn = $('ocrScanBtn');
-  const ocrKeyBtn = $('ocrKeyBtn');
-  const ocrFile = $('ocrFile'); 
-
-  if(ocrKeyBtn){
-    ocrKeyBtn.onclick = ()=>{
-      const cur = localStorage.getItem(OCR_KEY) || '';
-      const k = prompt('Clave OCR (opcional). Hoy no es necesaria: OCR local con Tesseract. Deja vacío.', cur);
-      if(k===null) return;
-      localStorage.setItem(OCR_KEY, String(k||'').trim());
-      alert('Guardado.');
-    };
-  }
-
-  if(ocrBtn && ocrFile){
-    ocrBtn.onclick = ()=>{
-      if(!isDev()){ alert('OCR solo en DEV'); return; }
-      ocrFile.value = '';
-      ocrFile.click();
-    };
-    ocrFile.onchange = async ()=>{
-      const file = ocrFile.files && ocrFile.files[0];
-      if(!file) return;
-      try{
-        const T = await ensureTesseract();
-        alert('OCR en curso… (puede tardar 5–15s)');
-        const res = await T.recognize(file, 'spa');
-        const parsed = parseNutrition(res?.data?.text || '');
-        // Forzamos base 100g (lo más común en etiquetas)
-        setBaseUnit('100g');
-        if(parsed.kcal!=null) $('f_kcal').value = parsed.kcal;
-        if(parsed.prot!=null) $('f_p').value = parsed.prot;
-        if(parsed.carb!=null) $('f_c').value = parsed.carb;
-        if(parsed.fat!=null) $('f_f').value = parsed.fat;
-        alert('OCR listo. Revisa valores y guarda.');
-      }catch(err){
-        console.error(err);
-        alert('OCR falló. Mejor luz, enfoque y que se vea “por 100 g”.');
-      }
-    };
-  }
-('closeDrawer').onclick=closeDrawer;
 
   // Buscador rápido (pantalla Día) -> filtra lista de alimentos en el drawer
   const openDrawerWithSearch = (q)=>{
@@ -2279,7 +2243,7 @@ window.addEventListener('error', function(e){
           }
           $('f_id').value=f.id;
           $('f_name').value=f.name;
-          $('f_baseUnit').value=f.baseUnit; try{ syncUnitUI(); }catch(e){}
+          $('f_baseUnit').value=f.baseUnit;
           $('f_kcal').value=f.kcal;
           $('f_p').value=f.p;
           $('f_c').value=f.c;
@@ -2666,7 +2630,7 @@ window.addEventListener('error', function(e){
       sum.className='groupSummary';
       sum.innerHTML = `
         <div>
-          <b>${prettyMeal(mealKey)}</b><br>
+          <b>${prettyMealIcon(mealKey)}</b><br>
           <small><b>${round(tot.kcal)}</b> kcal · P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small>
         </div>
         <button class="miniBtn" type="button">+ Añadir</button>
@@ -3649,6 +3613,98 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
+
+
+/* ===== Ajustes del día: resumen + auto-NEAT por pasos ===== */
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function neatBandFromSteps(steps){
+    if(!Number.isFinite(steps) || steps <= 0) return null;
+    if(steps < 6000) return "low";
+    if(steps < 10000) return "med";
+    return "high";
+  }
+  function neatLabel(val){
+    if(val === "low") return "Bajo";
+    if(val === "med") return "Medio";
+    if(val === "high") return "Alto";
+    return "—";
+  }
+  function wodLabel(val){
+    // match existing select values
+    if(val === "0") return "Sin";
+    if(val === "300") return "+300";
+    if(val === "350") return "+350";
+    if(val === "450") return "+450";
+    return val || "—";
+  }
+
+  function updateDayAdjustSummary(){
+    // Peso (del perfil)
+    const w = $("weightKg")?.value;
+    if($("sumWeight")) $("sumWeight").textContent = w ? `${w} kg` : "—";
+
+    // Déficit 7d (ya existe en la UI principal)
+    const def7 = $("def7Val")?.textContent?.trim();
+    if($("sumDef7")) $("sumDef7").textContent = def7 && def7 !== "—" ? def7 : "—";
+
+    // Hora entreno
+    const tt = $("trainTime")?.value;
+    if($("sumTrain")) $("sumTrain").textContent = tt ? tt : "—";
+
+    // WOD
+    const wod = $("wod")?.value;
+    if($("sumWod")) $("sumWod").textContent = wodLabel(wod);
+
+    // NEAT
+    const steps = parseInt($("steps")?.value || "", 10);
+    const neatSel = $("neatLevel")?.value;
+    const band = neatBandFromSteps(steps);
+    const label = band ? `${steps.toLocaleString("es-ES")} · ${neatLabel(band)}` : (neatSel ? neatLabel(neatSel) : "—");
+    if($("sumNeat")) $("sumNeat").textContent = label;
+  }
+
+  function syncNeatFromSteps(){
+    const stepsEl = $("steps");
+    const neatEl = $("neatLevel");
+    const infoEl = $("neatInfo");
+    if(!stepsEl || !neatEl) return;
+
+    const steps = parseInt(stepsEl.value || "", 10);
+    const band = neatBandFromSteps(steps);
+    if(band){
+      neatEl.value = band;
+      if(infoEl){
+        infoEl.textContent = `Estimación automática por pasos: ${steps.toLocaleString("es-ES")} → NEAT ${neatLabel(band)}.`;
+      }
+    } else {
+      if(infoEl && !infoEl.textContent) infoEl.textContent = "—";
+    }
+  }
+
+  // Eventos
+  ["steps","neatLevel","trainTime","wod","weightKg"].forEach((id)=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener("input", ()=>{
+      if(id === "steps") syncNeatFromSteps();
+      updateDayAdjustSummary();
+    });
+    el.addEventListener("change", ()=>{
+      if(id === "steps") syncNeatFromSteps();
+      updateDayAdjustSummary();
+    });
+  });
+
+  // Arranque
+  syncNeatFromSteps();
+  updateDayAdjustSummary();
+
+  // Cerrar por defecto siempre que se cargue (seguridad ante cache o restauración)
+  const det = $("dayAdjustDetails");
+  if(det) det.open = false;
+})();
 
 </script>
 </body>
