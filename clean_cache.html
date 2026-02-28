@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MacroControl · Limpieza Caché</title>
+<style>
+body{margin:0;background:#0b0c10;color:#e9ecf1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:20px}
+.card{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:16px;padding:20px}
+button{width:100%;padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,.15);background:#12141a;color:#fff;font-weight:800;font-size:16px}
+.ok{margin-top:14px;color:#7CFF9E;font-weight:800;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2>Reset completo de caché</h2>
+    <p>Esto elimina Service Workers y cachés del sitio para evitar mezcla de versiones.</p>
+    <button id="go">Limpiar y abrir la app</button>
+    <div id="ok" class="ok">Hecho. Abriendo…</div>
+  </div>
+</div>
+
+<script>
+(async function(){
+  const btn = document.getElementById('go');
+  const ok = document.getElementById('ok');
+
+  async function cleanAll(){
+    if ('serviceWorker' in navigator){
+      try{
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r=>r.unregister()));
+      }catch(e){}
+    }
+
+    if (window.caches){
+      try{
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k=>caches.delete(k)));
+      }catch(e){}
+    }
+  }
+
+  btn.addEventListener('click', async ()=>{
+    btn.disabled = true;
+    await cleanAll();
+    ok.style.display = 'block';
+    location.href = './index.html?reset=' + Date.now();
+  });
+})();
+</script>
+</body>
+</html>
