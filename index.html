@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-<title>MacroControl r57c7b</title>
+<title>MacroControl r57c3</title>
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -517,7 +517,57 @@
         <details id="dayAdjustDetails">
           <summary class="sumHead">
             <div class="sumTitle">Ajustes del día</div>
-            </summary>
+            <div class="sumGrid" aria-label="Resumen ajustes del día">
+              <div class="sumPill"><span>⚖️ Peso</span><b id="sumWeight">—</b></div>
+              <div class="sumPill"><span>📉 Déficit</span><b id="sumDef7">—</b></div>
+              <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
+              <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
+              <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
+            </div>
+          </summary>
+
+exo</label>
+              <select id="sex">
+                <option value="m" selected>Hombre</option>
+                <option value="f">Mujer</option>
+              </select>
+            </div>
+            <div>
+              <label>Edad</label>
+              <input id="age" type="number" inputmode="numeric" placeholder="35" />
+            </div>
+          </div>
+
+          <div class="two">
+            <div>
+              <label>Altura (cm)</label>
+              <input id="heightCm" type="number" inputmode="numeric" placeholder="175" />
+            </div>
+            <div>
+              <label>Peso (kg) <span id="weightLockHint" class="muted"></span></label>
+              <input id="weightKg" type="number" inputmode="decimal" placeholder="69" />
+              <div class="seg" style="margin-top:8px;">
+                <button id="overrideWeight" type="button">Override peso</button>
+                <button class="primary" id="saveProfile" type="button">Guardar perfil</button>
+              </div>
+              <div class="hint">El peso se bloquea 10 días tras actualizarlo (salvo override).</div>
+            </div>
+          </div>
+        </details>
+
+
+<!-- AJUSTES DEL DÍA (PLEGABLE SEPARADO DEL PERFIL) -->
+<details id="dayAdjustDetails" class="blkDetails">
+  <summary class="sumHead">
+    <div class="sumTitle">Ajustes del día</div>
+    <div class="sumGrid" aria-label="Resumen ajustes del día">
+      <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
+      <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
+      <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
+      <div class="sumPill"><span>PAL</span><b id="sumPal">—</b></div>
+      <div class="sumPill"><span>🔥 Activas</span><b id="sumActive">—</b></div>
+    </div>
+  </summary>
 
   <div class="hr"></div>
 
@@ -791,19 +841,6 @@ pan_cristal 2u"></textarea>
   </div>
 
 <script>
-function bindClick(id, handler){
-  const el = $(id);
-  if(!el) return false;
-  el.addEventListener('click', handler);
-  return true;
-}
-function bindOn(id, evt, handler){
-  const el = $(id);
-  if(!el) return false;
-  el.addEventListener(evt, handler);
-  return true;
-}
-
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
   try{
@@ -1996,10 +2033,8 @@ window.addEventListener('error', function(e){
     renderAll();
   bindStatsModal();
   };
-  const __el_tabDay = $('tabDay');
-if (__el_tabDay) __el_tabDay.onclick = ()=>setTab('day');
-  const __el_tabAdd = $('tabAdd');
-if (__el_tabAdd) __el_tabAdd.onclick = ()=>setTab('add');
+  $('tabDay').onclick=()=>setTab('day');
+  $('tabAdd').onclick=()=>setTab('add');
 
   // Drawer open/close
   const openDrawer=()=>{
@@ -2012,10 +2047,8 @@ if (__el_tabAdd) __el_tabAdd.onclick = ()=>setTab('add');
     $('drawerBack').style.display='none';
     document.body.style.overflow='';
   };
-  const __el_openFoods = $('openFoods');
-if (__el_openFoods) __el_openFoods.onclick = openDrawer;
-  const __el_closeDrawer = $('closeDrawer');
-if (__el_closeDrawer) __el_closeDrawer.onclick = closeDrawer;
+  $('openFoods').onclick=openDrawer;
+  $('closeDrawer').onclick=closeDrawer;
 
   // Buscador rápido (pantalla Día) -> filtra lista de alimentos en el drawer
   const openDrawerWithSearch = (q)=>{
@@ -2027,8 +2060,7 @@ if (__el_closeDrawer) __el_closeDrawer.onclick = closeDrawer;
     setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
   };
 
-  const __el_globalFoodSearchBtn = $('globalFoodSearchBtn');
-if (__el_globalFoodSearchBtn) __el_globalFoodSearchBtn.onclick = ()=> openDrawerWithSearch($('globalFoodSearch').value);
+  $('globalFoodSearchBtn').onclick=()=> openDrawerWithSearch($('globalFoodSearch').value);
   $('globalFoodSearch').addEventListener('keydown',(e)=>{
     if(e.key==='Enter'){ e.preventDefault(); openDrawerWithSearch($('globalFoodSearch').value); }
   });
@@ -2043,8 +2075,7 @@ if (__el_globalFoodSearchBtn) __el_globalFoodSearchBtn.onclick = ()=> openDrawer
     }
   };
 
-  const __el_toggleGlobalSearch = $('toggleGlobalSearch');
-if (__el_toggleGlobalSearch) __el_toggleGlobalSearch.onclick = (e)=>{
+  $('toggleGlobalSearch').onclick=(e)=>{
     e.preventDefault();
     const pop=$('globalSearchPop');
     const isOpen = pop?.getAttribute('aria-hidden')==='false';
@@ -2159,8 +2190,7 @@ if (__el_toggleGlobalSearch) __el_toggleGlobalSearch.onclick = (e)=>{
     renderAll();
   };
 
-  const __el_stageChipPill = $('stageChipPill');
-if (__el_stageChipPill) __el_stageChipPill.onclick = ()=>cycleLevelByChip();
+  $('stageChipPill').onclick=()=>cycleLevelByChip();
 
   // ======= RENDER FOODS (drawer + add tab) =======
   const renderFoodPicker=(foods)=>{
@@ -2963,15 +2993,13 @@ if (__el_stageChipPill) __el_stageChipPill.onclick = ()=>cycleLevelByChip();
   };
 
   // ======= ACTIONS =======
-  const overrideBtn = $('overrideWeight');
-if (overrideBtn) overrideBtn.onclick = () => {
+  $('overrideWeight').onclick=()=>{
     weightOverride = !weightOverride;
     alert(weightOverride ? 'Override peso activado.' : 'Override peso desactivado.');
     renderAll();
   };
 
-  const __el_saveProfile = $('saveProfile');
-if (__el_saveProfile) __el_saveProfile.onclick = ()=>{
+  $('saveProfile').onclick=()=>{
     const p = loadProfile();
 
     const next = {
@@ -3003,15 +3031,13 @@ if (__el_saveProfile) __el_saveProfile.onclick = ()=>{
     renderAll();
   };
 
-  const __el_overrideStage = $('overrideStage');
-if (__el_overrideStage) __el_overrideStage.onclick = ()=>{
+  $('overrideStage').onclick=()=>{
     stageOverride = !stageOverride;
     alert(stageOverride ? 'Override etapa activado.' : 'Override etapa desactivado.');
     renderAll();
   };
 
-  const __el_saveStage = $('saveStage');
-if (__el_saveStage) __el_saveStage.onclick = ()=>{
+  $('saveStage').onclick=()=>{
     const stored=loadMode();
     const wantsChangeMode = modeDraft.modeKey !== stored.modeKey;
 
@@ -3033,8 +3059,7 @@ if (__el_saveStage) __el_saveStage.onclick = ()=>{
     alert('Objetivo sin cambios. El nivel diario se guarda al seleccionarlo.');
   };
 
-  const __el_panicBtn = $('panicBtn');
-if (__el_panicBtn) __el_panicBtn.onclick = ()=>{
+  $('panicBtn').onclick=()=>{
     const storedMode=loadMode();
     const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
 
@@ -3047,8 +3072,7 @@ if (__el_panicBtn) __el_panicBtn.onclick = ()=>{
     renderAll();
   };
 
-  const __el_saveDay = $('saveDay');
-if (__el_saveDay) __el_saveDay.onclick = ()=>{
+  $('saveDay').onclick=()=>{
     const storedMode=loadMode();
     const {day:cur}=loadDaySettings(activeDayKey, storedMode.modeKey);
     const day={
@@ -3066,8 +3090,7 @@ if (__el_saveDay) __el_saveDay.onclick = ()=>{
 
   $('foodSearch').addEventListener('input', ()=>renderAll());
   $('foodsSearch').addEventListener('input', ()=>renderAll());
-  const __el_clearFoodsSearch = $('clearFoodsSearch');
-if (__el_clearFoodsSearch) __el_clearFoodsSearch.onclick = ()=>{
+  $('clearFoodsSearch').onclick=()=>{
     $('foodsSearch').value='';
     renderAll();
   };
@@ -3085,8 +3108,7 @@ if (__el_clearFoodsSearch) __el_clearFoodsSearch.onclick = ()=>{
     });
   };
 
-  const __el_addItem = $('addItem');
-if (__el_addItem) __el_addItem.onclick = ()=>{
+  $('addItem').onclick=()=>{
     const foods=loadFoodsMerged();
     const f=foodById(foods,$('foodPick').value);
     const qtyType=$('qtyType').value;
@@ -3112,8 +3134,7 @@ if (__el_addItem) __el_addItem.onclick = ()=>{
     renderAll();
   };
 
-  const __el_parseQuick = $('parseQuick');
-if (__el_parseQuick) __el_parseQuick.onclick = ()=>{
+  $('parseQuick').onclick=()=>{
     const txt=$('quickText').value.trim();
     if(!txt){ alert('Pega texto.'); return; }
 
@@ -3152,8 +3173,7 @@ if (__el_parseQuick) __el_parseQuick.onclick = ()=>{
     renderAll();
   };
 
-  const __el_regenRec = $('regenRec');
-if (__el_regenRec) __el_regenRec.onclick = ()=>{
+  $('regenRec').onclick=()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
     const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
@@ -3175,8 +3195,7 @@ if (__el_regenRec) __el_regenRec.onclick = ()=>{
     renderRec(currentRec);
   };
 
-  const __el_addRecToLog = $('addRecToLog');
-if (__el_addRecToLog) __el_addRecToLog.onclick = ()=>{
+  $('addRecToLog').onclick=()=>{
     if(!currentRec){ alert('No hay recomendación.'); return; }
     const logs=loadLogs(activeDayKey).items;
 
@@ -3196,8 +3215,7 @@ if (__el_addRecToLog) __el_addRecToLog.onclick = ()=>{
     renderAll();
   };
 
-  const __el_clearToday = $('clearToday');
-if (__el_clearToday) __el_clearToday.onclick = ()=>{
+  $('clearToday').onclick=()=>{
     if(confirm('¿Borrar todo HOY?')){
       saveLogs(activeDayKey, []);
       renderAll();
@@ -3205,8 +3223,7 @@ if (__el_clearToday) __el_clearToday.onclick = ()=>{
   };
 
   // Macros OK
-  const __el_macrosOkGen = $('macrosOkGen');
-if (__el_macrosOkGen) __el_macrosOkGen.onclick = ()=>{
+  $('macrosOkGen').onclick=()=>{
     const foods=loadFoodsMerged();
     const storedMode=loadMode();
     const {day}=loadDaySettings(activeDayKey, storedMode.modeKey);
@@ -3226,8 +3243,7 @@ if (__el_macrosOkGen) __el_macrosOkGen.onclick = ()=>{
     renderMacrosOk();
   };
 
-  const __el_macrosOkConfirm = $('macrosOkConfirm');
-if (__el_macrosOkConfirm) __el_macrosOkConfirm.onclick = ()=>{
+  $('macrosOkConfirm').onclick=()=>{
     if(!currentMacrosOk || !currentMacrosOk.items || !currentMacrosOk.items.length){
       alert('No hay sugerencia para confirmar.');
       return;
@@ -3253,8 +3269,7 @@ if (__el_macrosOkConfirm) __el_macrosOkConfirm.onclick = ()=>{
   };
 
   // CRUD alimentos
-  const __el_saveFood = $('saveFood');
-if (__el_saveFood) __el_saveFood.onclick = ()=>{
+  $('saveFood').onclick=()=>{
     const id=$('f_id').value.trim();
     const name=$('f_name').value.trim();
     if(!id || !name){ alert('id y nombre obligatorios'); return; }
@@ -3282,8 +3297,7 @@ if (__el_saveFood) __el_saveFood.onclick = ()=>{
 
   
   // Eliminar alimento (solo usuario) + ocultar/mostrar root (dev)
-  const __el_deleteFood = $('deleteFood');
-if (__el_deleteFood) __el_deleteFood.onclick = ()=>{
+  $('deleteFood').onclick=()=>{
     if(!isDev()){ alert('Bloqueado.'); return; }
     const id=$('f_id').value.trim();
     if(!id){ alert('Selecciona un alimento.'); return; }
@@ -3302,8 +3316,7 @@ if (__el_deleteFood) __el_deleteFood.onclick = ()=>{
     renderAll();
   };
 
-  const __el_toggleHideFood = $('toggleHideFood');
-if (__el_toggleHideFood) __el_toggleHideFood.onclick = ()=>{
+  $('toggleHideFood').onclick=()=>{
     if(!isDev()){ alert('Bloqueado.'); return; }
     const id=$('f_id').value.trim();
     if(!id){ alert('Selecciona un alimento.'); return; }
@@ -3319,8 +3332,7 @@ if (__el_toggleHideFood) __el_toggleHideFood.onclick = ()=>{
     alert(isHiddenId(id) ? 'Ocultado (root).' : 'Visible (root).');
     renderAll();
   };
-const __el_exportFoods = $('exportFoods');
-if (__el_exportFoods) __el_exportFoods.onclick = ()=>{
+$('exportFoods').onclick=()=>{
     const foods=loadFoodsMerged();
     const blob=new Blob([JSON.stringify(foods,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
@@ -3328,10 +3340,8 @@ if (__el_exportFoods) __el_exportFoods.onclick = ()=>{
     URL.revokeObjectURL(url);
   };
 
-  const __el_importFoodsBtn = $('importFoodsBtn');
-if (__el_importFoodsBtn) __el_importFoodsBtn.onclick = ()=>$('importFoodsFile').click();
-  const __el_change_importFoodsFile = $('importFoodsFile');
-if (__el_change_importFoodsFile) __el_change_importFoodsFile.onchange = (ev)=>{
+  $('importFoodsBtn').onclick=()=>$('importFoodsFile').click();
+  $('importFoodsFile').onchange=(ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
     r.onload=()=>{
@@ -3355,8 +3365,7 @@ if (__el_change_importFoodsFile) __el_change_importFoodsFile.onchange = (ev)=>{
   };
 
   // Rules Engine (DEV): import/export configuración de maridajes/caps
-  $('exportRules') && (const __el_exportRules = $('exportRules');
-if (__el_exportRules) __el_exportRules.onclick = ()=>{
+  $('exportRules') && ($('exportRules').onclick=()=>{
     try{
       const rules = loadJSON(LS.rulesEngine, null) || DEFAULT_RULES_ENGINE;
       const blob=new Blob([JSON.stringify(rules,null,2)],{type:'application/json'});
@@ -3366,10 +3375,8 @@ if (__el_exportRules) __el_exportRules.onclick = ()=>{
     }catch(e){ alert('No se pudieron exportar las reglas.'); }
   });
 
-  $('importRulesBtn') && (const __el_importRulesBtn = $('importRulesBtn');
-if (__el_importRulesBtn) __el_importRulesBtn.onclick = ()=>$('importRulesFile').click());
-  $('importRulesFile') && (const __el_change_importRulesFile = $('importRulesFile');
-if (__el_change_importRulesFile) __el_change_importRulesFile.onchange = (ev)=>{
+  $('importRulesBtn') && ($('importRulesBtn').onclick=()=>$('importRulesFile').click());
+  $('importRulesFile') && ($('importRulesFile').onchange=(ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
     r.onload=()=>{
@@ -3387,8 +3394,7 @@ if (__el_change_importRulesFile) __el_change_importRulesFile.onchange = (ev)=>{
     ev.target.value='';
   });
 
-  $('resetRules') && (const __el_resetRules = $('resetRules');
-if (__el_resetRules) __el_resetRules.onclick = ()=>{
+  $('resetRules') && ($('resetRules').onclick=()=>{
     if(!confirm('Restaurar reglas por defecto eliminará tu Rules Engine personalizado. ¿Continuar?')) return;
     localStorage.removeItem(LS.rulesEngine);
     alert('Rules Engine restaurado (por defecto).');
@@ -3416,8 +3422,7 @@ if (__el_resetRules) __el_resetRules.onclick = ()=>{
     return `macrocontrol_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   };
 
-  $('exportBackup') && (const __el_exportBackup = $('exportBackup');
-if (__el_exportBackup) __el_exportBackup.onclick = ()=>{
+  $('exportBackup') && ($('exportBackup').onclick=()=>{
     try{
       const blob=new Blob([JSON.stringify(snapshotState(),null,2)],{type:'application/json'});
       const url=URL.createObjectURL(blob);
@@ -3426,14 +3431,12 @@ if (__el_exportBackup) __el_exportBackup.onclick = ()=>{
     }catch(e){ alert('No se pudo exportar el backup.'); }
   });
 
-  $('makeBackupNow') && (const __el_makeBackupNow = $('makeBackupNow');
-if (__el_makeBackupNow) __el_makeBackupNow.onclick = ()=>{
+  $('makeBackupNow') && ($('makeBackupNow').onclick=()=>{
     saveBackupLast();
     alert('Copia guardada (local).');
   });
 
-  $('restoreLastBackup') && (const __el_restoreLastBackup = $('restoreLastBackup');
-if (__el_restoreLastBackup) __el_restoreLastBackup.onclick = ()=>{
+  $('restoreLastBackup') && ($('restoreLastBackup').onclick=()=>{
     try{
       const raw=localStorage.getItem(BACKUP_LAST_KEY);
       if(!raw) return alert('No hay backup local.');
@@ -3445,10 +3448,8 @@ if (__el_restoreLastBackup) __el_restoreLastBackup.onclick = ()=>{
     }catch(e){ alert('No se pudo restaurar el backup.'); }
   });
 
-  $('importBackupBtn') && (const __el_importBackupBtn = $('importBackupBtn');
-if (__el_importBackupBtn) __el_importBackupBtn.onclick = ()=>$('importBackupFile').click());
-  $('importBackupFile') && (const __el_change_importBackupFile = $('importBackupFile');
-if (__el_change_importBackupFile) __el_change_importBackupFile.onchange = (ev)=>{
+  $('importBackupBtn') && ($('importBackupBtn').onclick=()=>$('importBackupFile').click());
+  $('importBackupFile') && ($('importBackupFile').onchange=(ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
     r.onload=()=>{
@@ -3599,8 +3600,7 @@ if (__el_change_importBackupFile) __el_change_importBackupFile.onchange = (ev)=>
   // Guardar recientes al añadir
   const _addItem = $('addItem')?.onclick;
   if(_addItem){
-    const __el_addItem = $('addItem');
-if (__el_addItem) __el_addItem.onclick = ()=>{
+    $('addItem').onclick=()=>{
       const foods=loadFoodsMerged();
       const f=foodById(foods,$('foodPick').value);
       _addItem();
@@ -3777,114 +3777,9 @@ function freezeDayIfNeeded(dateKey, summary){
   if(det) det.open = false;
 })();
 
-
-/* ===== Ajustes del día: FIX resumen (actualiza siempre) ===== */
-(function(){
-  const $ = (id) => document.getElementById(id);
-
-  function neatBandFromSteps(steps){
-    if(!Number.isFinite(steps) || steps <= 0) return null;
-    if(steps < 6000) return "low";
-    if(steps < 10000) return "med";
-    return "high";
-  }
-  function neatLabel(val){
-    if(val === "low") return "Bajo";
-    if(val === "med") return "Medio";
-    if(val === "high") return "Alto";
-    return "—";
-  }
-  function wodLabel(val){
-    if(val === "0") return "Sin";
-    if(val === "300") return "+300";
-    if(val === "350") return "+350";
-    if(val === "450") return "+450";
-    return val || "—";
-  }
-
-  function syncNeatFromSteps(){
-    const stepsEl = $("steps");
-    const neatEl = $("neatLevel");
-    const infoEl = $("neatInfo");
-    if(!stepsEl || !neatEl) return;
-
-    const steps = parseInt(stepsEl.value || "", 10);
-    const band = neatBandFromSteps(steps);
-    if(band){
-      neatEl.value = band;
-      if(infoEl){
-        infoEl.textContent = `Auto por pasos: ${steps.toLocaleString("es-ES")} → NEAT ${neatLabel(band)}.`;
-      }
-    }
-  }
-
-  function updateSummary(){
-    // Peso (perfil)
-    const w = $("weightKg")?.value;
-    const sumW = $("sumWeight");
-    if(sumW) sumW.textContent = w ? `${w} kg` : "—";
-
-    // Déficit 7d (si existe en la UI)
-    const def7 = $("def7Val")?.textContent?.trim();
-    const sumD = $("sumDef7");
-    if(sumD) sumD.textContent = def7 && def7 !== "—" ? def7 : "—";
-
-    // Hora entreno
-    const tt = $("trainTime")?.value;
-    const sumT = $("sumTrain");
-    if(sumT) sumT.textContent = tt ? tt : "—";
-
-    // WOD
-    const wod = $("wod")?.value;
-    const sumWod = $("sumWod");
-    if(sumWod) sumWod.textContent = wodLabel(wod);
-
-    // NEAT
-    const steps = parseInt($("steps")?.value || "", 10);
-    const neatSel = $("neatLevel")?.value;
-    const band = neatBandFromSteps(steps);
-    const label = band ? `${steps.toLocaleString("es-ES")} · ${neatLabel(band)}` : (neatSel ? neatLabel(neatSel) : "—");
-    const sumN = $("sumNeat");
-    if(sumN) sumN.textContent = label;
-  }
-
-  // Listeners
-  ["steps","neatLevel","trainTime","wod","weightKg"].forEach((id)=>{
-    const el = $(id);
-    if(!el) return;
-    el.addEventListener("input", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
-    el.addEventListener("change", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
-  });
-
-  // Reforzar tras guardar
-  const saveBtn = $("saveDay");
-  if(saveBtn){
-    saveBtn.addEventListener("click", ()=>{
-      setTimeout(()=>{ syncNeatFromSteps(); updateSummary(); }, 50);
-      setTimeout(()=>{ syncNeatFromSteps(); updateSummary(); }, 250);
-    });
-  }
-
-  // Reforzar en arranque (hidratación / carga de localStorage)
-  let n = 0;
-  const timer = setInterval(()=>{
-    syncNeatFromSteps();
-    updateSummary();
-    n++;
-    if(n >= 10) clearInterval(timer);
-  }, 200);
-
-  // Cerrar por defecto siempre
-  const det = $("dayAdjustDetails");
-  if(det) det.open = false;
-})();
-
-
-function safeOnClick(id, fn){ const el = $(id); if(el) el.onclick = fn; }
-
 </script>
 
   <div id="swBadge">SW: —</div>
-  <div id="buildBadge">BUILD r57c7b</div>
+  <div id="buildBadge">BUILD r57c3</div>
 </body>
 </html>
