@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-<title>MacroControl r57c3</title>
+<title>MacroControl r57c6</title>
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2943,7 +2943,8 @@ window.addEventListener('error', function(e){
   };
 
   // ======= ACTIONS =======
-  $('overrideWeight').onclick=()=>{
+  const overrideBtn = $('overrideWeight');
+if (overrideBtn) overrideBtn.onclick = () => {
     weightOverride = !weightOverride;
     alert(weightOverride ? 'Override peso activado.' : 'Override peso desactivado.');
     renderAll();
@@ -3829,9 +3830,12 @@ function freezeDayIfNeeded(dateKey, summary){
   if(det) det.open = false;
 })();
 
+
+function safeOnClick(id, fn){ const el = $(id); if(el) el.onclick = fn; }
+
 </script>
 
   <div id="swBadge">SW: —</div>
-  <div id="buildBadge">BUILD r57c3</div>
+  <div id="buildBadge">BUILD r57c6</div>
 </body>
 </html>

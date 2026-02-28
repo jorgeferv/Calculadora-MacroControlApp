@@ -1,11 +1,10 @@
-/* Service Worker - MacroControl (r57c3)
+/* Service Worker - MacroControl (r57c6)
    Deploy: GitHub Pages
-   Estrategia anti-caché iOS:
-   - HTML/JSON: Network-first
-   - Assets estáticos: Cache-first
+   - HTML/JSON: Network-first (anti-caché iOS)
+   - Assets: Cache-first
 */
 
-const CACHE_NAME = "macrocontrol-r57c3";
+const CACHE_NAME = "macrocontrol-r57c6";
 const CORE = [
   "./",
   "./index.html"
@@ -14,11 +13,7 @@ const CORE = [
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    try {
-      await cache.addAll(CORE);
-    } catch (e) {
-      // No bloquea instalación si falta algún recurso
-    }
+    try { await cache.addAll(CORE); } catch (e) {}
     self.skipWaiting();
   })());
 });
@@ -81,17 +76,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  if (isHTML(req)) {
-    event.respondWith(networkFirst(req));
-    return;
-  }
-  if (isJSON(url)) {
-    event.respondWith(networkFirst(req));
-    return;
-  }
-  if (isStatic(url)) {
-    event.respondWith(cacheFirst(req));
-    return;
-  }
+  if (isHTML(req)) return event.respondWith(networkFirst(req));
+  if (isJSON(url)) return event.respondWith(networkFirst(req));
+  if (isStatic(url)) return event.respondWith(cacheFirst(req));
+
   event.respondWith(networkFirst(req));
 });
