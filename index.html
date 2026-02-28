@@ -2356,7 +2356,7 @@ window.addEventListener('error', function(e){
     renderMacroBars(goal,eaten);
     renderBalanceBar(goal.goalKcal||goal.tdee||0, Number(eaten.kcal)||0);
     updateAddStatusBar(goal,eaten);
-      updateDaySummaryCard();
+      window.updateDaySummaryCard?.();
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
@@ -3389,7 +3389,7 @@ $('exportFoods').onclick=()=>{
     return neat==='low' ? 'Bajo' : (neat==='med' ? 'Medio' : 'Alto');
   }
 
-  function updateDaySummaryCard(){
+  window.updateDaySummaryCard = function(){
     try{
       const modeStored = loadMode();
       const profile = loadProfile();
@@ -3435,8 +3435,8 @@ $('exportFoods').onclick=()=>{
   ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach(id=>{
     const el=$(id);
     if(!el) return;
-    el.addEventListener('input', updateDaySummaryCard);
-    el.addEventListener('change', updateDaySummaryCard);
+    el.addEventListener('input', window.updateDaySummaryCard);
+    el.addEventListener('change', window.updateDaySummaryCard);
   });
 
   // =========================
