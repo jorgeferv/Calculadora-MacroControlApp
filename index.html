@@ -210,6 +210,8 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
+
+    .pop.open{display:block;}
 </style>
 </head>
 
@@ -376,7 +378,7 @@
           <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
           <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
           <button class="iconBtn" id="openStatsTop" type="button" title="Estadísticas">📊</button>
-          <button class="iconBtn" id="openOCR" type="button" title="OCR">📷</button>
+          <button class="iconBtn" id="openOcrTop" type="button" title="OCR">📷</button>
         </div>
 
         <div id="globalSearchPop" class="pop" aria-hidden="true">
@@ -410,7 +412,34 @@
           <div class="hint">Tip: toca el chip “Objetivo” arriba para alternar Suave/Medio/Agresivo.</div>
         </details>
 
-        <div class="hr"></div>
+        
+        <div id="ocrPop" class="pop" aria-hidden="true">
+          <div class="popInner">
+            <div class="row" style="align-items:center;justify-content:space-between;">
+              <b>📷 OCR (cámara/galería)</b>
+              <button type="button" class="miniBtn" id="closeOcrPop" style="width:auto;padding:8px 12px;">Cerrar</button>
+            </div>
+            <div class="muted" style="margin-top:8px;">
+              Selecciona una foto de la etiqueta. En iPhone, usa <b>Texto en vivo</b> para copiar el texto y pégalo abajo.
+            </div>
+
+            <input id="ocrImage" type="file" accept="image/*" capture="environment" style="display:none;" />
+            <div class="seg" style="margin-top:10px;">
+              <button type="button" class="primary" id="pickOcrImage">Abrir cámara / galería</button>
+            </div>
+
+            <img id="ocrPreview" alt="" style="width:100%;max-height:240px;object-fit:contain;border-radius:12px;border:1px solid var(--line);margin-top:10px;display:none;" />
+
+            <label style="margin-top:10px;">Pega aquí el texto copiado</label>
+            <textarea id="ocrText" placeholder="Ej: por 100g: 250 kcal, grasas 10g, hidratos 30g, proteínas 12g"></textarea>
+
+            <div class="seg" style="margin-top:10px;">
+              <button type="button" id="ocrParse" class="primary">Analizar y pasar a “Añadir”</button>
+            </div>
+            <div class="muted" id="ocrResult" style="margin-top:8px;">—</div>
+          </div>
+        </div>
+<div class="hr"></div>
 
         <!-- PERFIL -->
         <details id="profileBox">
@@ -444,37 +473,34 @@
               <div class="hint">El peso se bloquea 10 días tras actualizarlo (salvo override).</div>
             </div>
           </div>
+        </details>
+
+        <div class="hr"></div>
+
         
-</details>
-
-        <div class="hr"></div>
-
-        <!-- AJUSTES DEL DÍA (RESUMEN) -->
-        <div class="card" id="daySummaryCard" style="margin-top:12px;">
-          <div class="row" style="align-items:center;justify-content:space-between;">
-            <b>🧾 Ajustes del día</b>
-            <span class="muted" id="daySummaryLine">—</span>
-          </div>
-          <div class="kpi" style="margin-top:10px;">
-            <div class="box"><div class="num" id="sumTrain">—</div><div class="lbl">Entreno</div></div>
-            <div class="box"><div class="num" id="sumWod">—</div><div class="lbl">WOD</div></div>
-            <div class="box"><div class="num" id="sumNeat">—</div><div class="lbl">NEAT</div></div>
-            <div class="box"><div class="num" id="sumPal">—</div><div class="lbl">PAL</div></div>
-            <div class="box"><div class="num" id="sumAct">—</div><div class="lbl">Activas</div></div>
-            <div class="box"><div class="num" id="sumGoal">—</div><div class="lbl">Objetivo</div></div>
-          </div>
+      <div class="card" id="daySummaryCard">
+        <div class="row" style="align-items:center;justify-content:space-between;gap:12px;">
+          <b>🧾 Ajustes del día</b>
+          <div class="muted" id="dayAdjustSummary" style="text-align:right;">—</div>
         </div>
+        <div class="kpi" style="margin-top:10px;">
+          <div class="box"><div class="num" id="sumTrain">—</div><div class="lbl">⏰ Entreno</div></div>
+          <div class="box"><div class="num" id="sumWod">—</div><div class="lbl">🏋️ WOD</div></div>
+          <div class="box"><div class="num" id="sumNeat">—</div><div class="lbl">🚶 NEAT</div></div>
+          <div class="box"><div class="num" id="sumPal">—</div><div class="lbl">PAL</div></div>
+          <div class="box"><div class="num" id="sumAct">—</div><div class="lbl">🔥 Activas</div></div>
+          <div class="box"><div class="num" id="sumGoal">—</div><div class="lbl">🎯 Objetivo</div></div>
+        </div>
+        <div class="muted" id="daySummaryLine" style="margin-top:8px;">—</div>
+      </div>
 
-        <div class="hr"></div>
-
-
-        <details id="dayAdjustDetails" open>
-          <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-            <span>⚙️ Ajustes del día</span>
-            <span class="pill"><b id="dayAdjustSummary">—</b></span>
-          </summary>
-        <!-- NEAT -->
-
+      <details class="card" id="dayAdjustDetails" style="margin-top:12px;">
+        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <b>⚙️ Ajustes del día (editar)</b>
+          <span class="muted">Tocar para abrir/cerrar</span>
+        </summary>
+        <div style="margin-top:10px;">
+<!-- NEAT -->
         <label>NEAT diario</label>
         <div class="two">
           <div>
@@ -524,11 +550,12 @@
           <button class="danger" id="panicBtn" type="button" title="Aplica déficit fijo de emergencia">Pánico</button>
         </div>
         <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).</div>
-        </details>
+        </div>
+      </details>
 
       </div>
 
-      <div class="card">
+<div class="card">
         <div class="status" id="dayStatusBox">
           <div class="badge" id="dayStatusBadge"><span class="dot ok"></span> Estado del día: —</div>
           <button id="openStats" type="button" class="delBtn" style="position:absolute;top:12px;right:12px;" title="Ver estadísticas">📊</button>
@@ -726,37 +753,6 @@ pan_cristal 2u"></textarea>
       <div class="status" id="statDevBox">
         <div class="badge"><span class="dot ok" id="statDevDot"></span> Corrección</div>
         <div class="muted" id="statDevText" style="margin-top:6px;">—</div>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- OCR (captura + pegado texto) -->
-  <div id="ocrModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
-    <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
-      <button id="closeOCR" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
-      <h2 style="margin:0 0 8px;font-size:16px;">OCR nutricional</h2>
-      <div class="muted" style="margin-bottom:10px;">
-        En iPhone: haz foto del etiquetado → usa “Texto en vivo” → copia y pega aquí.
-      </div>
-
-      <label>id (sin espacios)</label>
-      <input id="ocrFoodId" placeholder="ej: yogur_proteico" />
-
-      <label>Nombre</label>
-      <input id="ocrFoodName" placeholder="ej: Yogur proteico" />
-
-      <label>Texto pegado (tabla nutricional)</label>
-      <textarea id="ocrText" placeholder="Pega aquí kcal, proteínas, hidratos, grasas..."></textarea>
-
-      <div class="seg" style="margin-top:10px;">
-        <button id="parseOCR" type="button">Analizar</button>
-        <button class="success" id="saveOCRFood" type="button">Guardar alimento</button>
-      </div>
-
-      <div class="status" id="ocrStatusBox" style="margin-top:12px;">
-        <div class="badge"><span class="dot ok"></span> Resultado</div>
-        <div class="muted" id="ocrResult" style="margin-top:6px;">—</div>
       </div>
     </div>
   </div>
@@ -1373,7 +1369,66 @@ window.addEventListener('error', function(e){
     const carbs = Math.floor(carbKcal/4);
 
     return {tdee, goalKcal:round(goalKcal), p:pTarget, c:carbs, f:fat};
+  
+  // ======= RESUMEN AJUSTES DEL DÍA (robusto, sin romper botones) =======
+  window._labelNeat = (neat)=>{
+    if(neat==='low') return 'Baja';
+    if(neat==='med') return 'Media';
+    return 'Alta';
   };
+
+  window.updateDaySummaryCard = function updateDaySummaryCard(){
+    try{
+      const modeStored = loadMode();
+      const profile = loadProfile();
+
+      // Asegurar settings para el día
+      ensureDaySettings(activeDayKey, modeStored.modeKey);
+      const all = loadJSON(LS.settings,{});
+      const saved = all[activeDayKey] || {};
+
+      // Leer UI si existe (previsualización en vivo)
+      const uiTrain = $('trainTime')?.value ?? '';
+      const uiWod = Number($('wod')?.value ?? NaN);
+      const uiNeat = $('neatLevel')?.value ?? '';
+      const uiCardioRaw = Number($('cardioKcal')?.value ?? NaN);
+
+      const trainTime = uiTrain || saved.trainTime || '';
+      const wod = Number.isFinite(uiWod) ? uiWod : Number(saved.wod||0);
+      const neat = (uiNeat || saved.neatLevel || defaultNeatByMode(modeStored.modeKey) || 'high');
+      const cardioRaw = Number.isFinite(uiCardioRaw) ? uiCardioRaw : Number(saved.cardioKcal||0);
+
+      const pal = PAL[neat] || PAL.high;
+      const cardioReal = round((Number(cardioRaw)||0) * (1 - CARDIO_DISCOUNT));
+      const goalObj = computeGoal(profile, { ...saved, trainTime, wod, neatLevel: neat, cardioKcal: cardioRaw }, modeStored);
+
+      // Pintar tarjeta
+      if($('sumTrain')) $('sumTrain').textContent = trainTime ? trainTime : '—';
+      if($('sumWod')) $('sumWod').textContent = wod ? String(wod) : '—';
+      if($('sumNeat')) $('sumNeat').textContent = window._labelNeat(neat);
+      if($('sumPal')) $('sumPal').textContent = pal.toFixed(2);
+      if($('sumAct')) $('sumAct').textContent = (cardioRaw ? `${cardioReal}` : '—');
+      if($('sumGoal')) $('sumGoal').textContent = (goalObj?.goalKcal ? String(goalObj.goalKcal) : '—');
+
+      if($('daySummaryLine')){
+        $('daySummaryLine').textContent =
+          `${trainTime?('⏰ '+trainTime):'⏰ —'} · WOD ${wod||'—'} · NEAT ${window._labelNeat(neat)} (PAL ${pal.toFixed(2)}) · Act ${cardioRaw?cardioReal:'—'} · Obj ${goalObj?.goalKcal ?? '—'}`;
+      }
+
+      if($('dayAdjustSummary')){
+        $('dayAdjustSummary').textContent =
+          `${trainTime||'—'} · WOD ${wod||'—'} · ${window._labelNeat(neat)} · PAL ${pal.toFixed(2)} · Act ${cardioRaw?cardioReal:'—'} · Obj ${goalObj?.goalKcal ?? '—'}`;
+      }
+
+      // Texto existente bajo NEAT
+      if($('neatInfo')){
+        const bmr = computeBMR(profile);
+        $('neatInfo').textContent = `PAL aplicado: ${pal} · TMB: ${bmr} kcal · Activas real: ${cardioRaw?cardioReal:'—'} kcal`;
+      }
+    }catch(_){}
+  };
+
+};
 
   // ======= CONTEXTO =======
   const timeContext=(trainTime)=>{
@@ -1410,14 +1465,13 @@ window.addEventListener('error', function(e){
 
   const prettyMeal = (m)=>{
     m = normalizeMealLabel(m);
-    // Iconos (UI legacy): ayudan a lectura rápida en el registro
-    if(m==='desayuno') return '🍳 Desayuno';
-    if(m==='comida') return '🍽️ Comida';
+    if(m==='desayuno') return '🥣 Desayuno';
+    if(m==='comida') return '🍗 Comida';
     if(m==='merienda') return '🍎 Merienda';
     if(m==='cena') return '🌙 Cena';
-    if(m==='post_entreno') return '💪 Post-entreno';
-    if(m==='pre_entreno') return '⚡ Pre-entreno';
-    return '🧩 Otros';
+    if(m==='post_entreno') return 'Post-entreno';
+    if(m==='pre_entreno') return 'Pre-entreno';
+    return 'Otros';
   };
 
   const mealOrder = (m)=>{
@@ -2357,7 +2411,6 @@ window.addEventListener('error', function(e){
     renderMacroBars(goal,eaten);
     renderBalanceBar(goal.goalKcal||goal.tdee||0, Number(eaten.kcal)||0);
     updateAddStatusBar(goal,eaten);
-      window.updateDaySummaryCard?.();
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
@@ -2828,6 +2881,7 @@ window.addEventListener('error', function(e){
     const pal = PAL[$('neatLevel').value] || PAL.high;
     const bmr = computeBMR(profile);
     $('neatInfo').textContent = `PAL aplicado: ${pal} · TMB: ${bmr} kcal`;
+    window.updateDaySummaryCard?.();
 
     // Pánico (estado visual)
     $('panicBtn').textContent = day.panicOn ? 'Pánico (ON)' : 'Pánico';
@@ -3382,125 +3436,6 @@ $('exportFoods').onclick=()=>{
   function bindStatsModal(){
     const openBtn = $('openStats');
     const openBtnTop = $('openStatsTop');
-
-  // =========================
-  // AJUSTES DEL DÍA: RESUMEN (siempre visible) + desplegable
-  // =========================
-  function _labelNeat(neat){
-    return neat==='low' ? 'Bajo' : (neat==='med' ? 'Medio' : 'Alto');
-  }
-
-  window.updateDaySummaryCard = function(){
-    try{
-      const modeStored = loadMode();
-      const profile = loadProfile();
-
-      // Valores "en vivo" desde inputs (si existen)
-      const uiTrain = $('trainTime')?.value || '';
-      const uiWod = Number($('wod')?.value || 0);
-      const uiNeat = $('neatLevel')?.value || 'high';
-      const uiCardioRaw = Number($('cardioKcal')?.value || 0);
-
-      // Valores guardados (fallback)
-      const all = loadJSON(LS.settings,{});
-      const saved = all[activeDayKey] || ensureDaySettings(activeDayKey, modeStored.modeKey);
-
-      const trainTime = uiTrain || saved.trainTime || '';
-      const wod = Number.isFinite(uiWod) ? uiWod : (Number(saved.wod)||0);
-      const neat = uiNeat || saved.neatLevel || 'high';
-      const cardioRaw = Number.isFinite(uiCardioRaw) ? uiCardioRaw : (Number(saved.cardioKcal)||0);
-
-      const pal = PAL[neat] || PAL.high;
-      const cardioReal = round((Number(cardioRaw)||0) * (1 - CARDIO_DISCOUNT));
-      const goal = computeGoal(profile, { ...saved, trainTime, wod, neatLevel:neat, cardioKcal:cardioRaw }, modeStored);
-
-      // Pintar tarjeta resumen
-      $('sumTrain').textContent = trainTime ? trainTime : '—';
-      $('sumWod').textContent = wod ? String(wod) : '—';
-      $('sumNeat').textContent = _labelNeat(neat);
-      $('sumPal').textContent = pal.toFixed(2);
-      $('sumAct').textContent = cardioRaw ? `${cardioReal}` : '—';
-      $('sumGoal').textContent = goal?.goalKcal ? `${goal.goalKcal}` : '—';
-
-      $('daySummaryLine').textContent =
-        `${trainTime?('⏱ '+trainTime):'⏱ —'} · WOD ${wod||'—'} · NEAT ${_labelNeat(neat)} (PAL ${pal.toFixed(2)}) · Act ${cardioRaw?cardioReal:'—'} · Obj ${goal?.goalKcal ?? '—'}`;
-
-      const adjLine = $('dayAdjustSummary');
-      if(adjLine){
-        adjLine.textContent = `${trainTime?trainTime:'—'} · WOD ${wod||'—'} · ${_labelNeat(neat)} · PAL ${pal.toFixed(2)}`;
-      }
-    }catch(_){}
-  }
-
-  // Listeners "en vivo"
-  ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach(id=>{
-    const el=$(id);
-    if(!el) return;
-    el.addEventListener('input', window.updateDaySummaryCard);
-    el.addEventListener('change', window.updateDaySummaryCard);
-  });
-
-  // =========================
-  // OCR MODAL
-  // =========================
-  const openOCR = ()=>{
-    const m=$('ocrModal'); if(!m) return;
-    m.style.display='block';
-    setTimeout(()=>{ $('ocrFoodId')?.focus(); }, 30);
-  };
-  const closeOCR = ()=>{
-    const m=$('ocrModal'); if(!m) return;
-    m.style.display='none';
-  };
-
-  if($('openOCR')) $('openOCR').onclick=openOCR;
-  if($('closeOCR')) $('closeOCR').onclick=closeOCR;
-
-  const parseOcrText = (txt)=>{
-    const t = String(txt||'').replace(/\s+/g,' ').trim().toLowerCase();
-    // heurísticas robustas (acepta coma decimal)
-    const num = (m)=> m ? Number(String(m[1]).replace(',','.')) : null;
-
-    const kcal = num(t.match(/(?:energ[ií]a|kcal)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
-    const p = num(t.match(/(?:prote[ií]nas?|protein)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
-    const c = num(t.match(/(?:hidratos?|carbohidratos?|carbohydrate|carbs?)\s*(?:de\s*carbono)?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
-    const f = num(t.match(/(?:grasas?|fat)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
-
-    return {kcal,p,c,f};
-  };
-
-  let _ocrParsed = null;
-
-  $('parseOCR')?.addEventListener('click', ()=>{
-    const vals = parseOcrText($('ocrText')?.value || '');
-    _ocrParsed = vals;
-    $('ocrResult').textContent =
-      `kcal: ${vals.kcal ?? '—'} · P: ${vals.p ?? '—'} · C: ${vals.c ?? '—'} · F: ${vals.f ?? '—'} (por 100g)`;
-  });
-
-  $('saveOCRFood')?.addEventListener('click', ()=>{
-    const id = String($('ocrFoodId')?.value || '').trim();
-    const name = String($('ocrFoodName')?.value || '').trim();
-    const vals = _ocrParsed || parseOcrText($('ocrText')?.value || '');
-
-    if(!id || !name || !(Number.isFinite(vals.kcal)||Number.isFinite(vals.p)||Number.isFinite(vals.c)||Number.isFinite(vals.f))){
-      alert('Completa id, nombre y pega texto suficiente para extraer macros.');
-      return;
-    }
-
-    const foodObj = normalizeFood({
-      id, name, baseUnit:'100g',
-      kcal: vals.kcal||0, p: vals.p||0, c: vals.c||0, f: vals.f||0,
-      unitGrams: null,
-      tags:[]
-    });
-
-    upsertFoodFromApp(foodObj);
-    alert('Alimento guardado en tu lista (usuario).');
-    closeOCR();
-    renderAll();
-  });
-
     const modal = $('statsModal');
     const closeBtn = $('closeStats');
     const open = ()=>{ if(!modal) return; modal.style.display='block'; renderStatsModal(); };
@@ -3655,6 +3590,79 @@ $('exportFoods').onclick=()=>{
       localStorage.setItem('mc_ui_macrosOkOpen', _macPanel.open ? '1' : '0');
     });
   }
+
+
+  // ======= LISTENERS: resumen en vivo (no rompe si falta algún input) =======
+  ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach((id)=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('input', ()=>window.updateDaySummaryCard?.());
+    el.addEventListener('change', ()=>window.updateDaySummaryCard?.());
+  });
+
+  // ======= OCR (abre cámara/galería + modal) =======
+  const openOcr = ()=>{
+    const pop = $('ocrPop'); if(!pop) return;
+    pop.setAttribute('aria-hidden','false');
+    pop.classList.add('open');
+  };
+  const closeOcr = ()=>{
+    const pop = $('ocrPop'); if(!pop) return;
+    pop.setAttribute('aria-hidden','true');
+    pop.classList.remove('open');
+  };
+
+  $('openOcrTop')?.addEventListener('click', ()=>{
+    openOcr();
+  });
+  $('closeOcrPop')?.addEventListener('click', closeOcr);
+  $('pickOcrImage')?.addEventListener('click', ()=>{
+    $('ocrImage')?.click();
+  });
+  $('ocrImage')?.addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const url = URL.createObjectURL(f);
+    const img = $('ocrPreview');
+    if(img){
+      img.src = url;
+      img.style.display = 'block';
+    }
+    $('ocrResult').textContent = 'Imagen cargada. Usa Texto en vivo para copiar y pégalo en el cuadro.';
+  });
+
+  const parseNutritionText = (t)=>{
+    const txt = (t||'').toLowerCase().replace(/,/g,'.');
+    const pick = (re)=>{
+      const m = txt.match(re);
+      return m ? Number(m[1]) : null;
+    };
+    // kcal
+    let kcal = pick(/(\d+(?:\.\d+)?)\s*kcal/);
+    if(kcal===null) kcal = pick(/energia[^\d]*(\d+(?:\.\d+)?)/);
+    // macros
+    const p = pick(/prote[ií]nas?[^\d]*(\d+(?:\.\d+)?)/);
+    const c = pick(/hidratos?|carbohidratos?[^\d]*(\d+(?:\.\d+)?)/);
+    const f = pick(/grasas?[^\d]*(\d+(?:\.\d+)?)/);
+    return {kcal,p,c,f};
+  };
+
+  $('ocrParse')?.addEventListener('click', ()=>{
+    const t = $('ocrText')?.value || '';
+    const r = parseNutritionText(t);
+    if(!r.kcal && !r.p && !r.c && !r.f){
+      $('ocrResult').textContent = 'No he detectado valores. Pega el texto completo de la etiqueta.';
+      return;
+    }
+    $('ocrResult').textContent = `Detectado (por 100g aprox): kcal ${r.kcal ?? '—'} · P ${r.p ?? '—'} · C ${r.c ?? '—'} · F ${r.f ?? '—'}. Ve a “Añadir” para crear el alimento.`;
+    // Prellenar quick add si existe (sin romper si cambian ids)
+    if($('foodKcal')) $('foodKcal').value = r.kcal ?? '';
+    if($('foodP')) $('foodP').value = r.p ?? '';
+    if($('foodC')) $('foodC').value = r.c ?? '';
+    if($('foodF')) $('foodF').value = r.f ?? '';
+    // Cambiar a pantalla Añadir si existe handler
+    if(typeof showScreen==='function'){ try{ showScreen('add'); }catch(_){} }
+  });
 
   renderAll();
 })();
