@@ -555,7 +555,21 @@ exo</label>
           </div>
         </details>
 
-        <div class="hr"></div>
+
+<!-- AJUSTES DEL DÍA (PLEGABLE SEPARADO DEL PERFIL) -->
+<details id="dayAdjustDetails" class="blkDetails">
+  <summary class="sumHead">
+    <div class="sumTitle">Ajustes del día</div>
+    <div class="sumGrid" aria-label="Resumen ajustes del día">
+      <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
+      <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
+      <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
+      <div class="sumPill"><span>PAL</span><b id="sumPal">—</b></div>
+      <div class="sumPill"><span>🔥 Activas</span><b id="sumActive">—</b></div>
+    </div>
+  </summary>
+
+  <div class="hr"></div>
 
         <!-- NEAT -->
         <label>NEAT diario</label>
@@ -670,6 +684,13 @@ exo</label>
 
         </details>
 
+
+</details>
+
+
+
+
+        
 <div class="hr"></div>
 
         <div class="kpi">
@@ -3641,98 +3662,6 @@ function freezeDayIfNeeded(dateKey, summary){
 
 
 
-/* ===== Ajustes del día: resumen + auto-NEAT por pasos ===== */
-(function(){
-  const $ = (id) => document.getElementById(id);
-
-  function neatBandFromSteps(steps){
-    if(!Number.isFinite(steps) || steps <= 0) return null;
-    if(steps < 6000) return "low";
-    if(steps < 10000) return "med";
-    return "high";
-  }
-  function neatLabel(val){
-    if(val === "low") return "Bajo";
-    if(val === "med") return "Medio";
-    if(val === "high") return "Alto";
-    return "—";
-  }
-  function wodLabel(val){
-    // match existing select values
-    if(val === "0") return "Sin";
-    if(val === "300") return "+300";
-    if(val === "350") return "+350";
-    if(val === "450") return "+450";
-    return val || "—";
-  }
-
-  function updateDayAdjustSummary(){
-    // Peso (del perfil)
-    const w = $("weightKg")?.value;
-    if($("sumWeight")) $("sumWeight").textContent = w ? `${w} kg` : "—";
-
-    // Déficit 7d (ya existe en la UI principal)
-    const def7 = $("def7Val")?.textContent?.trim();
-    if($("sumDef7")) $("sumDef7").textContent = def7 && def7 !== "—" ? def7 : "—";
-
-    // Hora entreno
-    const tt = $("trainTime")?.value;
-    if($("sumTrain")) $("sumTrain").textContent = tt ? tt : "—";
-
-    // WOD
-    const wod = $("wod")?.value;
-    if($("sumWod")) $("sumWod").textContent = wodLabel(wod);
-
-    // NEAT
-    const steps = parseInt($("steps")?.value || "", 10);
-    const neatSel = $("neatLevel")?.value;
-    const band = neatBandFromSteps(steps);
-    const label = band ? `${steps.toLocaleString("es-ES")} · ${neatLabel(band)}` : (neatSel ? neatLabel(neatSel) : "—");
-    if($("sumNeat")) $("sumNeat").textContent = label;
-  }
-
-  function syncNeatFromSteps(){
-    const stepsEl = $("steps");
-    const neatEl = $("neatLevel");
-    const infoEl = $("neatInfo");
-    if(!stepsEl || !neatEl) return;
-
-    const steps = parseInt(stepsEl.value || "", 10);
-    const band = neatBandFromSteps(steps);
-    if(band){
-      neatEl.value = band;
-      if(infoEl){
-        infoEl.textContent = `Estimación automática por pasos: ${steps.toLocaleString("es-ES")} → NEAT ${neatLabel(band)}.`;
-      }
-    } else {
-      if(infoEl && !infoEl.textContent) infoEl.textContent = "—";
-    }
-  }
-
-  // Eventos
-  ["steps","neatLevel","trainTime","wod","weightKg"].forEach((id)=>{
-    const el = $(id);
-    if(!el) return;
-    el.addEventListener("input", ()=>{
-      if(id === "steps") syncNeatFromSteps();
-      updateDayAdjustSummary();
-    });
-    el.addEventListener("change", ()=>{
-      if(id === "steps") syncNeatFromSteps();
-      updateDayAdjustSummary();
-    });
-  });
-
-  // Arranque
-  syncNeatFromSteps();
-  updateDayAdjustSummary();
-
-  // Cerrar por defecto siempre que se cargue (seguridad ante cache o restauración)
-  const det = $("dayAdjustDetails");
-  if(det) det.open = false;
-})();
-
-
 /* ===== Service Worker (GitHub Pages) ===== */
 (function(){
   const swBadge = document.getElementById('swBadge');
@@ -3761,6 +3690,91 @@ function freezeDayIfNeeded(dateKey, summary){
       console.warn('SW register error', e);
     }
   });
+})();
+
+
+/* ===== Ajustes del día (bloque separado): resumen + auto-NEAT por pasos ===== */
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function neatBandFromSteps(steps){
+    if(!Number.isFinite(steps) || steps <= 0) return null;
+    if(steps < 6000) return "low";
+    if(steps < 10000) return "med";
+    return "high";
+  }
+  function neatLabel(val){
+    if(val === "low") return "Bajo";
+    if(val === "med") return "Medio";
+    if(val === "high") return "Alto";
+    return "—";
+  }
+  function wodLabel(raw){
+    const v = (raw ?? "").toString();
+    if(v.includes("+")) return v.replace("Normal (", "").replace(")", "");
+    if(v === "0") return "Sin";
+    return v || "—";
+  }
+
+  function syncNeatFromSteps(){
+    const stepsEl = $("steps");
+    const neatEl = $("neatLevel");
+    const infoEl = $("neatInfo");
+    if(!stepsEl || !neatEl) return;
+
+    const steps = parseInt(stepsEl.value || "", 10);
+    const band = neatBandFromSteps(steps);
+    if(band){
+      neatEl.value = band;
+      if(infoEl){
+        infoEl.textContent = `Auto por pasos: ${steps.toLocaleString("es-ES")} → NEAT ${neatLabel(band)}.`;
+      }
+    }
+  }
+
+  function updateSummary(){
+    const tt = $("trainTime")?.value || "—";
+    if($("sumTrain")) $("sumTrain").textContent = tt;
+
+    const wod = $("wod")?.value;
+    if($("sumWod")) $("sumWod").textContent = wodLabel(wod);
+
+    const steps = parseInt($("steps")?.value || "", 10);
+    const neatSel = $("neatLevel")?.value;
+    const band = neatBandFromSteps(steps);
+    const neatTxt = band ? `${steps.toLocaleString("es-ES")} · ${neatLabel(band)}` : (neatSel ? neatLabel(neatSel) : "—");
+    if($("sumNeat")) $("sumNeat").textContent = neatTxt;
+
+    // PAL aplicado (ya aparece en una línea: "PAL aplicado: X · TMB: Y")
+    const palLine = document.querySelector(".palLine")?.textContent || document.querySelector("[data-pal-line]")?.textContent || "";
+    // fallback: buscar en el DOM el texto 'PAL aplicado'
+    let pal = "—";
+    const palNode = Array.from(document.querySelectorAll("div,span,p")).find(n => (n.textContent || "").includes("PAL aplicado"));
+    if(palNode){
+      const m = palNode.textContent.match(/PAL aplicado:\s*([0-9.]+)/);
+      if(m) pal = m[1];
+    }
+    if($("sumPal")) $("sumPal").textContent = pal;
+
+    const active = $("activeKcal")?.value;
+    if($("sumActive")) $("sumActive").textContent = active ? `${active} kcal` : "—";
+  }
+
+  // Eventos
+  ["steps","neatLevel","trainTime","wod","activeKcal"].forEach((id)=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener("input", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
+    el.addEventListener("change", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
+  });
+
+  // Arranque
+  syncNeatFromSteps();
+  updateSummary();
+
+  // Cerrar por defecto siempre
+  const det = $("dayAdjustDetails");
+  if(det) det.open = false;
 })();
 
 </script>
