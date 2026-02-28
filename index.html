@@ -199,6 +199,9 @@
 
     #foodsControlBox > summary{padding:2px 0;}
 
+    .subDetails{border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:10px;background:rgba(10,12,18,.25);}
+    .subDetails[open]{background:rgba(10,12,18,.35);}
+
 
     /* iOS anti-zoom on inputs */
     input, select, textarea, button { font-size:16px; }
@@ -232,62 +235,82 @@
       </div>
 
       <!-- 1) CONTROL ARRIBA (lo pediste así) -->
-      <details class="card" id="foodsControlBox" style="margin-bottom:12px;" >
+      <details class="card" id="foodsControlBox" style="margin-bottom:12px;">
   <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
     <b>Control</b>
-    <span class="muted">Importar/Exportar</span>
+    <span class="muted">Herramientas</span>
   </summary>
   <div style="margin-top:10px;">
 
-<div id="devLockedHint" class="muted" style="margin-top:6px;">Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.</div>
-<div id="devControlActions" style="display:none;">
-<div class="seg">
-          <button id="exportFoods" type="button">Exportar JSON</button>
-          <button id="importFoodsBtn" type="button">Importar JSON</button>
-        </div>
-        <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
-        <div class="muted" style="margin-top:8px;">
-          Consejo: exporta primero, edita el JSON en ordenador y reimporta.
-        </div>
-        <div id="devBackupBlock" style="margin-top:12px; display:none;">
-          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <b>Backup rápido (DEV)</b>
-            <span class="muted">Estado completo</span>
-          </div>
-          <div class="seg">
-            <button id="exportBackup" type="button">Exportar backup</button>
-            <button id="importBackupBtn" type="button">Importar backup</button>
-          </div>
-          <div class="seg" style="margin-top:8px;">
-            <button id="restoreLastBackup" type="button">Restaurar último</button>
-            <button id="makeBackupNow" type="button">Guardar copia</button>
-          </div>
-          <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
-          <div class="muted" style="margin-top:8px;">
-            Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
-          </div>
-        </div>
+    <div id="devLockedHint" class="muted" style="margin-top:6px;">
+      Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.
+    </div>
 
-        <div id="devRulesBlock" style="margin-top:12px; display:none;">
-          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <div id="devControlActions" style="display:none;">
+
+      <details class="subDetails" id="foodsJsonDetails">
+        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <b>JSON alimentos</b>
+          <span class="muted">Importar / exportar</span>
+        </summary>
+        <div style="margin-top:10px;">
+          <div class="seg">
+            <button id="exportFoods" type="button">Exportar</button>
+            <button id="importFoodsBtn" type="button">Importar</button>
+          </div>
+          <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
+          <div class="muted" style="margin-top:8px;">
+            Consejo: exporta primero, edita el JSON en ordenador y reimporta.
+          </div>
+        </div>
+      </details>
+
+      <div id="devBackupBlock" style="margin-top:10px; display:none;">
+        <details class="subDetails" id="foodsBackupDetails">
+          <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+            <b>Backup rápido (DEV)</b>
+            <span class="muted">Copia completa</span>
+          </summary>
+          <div style="margin-top:10px;">
+            <div class="seg">
+              <button id="exportBackup" type="button">Exportar</button>
+              <button id="importBackupBtn" type="button">Importar</button>
+            </div>
+            <div class="seg" style="margin-top:8px;">
+              <button id="restoreLastBackup" type="button">Restaurar</button>
+              <button id="makeBackupNow" type="button">Guardar</button>
+            </div>
+            <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
+            <div class="muted" style="margin-top:8px;">
+              Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div id="devRulesBlock" style="margin-top:10px; display:none;">
+        <details class="subDetails" id="foodsRulesDetails">
+          <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
             <b>Rules Engine (DEV)</b>
             <span class="muted">Maridajes & caps</span>
+          </summary>
+          <div style="margin-top:10px;">
+            <div class="seg">
+              <button id="exportRules" type="button">Exportar</button>
+              <button id="importRulesBtn" type="button">Importar</button>
+            </div>
+            <div class="seg" style="margin-top:8px;">
+              <button id="resetRules" type="button">Reset</button>
+            </div>
+            <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
+            <div class="muted" style="margin-top:8px;">
+              Consejo: exporta, edita el JSON y reimporta. Si el archivo es inválido, se ignora.
+            </div>
           </div>
-          <div class="seg">
-            <button id="exportRules" type="button">Exportar reglas</button>
-            <button id="importRulesBtn" type="button">Importar reglas</button>
-          </div>
-          <div class="seg" style="margin-top:8px;">
-            <button id="resetRules" type="button">Restaurar por defecto</button>
-          </div>
-          <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
-          <div class="muted" style="margin-top:8px;">
-            Consejo: exporta, edita el JSON y reimporta. Si el archivo es inválido, se ignora.
-          </div>
-        </div>
-</div>
+        </details>
+      </div>
+
+    </div>
   </div>
 </details>
       </div>
@@ -1909,7 +1932,7 @@ window.addEventListener('error', function(e){
   // Drawer open/close
   const openDrawer=()=>{
     $('drawerBack').style.display='block';
-    try{ const d=$('foodsControlBox'); if(d) d.open=true; }catch(e){}
+    try{ const d=$('foodsControlBox'); if(d) d.open=false; }catch(e){}
     document.body.style.overflow='hidden';
     // foco al buscador de lista
     setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
