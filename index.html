@@ -423,7 +423,7 @@
               Selecciona una foto de la etiqueta. En iPhone, usa <b>Texto en vivo</b> para copiar el texto y pégalo abajo.
             </div>
 
-            <input id="ocrImage" type="file" accept="image/*" capture="environment" style="display:none;" />
+            <input id="ocrImage" type="file" accept="image/*" style="display:none;" />
             <div class="seg" style="margin-top:10px;">
               <button type="button" class="primary" id="pickOcrImage">Abrir cámara / galería</button>
             </div>
@@ -1379,664 +1379,58 @@ window.addEventListener('error', function(e){
 
   window.updateDaySummaryCard = function updateDaySummaryCard(){
     try{
-      const modeStored = loadMode();
-      const profile = loadProfile();
+      const modeStored = (typeof loadMode==='function') ? loadMode() : {modeKey:'deficit',levelKey:'med'};
+      const profile = (typeof loadProfile==='function') ? loadProfile() : {};
+      const dayKey = (typeof activeDayKey!=='undefined' && activeDayKey) ? activeDayKey : (typeof todayKey==='function' ? todayKey() : null);
 
-      // Asegurar settings para el día
-      ensureDaySettings(activeDayKey, modeStored.modeKey);
-      const all = loadJSON(LS.settings,{});
-      const saved = all[activeDayKey] || {};
+      // Cargar settings guardados (fallback)
+      let saved = {};
+      try{
+        if(dayKey && typeof ensureDaySettings==='function') ensureDaySettings(dayKey, modeStored.modeKey);
+        const all = (typeof loadJSON==='function') ? loadJSON(LS.settings,{}) : {};
+        saved = (dayKey && all && all[dayKey]) ? all[dayKey] : {};
+      }catch(_){ saved = {}; }
 
       // Leer UI si existe (previsualización en vivo)
       const uiTrain = $('trainTime')?.value ?? '';
-      const uiWod = Number($('wod')?.value ?? NaN);
+      const uiWodVal = $('wod')?.value;
+      const uiWod = Number(uiWodVal ?? NaN);
       const uiNeat = $('neatLevel')?.value ?? '';
       const uiCardioRaw = Number($('cardioKcal')?.value ?? NaN);
 
       const trainTime = uiTrain || saved.trainTime || '';
       const wod = Number.isFinite(uiWod) ? uiWod : Number(saved.wod||0);
-      const neat = (uiNeat || saved.neatLevel || defaultNeatByMode(modeStored.modeKey) || 'high');
+      const neat = (uiNeat || saved.neatLevel || (typeof defaultNeatByMode==='function' ? defaultNeatByMode(modeStored.modeKey) : 'high') || 'high');
       const cardioRaw = Number.isFinite(uiCardioRaw) ? uiCardioRaw : Number(saved.cardioKcal||0);
 
-      const pal = PAL[neat] || PAL.high;
-      const cardioReal = round((Number(cardioRaw)||0) * (1 - CARDIO_DISCOUNT));
-      const goalObj = computeGoal(profile, { ...saved, trainTime, wod, neatLevel: neat, cardioKcal: cardioRaw }, modeStored);
+      const pal = (typeof PAL!=='undefined' && PAL[neat]) ? PAL[neat] : (PAL?.high ?? 1.45);
+      const cardioReal = (typeof round==='function') ? round((Number(cardioRaw)||0) * (1 - (typeof CARDIO_DISCOUNT==='number'?CARDIO_DISCOUNT:0.08))) : Math.round((Number(cardioRaw)||0) * 0.92);
 
-      // Pintar tarjeta
+      // Pintar tarjeta (siempre, aunque computeGoal falle)
       if($('sumTrain')) $('sumTrain').textContent = trainTime ? trainTime : '—';
       if($('sumWod')) $('sumWod').textContent = wod ? String(wod) : '—';
-      if($('sumNeat')) $('sumNeat').textContent = window._labelNeat(neat);
-      if($('sumPal')) $('sumPal').textContent = pal.toFixed(2);
-      if($('sumAct')) $('sumAct').textContent = (cardioRaw ? `${cardioReal}` : '—');
-      if($('sumGoal')) $('sumGoal').textContent = (goalObj?.goalKcal ? String(goalObj.goalKcal) : '—');
+      if($('sumNeat')) $('sumNeat').textContent = (window._labelNeat?window._labelNeat(neat):neat);
+      if($('sumPal')) $('sumPal').textContent = Number(pal).toFixed(2);
+      if($('sumAct')) $('sumAct').textContent = (cardioRaw ? String(cardioReal) : '—');
+
+      let goalKcal = null;
+      try{
+        if(typeof computeGoal==='function'){
+          const goalObj = computeGoal(profile, { ...saved, trainTime, wod, neatLevel: neat, cardioKcal: cardioRaw }, modeStored);
+          goalKcal = goalObj?.goalKcal ?? null;
+        }
+      }catch(_){ goalKcal = null; }
+      if($('sumGoal')) $('sumGoal').textContent = (goalKcal ? String(goalKcal) : '—');
 
       if($('daySummaryLine')){
         $('daySummaryLine').textContent =
-          `${trainTime?('⏰ '+trainTime):'⏰ —'} · WOD ${wod||'—'} · NEAT ${window._labelNeat(neat)} (PAL ${pal.toFixed(2)}) · Act ${cardioRaw?cardioReal:'—'} · Obj ${goalObj?.goalKcal ?? '—'}`;
+          `${trainTime?('⏰ '+trainTime):'⏰ —'} · WOD ${wod||'—'} · NEAT ${(window._labelNeat?window._labelNeat(neat):neat)} (PAL ${Number(pal).toFixed(2)}) · Act ${cardioRaw?cardioReal:'—'} · Obj ${goalKcal ?? '—'}`;
       }
-
       if($('dayAdjustSummary')){
         $('dayAdjustSummary').textContent =
-          `${trainTime||'—'} · WOD ${wod||'—'} · ${window._labelNeat(neat)} · PAL ${pal.toFixed(2)} · Act ${cardioRaw?cardioReal:'—'} · Obj ${goalObj?.goalKcal ?? '—'}`;
-      }
-
-      // Texto existente bajo NEAT
-      if($('neatInfo')){
-        const bmr = computeBMR(profile);
-        $('neatInfo').textContent = `PAL aplicado: ${pal} · TMB: ${bmr} kcal · Activas real: ${cardioRaw?cardioReal:'—'} kcal`;
+          `${trainTime||'—'} · WOD ${wod||'—'} · ${(window._labelNeat?window._labelNeat(neat):neat)} · PAL ${Number(pal).toFixed(2)} · Act ${cardioRaw?cardioReal:'—'} · Obj ${goalKcal ?? '—'}`;
       }
     }catch(_){}
-  };
-
-};
-
-  // ======= CONTEXTO =======
-  const timeContext=(trainTime)=>{
-    if(!trainTime) return {ctx:'NEUTRA',detail:'Sin hora de entreno: reparto neutro.'};
-    const now=new Date();
-    const [hh,mm]=trainTime.split(':').map(Number);
-    const t=new Date(now); t.setHours(hh,mm,0,0);
-    const diffMin=Math.round((t-now)/60000);
-
-    if(diffMin>=45 && diffMin<=180) return {ctx:'PRE',detail:`A ~${diffMin} min del entreno: hidrato alto, grasa baja.`};
-    if(diffMin<45 && diffMin>=0) return {ctx:'PRE-RÁPIDO',detail:'A <45 min: hidrato fácil, casi sin grasa.'};
-
-    const post=Math.abs(diffMin);
-    if(diffMin<0 && post<=180) return {ctx:'POST',detail:`Post entreno (~${post} min): proteína alta + hidrato.`};
-
-    return {ctx:'NEUTRA',detail:'Fuera de ventana pre/post.'};
-  };
-
-  const mealFromClock = ()=>{
-    const now = new Date();
-    const h = now.getHours() + now.getMinutes()/60;
-    if(h>=5 && h<10) return 'desayuno';
-    if(h>=12 && h<15) return 'comida';
-    if(h>=15 && h<18) return 'merienda';
-    if(h>=18 && h<=22) return 'cena';
-    return 'otros';
-  };
-
-  const normalizeMealLabel = (m)=>{
-    if(m==='post') return 'post_entreno';
-    if(m==='pre') return 'pre_entreno';
-    return m;
-  };
-
-  const prettyMeal = (m)=>{
-    m = normalizeMealLabel(m);
-    if(m==='desayuno') return '🥣 Desayuno';
-    if(m==='comida') return '🍗 Comida';
-    if(m==='merienda') return '🍎 Merienda';
-    if(m==='cena') return '🌙 Cena';
-    if(m==='post_entreno') return 'Post-entreno';
-    if(m==='pre_entreno') return 'Pre-entreno';
-    return 'Otros';
-  };
-
-  const mealOrder = (m)=>{
-    m = normalizeMealLabel(m);
-    if(m==='desayuno') return 1;
-    if(m==='comida') return 2;
-    if(m==='merienda') return 3;
-    if(m==='cena') return 4;
-    if(m==='post_entreno') return 5;
-    if(m==='pre_entreno') return 6;
-    return 9;
-  };
-
-  const slotToAllowedTag = (slot)=>(
-    (slot==='desayuno') ? 'desayuno_ok' :
-    (slot==='comida') ? 'comida_ok' :
-    (slot==='merienda') ? 'merienda_ok' :
-    (slot==='cena') ? 'cena_ok' :
-    (slot==='post_entreno') ? 'post_ok' :
-    (slot==='pre_entreno') ? 'pre_ok' :
-    null
-  );
-
-  // ======= RECOMENDADOR =======
-  const shuffled = (arr)=>{
-    const a=arr.slice();
-    for(let i=a.length-1;i>0;i--){
-      const j=Math.floor(Math.random()*(i+1));
-      [a[i],a[j]]=[a[j],a[i]];
-    }
-    return a;
-  };
-
-  const recommendForSlot=(foods,goal,eaten,ctx,slotOverride, randomize=false)=>{
-    const rem={
-      kcal:Math.max(0,goal.goalKcal-eaten.kcal),
-      p:Math.max(0,goal.p-eaten.p),
-      c:Math.max(0,goal.c-eaten.c),
-      f:Math.max(0,goal.f-eaten.f)
-    };
-
-    const allowedTag = slotToAllowedTag(slotOverride);
-    const allow = (f)=> !allowedTag || (f.tags||[]).includes(allowedTag);
-
-    let tgt;
-    if(ctx==='PRE') tgt={p:Math.min(30,rem.p), c:Math.min(110,rem.c), f:Math.min(12,rem.f), kcal:Math.min(650,rem.kcal)};
-    else if(ctx==='PRE-RÁPIDO') tgt={p:Math.min(20,rem.p), c:Math.min(60,rem.c), f:Math.min(8,rem.f), kcal:Math.min(350,rem.kcal)};
-    else if(ctx==='POST') tgt={p:Math.min(65,rem.p), c:Math.min(140,rem.c), f:Math.min(20,rem.f), kcal:Math.min(900,rem.kcal)};
-    else tgt={p:Math.min(60,rem.p), c:Math.min(90,rem.c), f:Math.min(22,rem.f), kcal:Math.min(800,rem.kcal)};
-
-    if(slotOverride==='desayuno' || slotOverride==='merienda') tgt.f = Math.min(tgt.f, 16);
-
-    let proteins=foods.filter(f=>f.tags?.includes('protein') && allow(f));
-    let carbs=foods.filter(f=>f.tags?.includes('carb') && allow(f));
-    let fruits=foods.filter(f=>['banana','freson','uva'].includes(f.id) && allow(f));
-
-    if(!proteins.length) return null;
-
-    const protPref=['queso_batido_0','claras','huevo_M','pollo_pechuga'];
-    proteins.sort((a,b)=>protPref.indexOf(a.id)-protPref.indexOf(b.id));
-
-    const protGr=[150,200,250,300];
-    const carbGr=[120,150,180,200,220,250,300];
-    const fruitGr=[100,120,150,180];
-
-    const protIter = randomize ? shuffled(proteins) : proteins;
-    const protGrIter = randomize ? shuffled(protGr) : protGr;
-    const carbGrIter = randomize ? shuffled(carbGr) : carbGr;
-    const fruitGrIter = randomize ? shuffled(fruitGr) : fruitGr;
-
-    let best=null;
-
-    const score=(tot)=>{
-      const dp=Math.max(0,tgt.p-tot.p);
-      const df=Math.max(0,tgt.f-tot.f);
-      const dc=Math.max(0,tgt.c-tot.c);
-
-      const overKcal = tot.kcal>rem.kcal ? (tot.kcal-rem.kcal)*1.0 : 0;
-      const fatHard = ((ctx.startsWith('PRE') || slotOverride==='desayuno' || slotOverride==='merienda') && tot.f>18) ? (tot.f-18)*10 : 0;
-
-      const jitter = randomize ? (Math.random()*0.35) : 0;
-      return dp*10 + df*4 + dc*1.5 + overKcal + fatHard + jitter;
-    };
-
-    for(const pr of protIter){
-      for(const pg of (pr.baseUnit==='unit'?[1,2]:protGrIter)){
-        const prQtyType=(pr.baseUnit==='unit'?'unit':'g');
-        const prM=macroFor(pr,prQtyType,pg);
-
-        const carbPool = (tgt.c>20 && carbs.length) ? (randomize?shuffled(carbs):carbs) : [null];
-        for(const cb of carbPool){
-          for(const cg of (cb?(cb.baseUnit==='unit'?[1,2]:carbGrIter):[0])){
-            const cbQtyType = cb ? (cb.baseUnit==='unit'?'unit':'g') : 'g';
-            const cbM=cb?macroFor(cb,cbQtyType,cg):{kcal:0,p:0,c:0,f:0};
-
-            const needFruit = (tgt.c - (prM.c+cbM.c) > 25) && fruits.length;
-            const fruitPool = needFruit ? (randomize?shuffled(fruits):fruits) : [null];
-
-            for(const fr of fruitPool){
-              for(const fg of (fr?fruitGrIter:[0])){
-                const frM=fr?macroFor(fr,'g',fg):{kcal:0,p:0,c:0,f:0};
-
-                const tot={
-                  kcal:prM.kcal+cbM.kcal+frM.kcal,
-                  p:prM.p+cbM.p+frM.p,
-                  c:prM.c+cbM.c+frM.c,
-                  f:prM.f+cbM.f+frM.f
-                };
-
-                const s=score(tot);
-                if(!best || s<best.s){
-                  best={s, slot:slotOverride, ctx, items:[
-                    {meal:slotOverride, foodId:pr.id,name:pr.name, qtyType:prQtyType, qty:pg, qtyDisplay:qtyDisplay(prQtyType,pg), ...prM},
-                    ...(cb?[{meal:slotOverride, foodId:cb.id,name:cb.name, qtyType:cbQtyType, qty:cg, qtyDisplay:qtyDisplay(cbQtyType,cg), ...cbM}]:[]),
-                    ...(fr?[{meal:slotOverride, foodId:fr.id,name:fr.name, qtyType:'g', qty:fg, qtyDisplay:qtyDisplay('g',fg), ...frM}]:[])
-                  ], tot};
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return best;
-  };
-
-  // ======= MACROS OK =======
-  // Objetivo: cuadrar SOLO lo que falta en el día, respetando lo ya registrado.
-  // Post-entreno es opcional y solo entra si (WOD > 0) o (Calorías activas > 0). NEAT NO afecta.
-  const planMacrosOk=(foods, goal, logs, day)=>{
-    const rules = loadRulesEngine();
-    const hard = rules?.constraintsHard || DEFAULT_RULES_ENGINE.constraintsHard;
-    const ctxConf = rules?.contexts || DEFAULT_RULES_ENGINE.contexts;
-
-    const baseSlots = ['desayuno','comida','merienda','cena'];
-
-    const postActive = ((Number(day?.wod)||0) > 0) || ((Number(day?.cardioKcal)||0) > 0);
-    const allSlots = postActive ? [...baseSlots, 'post_entreno'] : [...baseSlots];
-
-    const eaten = sumMacros(logs);
-
-    // qué slots ya están “rellenos” (tienen al menos 1 item)
-    const filled = new Set();
-    for(const it of logs){
-      const mk = normalizeMealLabel(it.meal);
-      if(mk) filled.add(mk);
-    }
-
-    // slots a completar = los activos que NO estén rellenos
-    let slotsToPlan = allSlots.filter(s => !filled.has(s));
-
-    // Caso especial: si no queda ningún slot activo pero faltan kcal, permitir “pre_entreno”
-    // SOLO si ya existe cena (última comida tradicional) y aún falta por cuadrar.
-    const remainingNow = ()=>{
-      const e = sumMacros([...logs, ...plannedItems]); // plannedItems definido más abajo
-      return {
-        kcal: Math.max(0, goal.goalKcal - e.kcal),
-        p: Math.max(0, goal.p - e.p),
-        c: Math.max(0, goal.c - e.c),
-        f: Math.max(0, goal.f - e.f),
-      };
-    };
-
-    // ===== helpers selección =====
-    const preferOrder = (arr, ids)=>{
-      const m=new Map(arr.map(x=>[x.id,x]));
-      const out=[];
-      ids.forEach(id=>{ if(m.has(id)) out.push(m.get(id)); });
-      for(const x of arr){ if(!ids.includes(x.id)) out.push(x); }
-      return out;
-    };
-
-    const allowedForSlot = (slot)=>{
-      const tag = slotToAllowedTag(slot);
-      return (f)=> !tag || (f.tags||[]).includes(tag);
-    };
-
-    const candidatesByTag = (tag, slot)=>{
-      const allow = allowedForSlot(slot);
-      let arr = foods.filter(f => (f.tags||[]).includes(tag) && allow(f));
-      if(tag==='fruit'){
-        arr = foods.filter(f => ['banana','freson','uva','manzana'].includes(f.id) && allow(f));
-      }
-      if(tag==='protein'){
-        arr = preferOrder(arr, ['queso_batido_0','claras','huevo_M','pollo_pechuga','Pechuga_92%_pavo_hacendado_lonchas','lomo_cerdo','Lomo_embuchado_Hacendado_lonchas']);
-      }
-      if(tag==='carb'){
-        arr = preferOrder(arr, ['gnocchi','pan_cristal','Pan_Brioche_Hamburguesa_Hacendado','Pan_molde_blanco_Hacendado','patata_guarnicion','baston_batata']);
-      }
-      if(tag==='fat'){
-        arr = preferOrder(arr, ['chocolate_85','crema_cacahuete','aceite_oliva','Bacón_ahumado_La_Selva_lonchas','queso_lonchas_light']);
-      }
-      return arr;
-    };
-
-    const clamp = (v, lo, hi)=>Math.max(lo, Math.min(hi, v));
-    const round5 = (x)=> Math.round(x/5)*5;
-
-    const ctxForSlot = (slot)=>{
-      if(slot==='post_entreno') return 'POST';
-      if(slot==='pre_entreno') return 'PRE';
-      return 'NEUTRAL';
-    };
-
-    const capsForCtx = (ctx)=>{
-      const base = {
-        pMin: Number(hard?.proteinPerBlock?.min ?? 20),
-        pMax: Number((ctx==='POST') ? (hard?.proteinPerBlock?.maxPost ?? 50) : (hard?.proteinPerBlock?.maxNormal ?? 45)),
-        fMin: Number(hard?.fatPerBlock?.min ?? 5),
-        fMax: Number(ctx==='PRE' ? (hard?.fatPerBlock?.maxPre ?? 15) : (ctx==='POST' ? (hard?.fatPerBlock?.maxPost ?? 20) : (hard?.fatPerBlock?.maxNeutral ?? 25))),
-        cMin: Number(hard?.carbPerBlock?.min ?? 0),
-        cMax: Number(ctx==='PRE' ? (hard?.carbPerBlock?.maxPre ?? 90) : (ctx==='POST' ? (hard?.carbPerBlock?.maxPost ?? 120) : (hard?.carbPerBlock?.maxNeutral ?? 140))),
-        maxItems: Number(hard?.maxItemsPerBlock ?? 3)
-      };
-      const ov = (ctxConf && ctxConf[ctx] && ctxConf[ctx].capsOverride) ? ctxConf[ctx].capsOverride : null;
-      if(ov){
-        if(Number.isFinite(Number(ov.proteinMax))) base.pMax = Number(ov.proteinMax);
-        if(Number.isFinite(Number(ov.fatMax))) base.fMax = Number(ov.fatMax);
-        if(Number.isFinite(Number(ov.carbMax))) base.cMax = Number(ov.carbMax);
-      }
-      return base;
-    };
-
-    const qtyForMacro = (food, macroKey, target)=>{
-      // target en gramos de macro; devuelve qty (g o units) aproximada
-      const per = macroFor(food, 'g', 100);
-      const perUnit = macroFor(food, 'unit', 1);
-      if(food.baseUnit==='unit'){
-        const mv = (macroKey==='p'?perUnit.p:(macroKey==='c'?perUnit.c:perUnit.f));
-        if(mv<=0) return 1;
-        return clamp(Math.round(target / mv), 1, 6);
-      } else {
-        const mv = (macroKey==='p'?per.p:(macroKey==='c'?per.c:per.f));
-        if(mv<=0) return 100;
-        return clamp(round5((target / mv)*100), 30, 400);
-      }
-    };
-
-    const addItem = (slot, food, qtyType, qty)=>{
-      const mac = macroFor(food, qtyType, qty);
-      plannedItems.push({
-        meal: slot,
-        foodId: food.id,
-        name: food.name,
-        qtyType,
-        qty,
-        qtyDisplay: qtyDisplay(qtyType, qty),
-        kcal: mac.kcal, p: mac.p, c: mac.c, f: mac.f
-      });
-    };
-
-    const buildSlot = (slot, rem, slotsLeft)=>{
-      const ctx = ctxForSlot(slot);
-      const caps = capsForCtx(ctx);
-      // target kcal para este slot
-      const kcalTarget = clamp(Math.round(rem.kcal / Math.max(1, slotsLeft)), 260, 900);
-
-      const proteins = candidatesByTag('protein', slot);
-      const carbs    = candidatesByTag('carb', slot);
-      const fats     = candidatesByTag('fat', slot);
-      const fruits   = candidatesByTag('fruit', slot);
-
-      if(!proteins.length) return;
-
-      // 1) Proteína base
-      const pFood = proteins[0];
-      // Proteína por bloque: humana y capada (evita 60g)
-      const pNeed = clamp(rem.p / Math.max(1, slotsLeft), Math.max(20, caps.pMin), caps.pMax);
-      const pQty = qtyForMacro(pFood, 'p', pNeed);
-      addItem(slot, pFood, (pFood.baseUnit==='unit'?'unit':'g'), pQty);
-
-      // 2) Hidrato si hace falta o si faltan kcal
-      let afterP = sumMacros(plannedItems.filter(x=>x.meal===slot));
-      let localRem = { ...rem, kcal: Math.max(0, kcalTarget - afterP.kcal) };
-
-      const needCarb = (rem.c / Math.max(1, slotsLeft)) > 18 || localRem.kcal > 220;
-      if(needCarb){
-        const cFood = carbs[0] || fruits[0];
-        if(cFood){
-          const cNeed = clamp(rem.c / Math.max(1, slotsLeft), 20, caps.cMax);
-          const cQty = (cFood.id==='banana'||cFood.id==='uva'||cFood.id==='freson'||cFood.id==='manzana')
-            ? clamp(round5(cNeed*5), 80, 250)
-            : qtyForMacro(cFood, 'c', cNeed);
-          // Si ya tenemos demasiados items, mejor subir qty de lo existente
-          const existingCount = plannedItems.filter(x=>x.meal===slot).length;
-          if(existingCount < caps.maxItems){
-            addItem(slot, cFood, (cFood.baseUnit==='unit'?'unit':'g'), cQty);
-          }
-        }
-      }
-
-      // 3) Grasa/extra para cerrar kcal si sigue corto o falta grasa del día
-      afterP = sumMacros(plannedItems.filter(x=>x.meal===slot));
-      const needFat = (rem.f / Math.max(1, slotsLeft)) > 12 || (kcalTarget - afterP.kcal) > 180;
-
-      if(needFat && fats.length){
-        const fFood = fats[0];
-        // target grasa moderada
-        const fNeed = clamp(rem.f / Math.max(1, slotsLeft), Math.max(6, caps.fMin), caps.fMax);
-        const fQty = qtyForMacro(fFood, 'f', fNeed);
-        const existingCount = plannedItems.filter(x=>x.meal===slot).length;
-        if(existingCount < caps.maxItems){
-          addItem(slot, fFood, (fFood.baseUnit==='unit'?'unit':'g'), fQty);
-        }
-      }
-
-      // 4) Ajuste final: si aún falta mucha kcal, empuja con carb o fat según lo que falte
-      let guard=0;
-      while(guard++<6){
-        const slotTot = sumMacros(plannedItems.filter(x=>x.meal===slot));
-        const delta = kcalTarget - slotTot.kcal;
-        if(delta < 120) break;
-
-        // decide si empujar con carb o fat
-        // PRE/POST: empujar con carb es más humano; NEUTRAL decide por lo que falte
-        const wantCarb = (ctx==='PRE' || ctx==='POST') ? true : ((rem.c > rem.f*0.8) || carbs.length);
-        const pushFood = wantCarb ? (carbs[0] || fruits[0]) : fats[0];
-        if(!pushFood) break;
-
-        const qtyType = (pushFood.baseUnit==='unit') ? 'unit' : 'g';
-        const step = (qtyType==='unit') ? 1 : (pushFood.tags?.includes('fat') ? 10 : 50);
-
-        // si ya existe ese alimento en slot, sube qty, si no, añádelo
-        const existing = plannedItems.find(x=>x.meal===slot && x.foodId===pushFood.id);
-        if(existing){
-          existing.qty += step;
-          const mac = macroFor(pushFood, existing.qtyType, existing.qty);
-          existing.qtyDisplay = qtyDisplay(existing.qtyType, existing.qty);
-          existing.kcal=mac.kcal; existing.p=mac.p; existing.c=mac.c; existing.f=mac.f;
-        } else {
-          const existingCount = plannedItems.filter(x=>x.meal===slot).length;
-          if(existingCount >= caps.maxItems) break;
-          addItem(slot, pushFood, qtyType, (qtyType==='unit'?1:step));
-        }
-      }
-    };
-
-    const plannedItems = [];
-
-    // Si el día está vacío (no hay logs), cuadrar el día completo en slots base (+post si activo)
-    // Si ya hay algo, solo completar slots restantes.
-    // Si slotsToPlan quedó vacío pero falta, permitir pre_entreno si existe cena.
-    const initialRem = {
-      kcal: Math.max(0, goal.goalKcal - eaten.kcal),
-      p: Math.max(0, goal.p - eaten.p),
-      c: Math.max(0, goal.c - eaten.c),
-      f: Math.max(0, goal.f - eaten.f),
-    };
-
-    // Si no hay nada y aun así rem muy bajo, no hacemos nada.
-    if(initialRem.kcal < 120) return {slots:[], slotsToPlan:[], items:[], tot:{kcal:0,p:0,c:0,f:0}, context:'Nada que cuadrar.'};
-
-    // Plan principal
-    for(let i=0;i<slotsToPlan.length;i++){
-      const slot = slotsToPlan[i];
-      const rem = remainingNow();
-      if(rem.kcal < 160) break;
-      buildSlot(slot, rem, (slotsToPlan.length - i));
-    }
-
-    // Caso especial: si no quedan slotsToPlan (o ya los hemos llenado) y aún falta bastante, permitir pre_entreno
-    // SOLO si ya existe 'cena' en logs (última comida) y el usuario no tiene post activo (o ya está relleno).
-    const remAfter = remainingNow();
-    if(remAfter.kcal > 220){
-      const hasDinner = filled.has('cena');
-      const postFilled = filled.has('post_entreno');
-      const allowPre = hasDinner && (!postActive || postFilled);
-      if(allowPre && !filled.has('pre_entreno')){
-        // meter un bloque extra para cerrar (pre-entreno)
-        buildSlot('pre_entreno', remAfter, 1);
-        if(!allSlots.includes('pre_entreno')) allSlots.push('pre_entreno');
-        if(!slotsToPlan.includes('pre_entreno')) slotsToPlan.push('pre_entreno');
-      }
-    }
-
-    // Totales del plan
-    const tot = plannedItems.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
-
-    const plannedLabels = slotsToPlan.map(prettyMeal).join(' + ');
-    const ctx = `Cuadrando: ${plannedLabels || '—'} · Restan ${Math.round(Math.max(0, goal.goalKcal - (eaten.kcal+tot.kcal)))} kcal.`;
-    return {slots: allSlots, slotsToPlan, items: plannedItems, tot, context: ctx};
-  };
-  // ======= ESTADO =======
-  const computeDayStatus=(goal,eaten)=>{
-    // Estado consistente con la filosofía:
-    // - Mandan las calorías (déficit). Si kcal están en rango, el día "cuenta".
-    // - Proteína es prioridad. Si P está cubierta, el día puede ser BUENO aunque C/F estén desbalanceados.
-    const gK = Number(goal.goalKcal)||0;
-    const eK = Number(eaten.kcal)||0;
-    const gP = Number(goal.p)||0;
-    const eP = Number(eaten.p)||0;
-    const gF = Number(goal.f)||0;
-    const eF = Number(eaten.f)||0;
-    const gC = Number(goal.c)||0;
-    const eC = Number(eaten.c)||0;
-
-    const tolKcal = Math.max(100, gK*0.03);
-    const kcalDiff = eK - gK; // + pasado
-
-    const w = Number(($('weight')&&$('weight').value)||0);
-    const minPhysFat = w>0 ? (0.6*w) : 0;
-
-    const proteinOk = (gP<=0) ? true : (eP >= (gP - 5));
-    const fatPhysOk = (minPhysFat<=0) ? true : (eF >= (minPhysFat - 0.1));
-    const energyOk = Math.abs(kcalDiff) <= tolKcal;
-
-    // "Perfecto" exige que los 3 macros estén razonablemente cerca (tolerancias simples)
-    const perfect = energyOk && proteinOk && fatPhysOk &&
-      (Math.abs(eC - gC) <= 15) && (Math.abs(eF - gF) <= 5) && (Math.abs(eP - gP) <= 10);
-
-    let state='ok';
-    let label='REGULAR';
-
-    if(!energyOk){
-      state='bad';
-      label='REVISAR';
-    } else if(proteinOk && fatPhysOk){
-      state='good';
-      label = perfect ? 'PERFECTO' : 'BUENO';
-    } else {
-      state='ok';
-      label='MEJORABLE';
-    }
-
-    const bits=[];
-    const kcalSigned = `${(Math.round(kcalDiff)>0?'+':'')}${Math.round(kcalDiff)} kcal`;
-    bits.push(energyOk ? 'Energía: OK' : `Energía: ${kcalSigned}`);
-    if(!proteinOk) bits.push('Proteína: baja');
-    else bits.push('Proteína: OK');
-    if(!fatPhysOk) bits.push('Grasa: muy baja');
-
-    // Macro balance (solo si energía OK)
-    if(energyOk){
-      const notes=[];
-      if(eF < (gF - 6)) notes.push('F baja');
-      if(eC > (gC + 20)) notes.push('C alta');
-      if(notes.length) bits.push(`Macros: ${notes.join(' · ')}`);
-      else bits.push('Macros: OK');
-    }
-
-    const detail = bits.join(' · ');
-    return {state,label,detail};
-  };
-
-  const macroStatus = (modeKey, macroKey, eatenVal, goalVal) => {
-    const eaten = Number(eatenVal) || 0;
-    const goal = Number(goalVal) || 0;
-    if(goal <= 0) return {state:'ok', label:'—', detail:''};
-
-    const ratio = eaten / goal;
-
-    let tol = {
-      protein: { greenMin: 0.95, greenMax: 1.10, okMin: 0.90, okMax: 1.15 },
-      carbs:   { greenMin: 0.90, greenMax: 1.05, okMin: 0.80, okMax: 1.15 },
-      fat:     { greenMin: 0.90, greenMax: 1.10, okMin: 0.80, okMax: 1.20 },
-    };
-
-    if(modeKey === 'maint'){
-      tol.carbs = { greenMin: 0.95, greenMax: 1.05, okMin: 0.90, okMax: 1.10 };
-      tol.fat   = { greenMin: 0.95, greenMax: 1.05, okMin: 0.90, okMax: 1.10 };
-    }
-    if(modeKey === 'surplus'){
-      tol.carbs = { greenMin: 0.90, greenMax: 1.10, okMin: 0.80, okMax: 1.20 };
-      tol.fat   = { greenMin: 0.85, greenMax: 1.10, okMin: 0.75, okMax: 1.20 };
-    }
-
-    const t = tol[macroKey];
-
-    let state = 'bad';
-    if(ratio >= t.greenMin && ratio <= t.greenMax) state = 'good';
-    else if(ratio >= t.okMin && ratio <= t.okMax) state = 'ok';
-
-    const pct = Math.round(ratio*100);
-    let label = (state==='good')?'OK':(state==='ok'?'DESVÍO':'FUERA');
-
-    let hint='';
-    if(macroKey==='protein'){
-      if(ratio > t.greenMax) hint='· Baja P, sube C';
-      else if(ratio < t.greenMin) hint='· Sube P';
-      else hint='· Mantén';
-    }
-    return { state, label, detail: `(${pct}%) ${hint}`.trim() };
-  };
-
-  const setMacroBoxState = (boxEl, badgeEl, state, label, detail) => {
-    if(!boxEl || !badgeEl) return;
-
-    boxEl.classList.remove('good','ok','bad');
-    boxEl.classList.add(state);
-
-    const dot = badgeEl.querySelector('.dot');
-    const b = badgeEl.querySelector('b');
-    const spans = badgeEl.querySelectorAll('span');
-
-    if(dot){
-      dot.classList.remove('good','ok','bad');
-      dot.classList.add(state==='good'?'good':(state==='ok'?'ok':'bad'));
-    }
-    if(b) b.textContent = label;
-    if(spans.length >= 2) spans[1].textContent = detail || '';
-  };
-
-  const renderMacroStatuses = (goal, eaten, modeStored) => {
-    const p = macroStatus(modeStored.modeKey, 'protein', eaten.p, goal.p);
-    const c = macroStatus(modeStored.modeKey, 'carbs', eaten.c, goal.c);
-    const f = macroStatus(modeStored.modeKey, 'fat', eaten.f, goal.f);
-
-    setMacroBoxState($('eatenPBox'), $('pBadge'), p.state, p.label, p.detail);
-    setMacroBoxState($('eatenCBox'), $('cBadge'), c.state, c.label, c.detail);
-    setMacroBoxState($('eatenFBox'), $('fBadge'), f.state, f.label, f.detail);
-  };
-
-  // ======= UI / TABS =======
-  let currentRec=null;
-  let currentMacrosOk=null;
-
-  const setTab=(t)=>{
-    $('tabDay').classList.toggle('active',t==='day');
-    $('tabAdd').classList.toggle('active',t==='add');
-    $('screen-day').style.display=t==='day'?'':'none';
-    $('screen-add').style.display=t==='add'?'':'none';
-    // fuerza render para que la lista del tab Añadir siempre se vea
-    renderAll();
-  bindStatsModal();
-  };
-  $('tabDay').onclick=()=>setTab('day');
-  $('tabAdd').onclick=()=>setTab('add');
-
-  // Drawer open/close
-  const openDrawer=()=>{
-    $('drawerBack').style.display='block';
-    document.body.style.overflow='hidden';
-    // foco al buscador de lista
-    setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
-  };
-  const closeDrawer=()=>{
-    $('drawerBack').style.display='none';
-    document.body.style.overflow='';
-  };
-  $('openFoods').onclick=openDrawer;
-  $('closeDrawer').onclick=closeDrawer;
-
-  // Buscador rápido (pantalla Día) -> filtra lista de alimentos en el drawer
-  const openDrawerWithSearch = (q)=>{
-    openDrawer();
-    if($('foodsSearch')){
-      $('foodsSearch').value = String(q||'');
-    }
-    renderAll();
-    setTimeout(()=>{ $('foodsSearch')?.focus(); }, 50);
-  };
-
-  $('globalFoodSearchBtn').onclick=()=> openDrawerWithSearch($('globalFoodSearch').value);
-  $('globalFoodSearch').addEventListener('keydown',(e)=>{
-    if(e.key==='Enter'){ e.preventDefault(); openDrawerWithSearch($('globalFoodSearch').value); }
-  });
-
-  // Popover buscador (lupa)
-  const setSearchPop=(open)=>{
-    const pop=$('globalSearchPop');
-    if(!pop) return;
-    pop.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if(open){
-      setTimeout(()=>{ $('globalFoodSearch')?.focus(); }, 20);
-    }
   };
 
   $('toggleGlobalSearch').onclick=(e)=>{
@@ -3050,9 +2444,19 @@ window.addEventListener('error', function(e){
       neatLevel: $('neatLevel').value || defaultNeatByMode(storedMode.modeKey),
     };
     saveDaySettings(activeDayKey, day);
+    // refrescar resumen inmediatamente
+    window.updateDaySummaryCard?.();
     alert('Guardado.');
     renderAll();
   };
+
+  // Resumen Ajustes del día: refresco en vivo
+  ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach((id)=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('input', ()=>window.updateDaySummaryCard?.());
+    el.addEventListener('change', ()=>window.updateDaySummaryCard?.());
+  });
 
   $('foodSearch').addEventListener('input', ()=>renderAll());
   $('foodsSearch').addEventListener('input', ()=>renderAll());
