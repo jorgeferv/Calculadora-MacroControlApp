@@ -1,12 +1,16 @@
 /* sw.js - MacroControlAPP
    Estrategia: network-first para index, cache-first para estáticos.
 */
-const CACHE = 'mcapp-cache-v1.6.0-r56c2';
+// IMPORTANTE: cada release debe subir este identificador para forzar
+// la limpieza de cachés antiguas en iOS/Safari (si no, verás la app “vieja”).
+const CACHE = 'mcapp-cache-v1.5.9-r52';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './macrocontrol_foods_merged_v2_sorted.json'
+  // Datos
+  './macrocontrol_foods_merged_enriched.json',
+  './rules_engine_v1.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -50,6 +54,22 @@ self.addEventListener('fetch', (event) => {
       }catch{
         const cached = await caches.match(req);
         return cached || caches.match('./index.html');
+      }
+    })());
+    return;
+  }
+
+  // JSON de datos: network-first (para que las BD/reglas se refresquen)
+  if(url.pathname.endsWith('.json')){
+    event.respondWith((async () => {
+      try{
+        const fresh = await fetch(req);
+        const cache = await caches.open(CACHE);
+        cache.put(req, fresh.clone());
+        return fresh;
+      }catch{
+        const cached = await caches.match(req);
+        return cached || Response.error();
       }
     })());
     return;
