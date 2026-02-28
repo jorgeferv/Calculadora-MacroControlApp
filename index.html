@@ -517,57 +517,7 @@
         <details id="dayAdjustDetails">
           <summary class="sumHead">
             <div class="sumTitle">Ajustes del día</div>
-            <div class="sumGrid" aria-label="Resumen ajustes del día">
-              <div class="sumPill"><span>⚖️ Peso</span><b id="sumWeight">—</b></div>
-              <div class="sumPill"><span>📉 Déficit</span><b id="sumDef7">—</b></div>
-              <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
-              <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
-              <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
-            </div>
-          </summary>
-
-exo</label>
-              <select id="sex">
-                <option value="m" selected>Hombre</option>
-                <option value="f">Mujer</option>
-              </select>
-            </div>
-            <div>
-              <label>Edad</label>
-              <input id="age" type="number" inputmode="numeric" placeholder="35" />
-            </div>
-          </div>
-
-          <div class="two">
-            <div>
-              <label>Altura (cm)</label>
-              <input id="heightCm" type="number" inputmode="numeric" placeholder="175" />
-            </div>
-            <div>
-              <label>Peso (kg) <span id="weightLockHint" class="muted"></span></label>
-              <input id="weightKg" type="number" inputmode="decimal" placeholder="69" />
-              <div class="seg" style="margin-top:8px;">
-                <button id="overrideWeight" type="button">Override peso</button>
-                <button class="primary" id="saveProfile" type="button">Guardar perfil</button>
-              </div>
-              <div class="hint">El peso se bloquea 10 días tras actualizarlo (salvo override).</div>
-            </div>
-          </div>
-        </details>
-
-
-<!-- AJUSTES DEL DÍA (PLEGABLE SEPARADO DEL PERFIL) -->
-<details id="dayAdjustDetails" class="blkDetails">
-  <summary class="sumHead">
-    <div class="sumTitle">Ajustes del día</div>
-    <div class="sumGrid" aria-label="Resumen ajustes del día">
-      <div class="sumPill"><span>⏰ Entreno</span><b id="sumTrain">—</b></div>
-      <div class="sumPill"><span>WOD</span><b id="sumWod">—</b></div>
-      <div class="sumPill"><span>🚶 NEAT</span><b id="sumNeat">—</b></div>
-      <div class="sumPill"><span>PAL</span><b id="sumPal">—</b></div>
-      <div class="sumPill"><span>🔥 Activas</span><b id="sumActive">—</b></div>
-    </div>
-  </summary>
+            </summary>
 
   <div class="hr"></div>
 
@@ -3771,6 +3721,108 @@ function freezeDayIfNeeded(dateKey, summary){
   // Arranque
   syncNeatFromSteps();
   updateSummary();
+
+  // Cerrar por defecto siempre
+  const det = $("dayAdjustDetails");
+  if(det) det.open = false;
+})();
+
+
+/* ===== Ajustes del día: FIX resumen (actualiza siempre) ===== */
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function neatBandFromSteps(steps){
+    if(!Number.isFinite(steps) || steps <= 0) return null;
+    if(steps < 6000) return "low";
+    if(steps < 10000) return "med";
+    return "high";
+  }
+  function neatLabel(val){
+    if(val === "low") return "Bajo";
+    if(val === "med") return "Medio";
+    if(val === "high") return "Alto";
+    return "—";
+  }
+  function wodLabel(val){
+    if(val === "0") return "Sin";
+    if(val === "300") return "+300";
+    if(val === "350") return "+350";
+    if(val === "450") return "+450";
+    return val || "—";
+  }
+
+  function syncNeatFromSteps(){
+    const stepsEl = $("steps");
+    const neatEl = $("neatLevel");
+    const infoEl = $("neatInfo");
+    if(!stepsEl || !neatEl) return;
+
+    const steps = parseInt(stepsEl.value || "", 10);
+    const band = neatBandFromSteps(steps);
+    if(band){
+      neatEl.value = band;
+      if(infoEl){
+        infoEl.textContent = `Auto por pasos: ${steps.toLocaleString("es-ES")} → NEAT ${neatLabel(band)}.`;
+      }
+    }
+  }
+
+  function updateSummary(){
+    // Peso (perfil)
+    const w = $("weightKg")?.value;
+    const sumW = $("sumWeight");
+    if(sumW) sumW.textContent = w ? `${w} kg` : "—";
+
+    // Déficit 7d (si existe en la UI)
+    const def7 = $("def7Val")?.textContent?.trim();
+    const sumD = $("sumDef7");
+    if(sumD) sumD.textContent = def7 && def7 !== "—" ? def7 : "—";
+
+    // Hora entreno
+    const tt = $("trainTime")?.value;
+    const sumT = $("sumTrain");
+    if(sumT) sumT.textContent = tt ? tt : "—";
+
+    // WOD
+    const wod = $("wod")?.value;
+    const sumWod = $("sumWod");
+    if(sumWod) sumWod.textContent = wodLabel(wod);
+
+    // NEAT
+    const steps = parseInt($("steps")?.value || "", 10);
+    const neatSel = $("neatLevel")?.value;
+    const band = neatBandFromSteps(steps);
+    const label = band ? `${steps.toLocaleString("es-ES")} · ${neatLabel(band)}` : (neatSel ? neatLabel(neatSel) : "—");
+    const sumN = $("sumNeat");
+    if(sumN) sumN.textContent = label;
+  }
+
+  // Listeners
+  ["steps","neatLevel","trainTime","wod","weightKg"].forEach((id)=>{
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener("input", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
+    el.addEventListener("change", ()=>{ if(id==="steps") syncNeatFromSteps(); updateSummary(); });
+  });
+
+  // Reforzar tras guardar
+  const saveBtn = $("saveDay");
+  if(saveBtn){
+    saveBtn.addEventListener("click", ()=>{
+      setTimeout(()=>{ syncNeatFromSteps(); updateSummary(); }, 50);
+      setTimeout(()=>{ syncNeatFromSteps(); updateSummary(); }, 250);
+    });
+  }
+
+  // Reforzar en arranque (hidratación / carga de localStorage)
+  let n = 0;
+  const timer = setInterval(()=>{
+    syncNeatFromSteps();
+    updateSummary();
+    n++;
+    if(n >= 10) clearInterval(timer);
+  }, 200);
 
   // Cerrar por defecto siempre
   const det = $("dayAdjustDetails");
