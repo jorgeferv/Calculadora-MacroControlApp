@@ -210,6 +210,22 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
+
+    /* ======= DEV OCR MODAL (r48) ======= */
+    .modalBack{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:9999;padding:16px;}
+    .modalBox{width:min(560px,100%);max-height:88vh;overflow:auto;background:rgba(18,18,18,.98);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px;}
+    .modalTop{display:flex;align-items:center;gap:10px;}
+    .modalTop b{font-size:16px}
+    .modalBox .field{margin-top:10px}
+    .modalBox label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .modalBox input[type="text"], .modalBox input[type="number"], .modalBox textarea{
+      width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.25);color:var(--text);font-size:16px;
+    }
+    .modalBox textarea{min-height:120px;font-size:13px;line-height:1.25}
+    .modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+    .previewLine{margin-top:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+
 </style>
 </head>
 
@@ -227,6 +243,7 @@
     <div class="drawer">
       <div class="drawerTop">
         <b id="drawerTitle">Alimentos</b><span id="devBadge" class="pill" style="display:none; margin-left:auto;">DEV</span>
+        <button class="iconBtn" id="toggleFoodEditor" type="button" title="Editor">≡</button>
         <button class="iconBtn" id="closeDrawer" type="button">Cerrar</button>
       </div>
 
@@ -241,58 +258,38 @@
 <div id="devLockedHint" class="muted" style="margin-top:6px;">Modo desarrollador BLOQUEADO. Mantén pulsado “Alimentos” para desbloquear.</div>
 <div id="devControlActions" style="display:none;">
 <div class="seg">
-          <button id="exportFoods" type="button">Exportar JSON</button>
-          <button id="importFoodsBtn" type="button">Importar JSON</button>
-        </div>
-        <input id="importFoodsFile" type="file" accept="application/json" style="display:none;" />
-        <div class="muted" style="margin-top:8px;">
-          Consejo: exporta primero, edita el JSON en ordenador y reimporta.
-        </div>
-        <div id="devBackupBlock" style="margin-top:12px; display:none;">
-          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <b>Backup rápido (DEV)</b>
-            <span class="muted">Estado completo</span>
-          </div>
-          <div class="seg">
-            <button id="exportBackup" type="button">Exportar backup</button>
-            <button id="importBackupBtn" type="button">Importar backup</button>
-          </div>
-          <div class="seg" style="margin-top:8px;">
-            <button id="restoreLastBackup" type="button">Restaurar último</button>
-            <button id="makeBackupNow" type="button">Guardar copia</button>
-          </div>
-          <input id="importBackupFile" type="file" accept="application/json" style="display:none;" />
-          <div class="muted" style="margin-top:8px;">
-            Exporta antes de actualizar. En iPhone se guarda en Archivos y luego puedes importarlo en segundos.
-          </div>
-        </div>
-
-        <div id="devRulesBlock" style="margin-top:12px; display:none;">
-          <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0;">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <b>Rules Engine (DEV)</b>
-            <span class="muted">Maridajes & caps</span>
-          </div>
-          <div class="seg">
-            <button id="exportRules" type="button">Exportar reglas</button>
-            <button id="importRulesBtn" type="button">Importar reglas</button>
-          </div>
-          <div class="seg" style="margin-top:8px;">
-            <button id="resetRules" type="button">Restaurar por defecto</button>
-          </div>
-          <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
-          <div class="muted" style="margin-top:8px;">
-            Consejo: exporta, edita el JSON y reimporta. Si el archivo es inválido, se ignora.
-          </div>
-        </div>
+  <button id="exportMaster" type="button">Exportar MASTER</button>
+  <button id="importMasterBtn" type="button">Importar MASTER</button>
+</div>
+<div class="seg" style="margin-top:10px;">
+  <button id="validateRepair" type="button">Validar y reparar</button>
+  <button id="resetMotor" type="button">Reiniciar motor</button>
+</div>
+<input id="importMasterFile" type="file" accept="application/json" style="display:none;" />
+<div class="muted" style="margin-top:8px;">
+  DEV: un único archivo MASTER contiene alimentos (root+usuario), reglas/pairings y estado (perfil, settings, logs).<br>
+  “Validar y reparar” corrige ids duplicados, elimina ml, normaliza tags y sanea reglas.
+</div>
+</div>
 </div>
   </div>
 </details>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
-        <label>Añadir / editar alimento</label>
+      <details class="card" id="foodEditorBox" style="margin-bottom:12px;">
+        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <b>Añadir / editar alimento</b>
+          <span class="muted">Editor</span>
+        </summary>
+        <div style="margin-top:10px;">
+
+        <!-- DEV: OCR label scanner (acceso desde editor de alimentos, no ensucia Control) -->
+        <div id="devOcrInline" class="seg" style="margin-top:8px; display:none;">
+          <button id="ocrScanBtn" type="button">Escanear etiqueta (OCR)</button>
+        </div>
+        <div id="devOcrInlineHint" class="muted" style="margin-top:6px; display:none;">
+          DEV: crea/actualiza un alimento por 100 g a partir de una foto de la etiqueta.
+        </div>
         <input id="f_id" placeholder="id (sin espacios)" />
         <input id="f_name" placeholder="Nombre" />
 
@@ -347,6 +344,8 @@
           Lo guardado aquí se almacena como “usuario” y se conserva aunque actualices el código.
         </div>
       </div>
+      </div>
+      </details>
 
       <!-- 2) LISTA ABAJO (plegable + buscador) -->
       <details open>
@@ -562,7 +561,7 @@
         <div class="kpi">
           <div class="box"><div class="num" id="goalKcal">—</div><div class="lbl">Objetivo kcal</div></div>
           <div class="box"><div class="num" id="eatenKcal">—</div><div class="lbl">Consumidas</div></div>
-          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl">Restantes</div></div>
+          <div class="box"><div class="num" id="remKcal">—</div><div class="lbl" id="remKcalLbl">Faltan</div></div>
           <div class="box"><div class="num" id="tdeeKcal">—</div><div class="lbl">TDEE estimado</div></div>
         </div>
 
@@ -706,6 +705,72 @@ pan_cristal 2u"></textarea>
     <button id="tabAdd" type="button">Añadir</button>
   </div>
 
+
+  <!-- ======= MODAL OCR (DEV) - r48 ======= -->
+  <div class="modalBack" id="ocrBack" aria-hidden="true">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-label="Escáner nutricional · build r52-hotfix-tdz-ocr">
+      <div class="modalTop">
+        <b>Escáner nutricional</b>
+        <span id="ocrConf" class="pill" style="margin-left:auto;display:none;">OCR</span>
+        <button class="iconBtn" id="ocrClose" type="button">✕</button>
+      </div>
+
+      <div class="field">
+        <label for="ocrName">Nombre del producto (obligatorio)</label>
+        <input id="ocrName" type="text" placeholder="Ej: Queso batido 0% Hacendado" />
+      </div>
+
+      <div class="field">
+        <label>Foto de la etiqueta</label>
+        <div class="seg">
+          <button id="ocrPickBtn" type="button">Hacer foto / seleccionar imagen</button>
+          <input id="ocrFile" type="file" accept="image/*"  style="display:none;" />
+        </div>
+        <div id="ocrFileHint" class="muted" style="margin-top:6px;">Sube una foto nítida (por 100 g si es posible).</div>
+      </div>
+
+      <details class="card" id="ocrTextBox" style="margin-top:12px;">
+        <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <b>Texto OCR detectado</b>
+          <span class="muted">ver/ocultar</span>
+        </summary>
+        <div style="margin-top:10px;">
+          <textarea id="ocrText" placeholder="Aquí se mostrará el texto OCR…"></textarea>
+        </div>
+      </details>
+
+      <div class="field" style="margin-top:12px;">
+        <label>Macros por 100 g (editable)</label>
+        <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label for="ocrFat">Grasas (g)</label>
+            <input id="ocrFat" type="number" step="0.1" min="0" max="100" placeholder="Ej: 1.5" />
+          </div>
+          <div>
+            <label for="ocrProtein">Proteínas (g)</label>
+            <input id="ocrProtein" type="number" step="0.1" min="0" max="100" placeholder="Ej: 6" />
+          </div>
+          <div>
+            <label for="ocrCarbs">Carbohidratos (g)</label>
+            <input id="ocrCarbs" type="number" step="0.1" min="0" max="100" placeholder="Ej: 7" />
+          </div>
+          <div>
+            <label for="ocrKcal">kcal (opcional)</label>
+            <input id="ocrKcal" type="number" step="1" min="0" max="900" placeholder="Ej: 120" />
+          </div>
+        </div>
+
+        <div id="ocrPreview" class="previewLine muted" style="display:none;"></div>
+        <div id="ocrWarn" class="muted" style="margin-top:8px;display:none;"></div>
+      </div>
+
+      <div class="modalActions">
+        <button id="ocrCancel" type="button">Cancelar</button>
+        <button id="ocrSave" type="button">Guardar alimento</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 // Debug visible en iOS si algo rompe el render
 window.addEventListener('error', function(e){
@@ -725,7 +790,21 @@ window.addEventListener('error', function(e){
   // =========================
   // STORAGE KEYS (estables)
   // =========================
-  const LS = {
+  
+  // ======= DEV OCR CONFIG (r48) =======
+  // OCR_ENDPOINT: endpoint OCR (multipart/form-data). Expected response:
+  // {
+  //   "text": "full_ocr_text",
+  //   "per100g": {"fat": 1.5, "protein": 6, "carbs": 7, "kcal": 120},
+  //   "confidence": 0..1
+  // }
+  // If backend returns only "text", we parse locally (regex ES/EN).
+  const OCR_ENDPOINT = "https://api.ocr.space/parse/image"; // OCR.space endpoint (DEV)
+  const OCR_SPACE_APIKEY = "K84237061588957"; // ⚠ Visible in client (DEV only)
+  const OCR_SPACE_LANG = "spa"; // "spa" or "eng"
+  const OCR_SPACE_ENGINE = "2"; // OCR engine 2 often better for labels
+
+const LS = {
     mode: 'mc_mode',
     modeLegacy: 'mc_mode_v9',
     settings: 'mc_settings',
@@ -846,6 +925,11 @@ window.addEventListener('error', function(e){
     if(ctrlActions) ctrlActions.style.display = dev ? '' : 'none';
     if(ctrlHint) ctrlHint.style.display = dev ? 'none' : '';
 
+    const ocrInline = $('devOcrInline');
+    const ocrInlineHint = $('devOcrInlineHint');
+    if(ocrInline) ocrInline.style.display = dev ? '' : 'none';
+    if(ocrInlineHint) ocrInlineHint.style.display = dev ? '' : 'none';
+
     const backupBlock = $('devBackupBlock');
     if(backupBlock) backupBlock.style.display = dev ? '' : 'none';
 
@@ -903,6 +987,217 @@ window.addEventListener('error', function(e){
     t.addEventListener('mouseup', cancel);
     t.addEventListener('mouseleave', cancel);
   };
+  // ======= DEV OCR: UI wiring (r48) =======
+  // Added button in DEV tools: #ocrScanBtn
+  // Modal: #ocrBack (Escáner nutricional)
+  const bindDevOCR = ()=>{
+    const btn = $('ocrScanBtn');
+    if(!btn) return;
+
+    const back = $('ocrBack');
+    const closeBtn = $('ocrClose');
+    const cancelBtn = $('ocrCancel');
+    const pickBtn = $('ocrPickBtn');
+    const fileIn = $('ocrFile');
+
+    const nameIn = $('ocrName');
+    const fatIn = $('ocrFat');
+    const proIn = $('ocrProtein');
+    const carbIn = $('ocrCarbs');
+    const kcalIn = $('ocrKcal');
+    const txt = $('ocrText');
+    const confPill = $('ocrConf');
+    const preview = $('ocrPreview');
+    const warn = $('ocrWarn');
+
+    let lastOCR = { text:'', confidence:null, per100:null, per100Detected:false };
+
+    const show = ()=>{ if(back){ back.style.display='flex'; back.setAttribute('aria-hidden','false'); } };
+    const hide = ()=>{
+      if(back){ back.style.display='none'; back.setAttribute('aria-hidden','true'); }
+      // reset file to allow re-pick
+      if(fileIn) fileIn.value='';
+    };
+
+    const setWarn = (msg)=>{ if(!warn) return; warn.style.display = msg ? '' : 'none'; warn.textContent = msg || ''; };
+    const setPreview = (obj)=>{
+      if(!preview) return;
+      if(!obj){ preview.style.display='none'; preview.textContent=''; return; }
+      const est = obj.kcalEstimated ? ' (estimada)' : '';
+      let s = `Por 100 g: G ${obj.fat} / P ${obj.protein} / C ${obj.carbs} / kcal ${obj.kcal}${est}`;
+      if(obj.serving && obj.serving.grams){
+        const sg = obj.serving.grams;
+        const sf = (obj.serving.fat!=null) ? obj.serving.fat : '—';
+        const sp = (obj.serving.protein!=null) ? obj.serving.protein : '—';
+        const sc = (obj.serving.carbs!=null) ? obj.serving.carbs : '—';
+        const sk = (obj.serving.kcal!=null) ? obj.serving.kcal : '—';
+        s += ` · Ración ${sg} g: G ${sf} / P ${sp} / C ${sc} / kcal ${sk}`;
+      }
+      preview.style.display='';
+      preview.textContent = s;
+    };;
+
+    const readInputs = ()=>{
+      const fat = clampNum(parseNumLoose(fatIn?.value), 0, 100);
+      const protein = clampNum(parseNumLoose(proIn?.value), 0, 100);
+      const carbs = clampNum(parseNumLoose(carbIn?.value), 0, 100);
+      let kcal = parseNumLoose(kcalIn?.value);
+      kcal = (kcal===null) ? null : clampNum(kcal, 0, 900);
+      const ok = (fat!==null && protein!==null && carbs!==null);
+      if(!ok) return null;
+
+      let kcalEstimated = false;
+      if(kcal===null){
+        kcal = Math.round(fat*9 + (protein+carbs)*4);
+        kcalEstimated = true;
+      } else {
+        kcal = Math.round(kcal);
+      }
+      return { fat, protein, carbs, kcal, kcalEstimated };
+    };
+
+    const refreshPreview = ()=>{
+      const m = readInputs();
+      if(!m){ setPreview(null); return; }
+      setPreview(m);
+    };
+
+    [fatIn, proIn, carbIn, kcalIn].forEach(el=>{
+      el?.addEventListener('input', refreshPreview);
+    });
+
+    async function runOCR(file){
+      setWarn('');
+      if(confPill){ confPill.style.display='inline-flex'; confPill.textContent='OCR…'; }
+      try{
+        const res = await sendImageToOCR(file);
+        const text = res?.text || '';
+        const per = res?.per100g || null;
+        const conf = (typeof res?.confidence === 'number') ? res.confidence : null;
+
+        lastOCR = { text, confidence: conf, per100: per, per100Detected:false };
+
+        if(txt) txt.value = text;
+
+        let parsed = null;
+        if(per && typeof per === 'object'){
+          parsed = {
+            fat: parseNumLoose(per.fat),
+            protein: parseNumLoose(per.protein),
+            carbs: parseNumLoose(per.carbs),
+            kcal: parseNumLoose(per.kcal)
+          };
+          lastOCR.per100Detected = true; // backend says per100g
+        } else if(text){
+          const loc = parseNutritionFromText(text);
+          parsed = loc;
+          lastOCR.per100Detected = !!loc.per100;
+        }
+
+        if(parsed){
+          if(parsed.fat!==null && fatIn) fatIn.value = String(parsed.fat);
+          if(parsed.protein!==null && proIn) proIn.value = String(parsed.protein);
+          if(parsed.carbs!==null && carbIn) carbIn.value = String(parsed.carbs);
+          if(parsed.kcal!==null && kcalIn) kcalIn.value = String(Math.round(parsed.kcal));
+          refreshPreview();
+        }
+
+        if(confPill){
+          confPill.style.display='inline-flex';
+          confPill.textContent = (conf===null) ? 'OCR' : `OCR ${(conf*100).toFixed(0)}%`;
+        }
+
+        if(!lastOCR.per100Detected){
+          setWarn('Aviso: no se detectó claramente “por 100 g”. Revisa macros antes de guardar.');
+        }
+
+      }catch(err){
+        if(confPill){ confPill.style.display='none'; }
+        setWarn('Fallo OCR: ' + (err?.message || err));
+      }
+    }
+
+    btn.addEventListener('click', ()=>{
+      if(!isDev()){
+        alert('Modo desarrollador BLOQUEADO.');
+        return;
+      }
+      // reset UI
+      if(confPill) confPill.style.display='none';
+      setWarn('');
+      if(txt) txt.value='';
+      if(fatIn) fatIn.value='';
+      if(proIn) proIn.value='';
+      if(carbIn) carbIn.value='';
+      if(kcalIn) kcalIn.value='';
+      setPreview(null);
+      show();
+      setTimeout(()=>nameIn?.focus(), 50);
+    });
+
+    closeBtn?.addEventListener('click', hide);
+    cancelBtn?.addEventListener('click', hide);
+    back?.addEventListener('click', (e)=>{ if(e.target===back) hide(); });
+
+    pickBtn?.addEventListener('click', ()=> fileIn?.click());
+    fileIn?.addEventListener('change', ()=>{
+      const f = fileIn.files && fileIn.files[0];
+      if(!f) return;
+      runOCR(f);
+    });
+
+    $('ocrSave')?.addEventListener('click', ()=>{
+      if(!isDev()){
+        alert('Modo desarrollador BLOQUEADO.');
+        return;
+      }
+      const name = String(nameIn?.value||'').trim();
+      if(!name){
+        alert('Falta el nombre del producto.');
+        return;
+      }
+      const m = readInputs();
+      if(!m){
+        alert('No se detectaron macros válidos. Revisa Grasas/Proteínas/Carbohidratos.');
+        return;
+      }
+
+      // Build food object (per 100g). NO ml. NO modo unit aquí.
+      const id = slugSafe(name);
+
+      // tags mínimos (mejorable después con rules engine)
+      const tags = [];
+      if(m.protein >= 10) tags.push('protein');
+      if(m.carbs >= 10) tags.push('carb');
+      if(m.fat >= 10) tags.push('fat');
+      // tags de uso: mantener estilo actual sin inventar estructuras
+      tags.push('comida_ok'); // genérico
+
+      const foodObj = normalizeFood({
+        id,
+        name,
+        baseUnit: '100g',
+        kcal: m.kcal,
+        p: m.protein,
+        c: m.carbs,
+        f: m.fat,
+        unitGrams: null,
+        tags
+      });
+
+      try{
+        upsertFoodFromApp(foodObj);
+        // refrescar UI foods drawer si está abierto
+        renderAll();
+        alert(`Guardado: ${foodObj.name}\n\n${preview?.textContent || ''}`);
+        hide();
+      }catch(err){
+        alert('Error al guardar: ' + (err?.message || err));
+      }
+    });
+  };
+
+
 
   // Barra de estado en Añadir (kcal + macros)e en pantallas principales.
   const updateAddStatusBar = (goal,eaten)=>{
@@ -1168,6 +1463,98 @@ window.addEventListener('error', function(e){
   };
 
   const foodById=(foods,id)=>foods.find(f=>f.id===id);
+
+  // ======= DEV OCR: helpers (r48) =======
+  function slugSafe(str){
+    str = String(str||"").trim().toLowerCase();
+    // quitar tildes
+    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    // espacios y símbolos -> _
+    str = str.replace(/[^a-z0-9]+/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,'');
+    return str || 'food';
+  }
+
+  function parseNumLoose(x){
+    if(x===null || x===undefined) return null;
+    const s = String(x).trim().replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function clampNum(n, lo, hi){
+    n = Number(n);
+    if(!Number.isFinite(n)) return null;
+    return Math.max(lo, Math.min(hi, n));
+  }
+
+  // Local OCR parser fallback (ES/EN). Supports comma decimals.
+  function parseNutritionFromText(text){
+    // r51: Delegate to enhanced parser (supports 100g header, per-unit conversion, dual-column serving)
+    const parsed = (typeof parseNutritionTextEnhanced === 'function') ? parseNutritionTextEnhanced(String(text||'')) : null;
+    if(!parsed) return null;
+
+    const fat = (parsed.fat!=null) ? +(+parsed.fat).toFixed(2) : null;
+    const protein = (parsed.protein!=null) ? +(+parsed.protein).toFixed(2) : null;
+    const carbs = (parsed.carbs!=null) ? +(+parsed.carbs).toFixed(2) : null;
+    const kcal = (parsed.kcal!=null) ? Math.round(parsed.kcal) : null;
+
+    const per100 = !!(parsed._baseInfo && parsed._baseInfo.per100g);
+    const baseInfo = parsed._baseInfo || null;
+
+    // Serving info (if label provides it). If grams exist but macro values missing, compute from per100.
+    let serving = parsed._serving || null;
+    if(serving && serving.grams && (serving.fat==null || serving.protein==null || serving.carbs==null || serving.kcal==null)){
+      const factor = serving.grams / 100;
+      serving = {
+        grams: serving.grams,
+        fat: (serving.fat!=null) ? serving.fat : (fat!=null ? +(fat*factor).toFixed(2) : null),
+        protein: (serving.protein!=null) ? serving.protein : (protein!=null ? +(protein*factor).toFixed(2) : null),
+        carbs: (serving.carbs!=null) ? serving.carbs : (carbs!=null ? +(carbs*factor).toFixed(2) : null),
+        kcal: (serving.kcal!=null) ? Math.round(serving.kcal) : (kcal!=null ? Math.round(kcal*factor) : null)
+      };
+    }
+
+    return {
+      fat, protein, carbs, kcal,
+      per100,
+      serving,
+      baseInfo,
+      kcalEstimated: !!parsed._kcalEstimated,
+      convertedFromUnit: !!parsed._convertedFromUnit
+    };
+  }
+
+  async function sendImageToOCR(file){
+    if(!OCR_ENDPOINT){
+      throw new Error("OCR_ENDPOINT no está configurado.");
+    }
+    const fd = new FormData();
+
+    // ===== r49 OCR.space compatibility =====
+    // OCR.space expects:
+    // - multipart field: "file"
+    // - api key field: "apikey"
+    // Docs: https://ocr.space/ocrapi
+    if(/api\.ocr\.space\/parse\/image/i.test(OCR_ENDPOINT)){
+      fd.append("file", file, file.name || "label.jpg");
+      fd.append("apikey", (typeof OCR_SPACE_APIKEY==='string' ? OCR_SPACE_APIKEY.trim() : ""));
+      fd.append("language", "spa");
+      fd.append("isOverlayRequired", "false");
+      fd.append("OCREngine", "2");
+    } else {
+      // Generic backend format (your own endpoint): expects multipart field "image"
+      fd.append("image", file, file.name || "label.jpg");
+    }
+
+    const res = await fetch(OCR_ENDPOINT, { method:"POST", body: fd });
+    if(!res.ok){
+      const msg = await res.text().catch(()=> "");
+      throw new Error("OCR HTTP " + res.status + (msg ? (": " + msg.slice(0,180)) : ""));
+    }
+    const json = await res.json();
+    return json;
+  }
+
 
   const macroFor=(food,qtyType,qty)=>{
     qty=Number(qty)||0; if(qty<=0) return {kcal:0,p:0,c:0,f:0};
@@ -1580,18 +1967,52 @@ window.addEventListener('error', function(e){
       return base;
     };
 
+
+    const roundToStep = (v, step)=>{
+      step = Number(step)||1;
+      return Math.round(v/step)*step;
+    };
+
+    // Porciones por defecto (A): realismo sin editar el backup.
+    // Se basan en tags (protein/carb/fat) y densidad (kcal/100g).
+    const portionProfile = (food)=>{
+      const tags = food?.tags || [];
+      const isProtein = tags.includes('protein');
+      const isCarb = tags.includes('carb');
+      const isFat = tags.includes('fat');
+      const isDense = Number(food?.kcal||0) >= 450; // ej: crema cacahuete, chocolate
+      let minG=30, maxG=250, stepG=10;
+
+      if(isProtein){ minG=80; maxG=260; stepG=10; }
+      if(isCarb){    minG=40; maxG=240; stepG=10; }
+      if(isFat){     minG=5;  maxG=40;  stepG=5;  }
+
+      if(isDense){   minG=5;  maxG=Math.min(maxG,30); stepG=5; }
+
+      // unidades (si baseUnit=unit)
+      let minU=0.5, maxU=6, stepU=1;
+      if(Number(food?.unitGrams||0) > 0 && Number(food.unitGrams) <= 30){ stepU=0.5; minU=0.5; }
+      if(isFat || isDense){ stepU=0.5; minU=0.5; }
+      return {minG,maxG,stepG,minU,maxU,stepU};
+    };
     const qtyForMacro = (food, macroKey, target)=>{
-      // target en gramos de macro; devuelve qty (g o units) aproximada
+      // target en gramos de macro; devuelve qty (g o units) aproximada, con porciones realistas por tags
+      const prof = portionProfile(food);
       const per = macroFor(food, 'g', 100);
       const perUnit = macroFor(food, 'unit', 1);
+
       if(food.baseUnit==='unit'){
         const mv = (macroKey==='p'?perUnit.p:(macroKey==='c'?perUnit.c:perUnit.f));
-        if(mv<=0) return 1;
-        return clamp(Math.round(target / mv), 1, 6);
+        if(mv<=0) return prof.minU;
+        const raw = target / mv;
+        const q = roundToStep(raw, prof.stepU);
+        return clamp(q, prof.minU, prof.maxU);
       } else {
         const mv = (macroKey==='p'?per.p:(macroKey==='c'?per.c:per.f));
-        if(mv<=0) return 100;
-        return clamp(round5((target / mv)*100), 30, 400);
+        if(mv<=0) return prof.minG;
+        const rawG = (target / mv) * 100;
+        const q = roundToStep(rawG, prof.stepG);
+        return clamp(q, prof.minG, prof.maxG);
       }
     };
 
@@ -1677,19 +2098,20 @@ window.addEventListener('error', function(e){
         if(!pushFood) break;
 
         const qtyType = (pushFood.baseUnit==='unit') ? 'unit' : 'g';
-        const step = (qtyType==='unit') ? 1 : (pushFood.tags?.includes('fat') ? 10 : 50);
+        const prof = portionProfile(pushFood);
+        const step = (qtyType==='unit') ? prof.stepU : prof.stepG;
 
         // si ya existe ese alimento en slot, sube qty, si no, añádelo
         const existing = plannedItems.find(x=>x.meal===slot && x.foodId===pushFood.id);
         if(existing){
-          existing.qty += step;
+          existing.qty = clamp(existing.qty + step, (qtyType==='unit'?prof.minU:prof.minG), (qtyType==='unit'?prof.maxU:prof.maxG));
           const mac = macroFor(pushFood, existing.qtyType, existing.qty);
           existing.qtyDisplay = qtyDisplay(existing.qtyType, existing.qty);
           existing.kcal=mac.kcal; existing.p=mac.p; existing.c=mac.c; existing.f=mac.f;
         } else {
           const existingCount = plannedItems.filter(x=>x.meal===slot).length;
           if(existingCount >= caps.maxItems) break;
-          addItem(slot, pushFood, qtyType, (qtyType==='unit'?1:step));
+          addItem(slot, pushFood, qtyType, (qtyType==='unit'?prof.minU:Math.max(prof.minG, step)));
         }
       }
     };
@@ -1898,6 +2320,13 @@ window.addEventListener('error', function(e){
   };
   $('openFoods').onclick=openDrawer;
   $('closeDrawer').onclick=closeDrawer;
+  // Toggle editor de alimentos (oculto por defecto)
+  $('toggleFoodEditor').onclick=()=>{
+    const box = $('foodEditorBox');
+    if(!box) return;
+    box.open = !box.open;
+    if(box.open){ setTimeout(()=>{ box.scrollIntoView({behavior:'smooth', block:'start'}); }, 0); }
+  };
 
   // Buscador rápido (pantalla Día) -> filtra lista de alimentos en el drawer
   const openDrawerWithSearch = (q)=>{
@@ -2159,7 +2588,13 @@ window.addEventListener('error', function(e){
     $('tdeeKcal').textContent=goal.tdee;
 
     $('eatenKcal').textContent=round(eaten.kcal);
-    $('remKcal').textContent=round(goal.goalKcal - eaten.kcal);
+    const _rem = round(goal.goalKcal - eaten.kcal);
+    const _remAbs = Math.abs(_rem);
+    $('remKcal').textContent = _remAbs;
+    const _lbl = $('remKcalLbl');
+    if(_lbl){
+      _lbl.textContent = (_rem < 0) ? 'Sobran' : 'Faltan';
+    }
 
     const elGoalP=$('goalP'); if(elGoalP) elGoalP.textContent=goal.p;
     const elGoalC=$('goalC'); if(elGoalC) elGoalC.textContent=goal.c;
@@ -3181,15 +3616,15 @@ window.addEventListener('error', function(e){
     alert(isHiddenId(id) ? 'Ocultado (root).' : 'Visible (root).');
     renderAll();
   };
-$('exportFoods').onclick=()=>{
+$('exportFoods') && ($('exportFoods').onclick=()=>{
     const foods=loadFoodsMerged();
     const blob=new Blob([JSON.stringify(foods,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download='macrocontrolapp_foods_merged.json'; a.click();
     URL.revokeObjectURL(url);
-  };
+  });
 
-  $('importFoodsBtn').onclick=()=>$('importFoodsFile').click();
+  $('importFoodsBtn') && ($('importFoodsBtn').onclick=()=>$('importFoodsFile').click();
   $('importFoodsFile').onchange=(ev)=>{
     const file=ev.target.files[0]; if(!file) return;
     const r=new FileReader();
@@ -3209,7 +3644,7 @@ $('exportFoods').onclick=()=>{
       }catch(e){
         alert('JSON inválido: '+e.message);
       }
-    };
+    });
     r.readAsText(file);
   };
 
@@ -3249,6 +3684,185 @@ $('exportFoods').onclick=()=>{
     alert('Rules Engine restaurado (por defecto).');
     renderAll();
   });
+
+
+  // =========================
+  // DEV MASTER (r56): 1 solo archivo para TODO (alimentos root+usuario + reglas + estado)
+  // Botones: Exportar MASTER / Importar MASTER / Validar y reparar / Reiniciar motor
+  // =========================
+
+  const snapshotMasterState = ()=>{
+    // Incluye foodsRoot para que el fichero sea autosuficiente (aunque el código cambie).
+    const st = snapshotState();
+    st.schemaVersion = 1;
+    st.exportedAt = new Date().toISOString();
+    st.foodsRoot = loadJSON(LS.foodsRoot, null);
+    st._kind = 'macrocontrol_master';
+    return st;
+  };
+
+  const applyMasterState = (state)=>{
+    if(!state || typeof state!=='object') throw new Error('MASTER inválido');
+    // Reutilizamos la lógica del backup para estado base
+    applyBackupState(state);
+    // foodsRoot (si viene) — se normaliza y se guarda
+    if(state.foodsRoot!=null){
+      const root = Array.isArray(state.foodsRoot) ? state.foodsRoot : [];
+      saveJSON(LS.foodsRoot, root.map(normalizeFood));
+      syncRootWithDefaults(); // garantiza que no falten los defaults
+    }
+    // Tras importar, siempre validar y reparar (sin preguntar)
+    validateAndRepair({silent:true});
+  };
+
+  // Validar y reparar: sanea datos para que el motor sea robusto (sin destruir historial).
+  const validateAndRepair = (opts={})=>{
+    const silent = !!opts.silent;
+    const report = [];
+    const note = (s)=>report.push(s);
+
+    try{
+      ensureFoodsStores();
+
+      // 1) FOODS: normalizar + dedupe + eliminar ml
+      const fixFoodsArray = (arr, label)=>{
+        const src = Array.isArray(arr) ? arr : [];
+        const fixed = src.map(normalizeFood).map(f=>{
+          // No permitir 100ml (legacy) -> 100g
+          if(f.baseUnit==='100ml'){
+            f.baseUnit='100g';
+            note(`${label}: ${f.id} baseUnit 100ml -> 100g`);
+          }
+          // Tags: trim + dedupe
+          f.tags = Array.from(new Set((f.tags||[]).map(t=>String(t||'').trim()).filter(Boolean)));
+          return f;
+        });
+        const deduped = uniqByIdPreferLast(fixed);
+        if(deduped.length !== fixed.length) note(`${label}: ids duplicados -> dedupe (${fixed.length} -> ${deduped.length})`);
+        return deduped;
+      };
+
+      const root0 = loadJSON(LS.foodsRoot, []);
+      const user0 = loadJSON(LS.foodsUser, []);
+      const root = fixFoodsArray(root0, 'foodsRoot');
+      const user = fixFoodsArray(user0, 'foodsUser');
+
+      saveJSON(LS.foodsRoot, root);
+      saveJSON(LS.foodsUser, user);
+      syncRootWithDefaults();
+
+      // 2) LOGS: eliminar qtyType ml (legacy) -> g
+      const logs0 = loadJSON(LS.logs, {});
+      let logsChanged = false;
+      if(logs0 && typeof logs0==='object' && !Array.isArray(logs0)){
+        for(const dayKey of Object.keys(logs0)){
+          const arr = Array.isArray(logs0[dayKey]) ? logs0[dayKey] : [];
+          for(const it of arr){
+            if(it && it.qtyType==='ml'){
+              it.qtyType='g';
+              logsChanged=true;
+              note(`logs: ${dayKey} ${it.name||it.foodId} qtyType ml -> g`);
+              if(typeof it.qty==='number' && Number.isFinite(it.qty)){
+                it.qtyDisplay = `${it.qty}g`;
+              }
+            } else if(typeof it?.qtyDisplay==='string' && it.qtyDisplay.includes('ml')){
+              it.qtyDisplay = it.qtyDisplay.replace('ml','g');
+              logsChanged=true;
+            }
+          }
+          logs0[dayKey]=arr;
+        }
+      }
+      if(logsChanged) saveJSON(LS.logs, logs0);
+
+      // 3) RULES: estructura mínima + dedupe pairings
+      const re0 = loadJSON(LS.rulesEngine, null) || DEFAULT_RULES_ENGINE;
+      let reChanged = false;
+
+      if(!re0 || typeof re0!=='object'){
+        localStorage.removeItem(LS.rulesEngine);
+        note('rulesEngine: inválido -> restaurado por defecto');
+      } else {
+        const pairings = Array.isArray(re0.pairings) ? re0.pairings : [];
+        const seen = new Set();
+        const p2=[];
+        for(const p of pairings){
+          const id = String(p?.id||'').trim();
+          if(!id) continue;
+          if(seen.has(id)){ reChanged=true; continue; }
+          seen.add(id); p2.push(p);
+        }
+        if(reChanged){
+          re0.pairings = p2;
+          saveJSON(LS.rulesEngine, re0);
+          note(`rulesEngine: pairings dedupe (${pairings.length} -> ${p2.length})`);
+        }
+      }
+
+      // 4) DEV hidden ids sane
+      const hid = loadHiddenIds();
+      if(!Array.isArray(hid)){
+        saveHiddenIds([]);
+        note('foodsHidden: reseteado (valor inválido)');
+      }
+
+      // 5) Re-render + feedback
+      renderAll();
+      if(!silent){
+        alert(report.length
+          ? `Validación completada.\n\n${report.slice(0,14).join('\n')}${report.length>14?`\n… +${report.length-14} más`:''}`
+          : 'Validación completada. No se detectaron problemas.');
+      }
+    }catch(e){
+      if(!silent) alert('Error en validación: ' + (e?.message || e));
+    }
+  };
+
+  const resetMotorSoft = ()=>{
+    // Reinicia solo el “motor/estado diario”, sin tocar alimentos ni reglas.
+    if(!confirm('Reiniciar motor borrará el día actual (logs/settings/lastDate) pero mantendrá alimentos y reglas. ¿Continuar?')) return;
+    try{
+      localStorage.removeItem(LS.logs);
+      localStorage.removeItem(LS.settings);
+      localStorage.removeItem(LS.lastDate);
+      // mantener perfil, foods y rules
+      renderAll();
+      alert('Motor reiniciado.');
+    }catch(e){
+      alert('No se pudo reiniciar: ' + (e?.message || e));
+    }
+  };
+
+  // Bind botones DEV MASTER (si existen en UI)
+  $('exportMaster') && ($('exportMaster').onclick=()=>{
+    try{
+      const blob=new Blob([JSON.stringify(snapshotMasterState(),null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download = `macrocontrol_master_${(new Date()).toISOString().slice(0,10).replace(/-/g,'')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){ alert('No se pudo exportar MASTER: ' + (e?.message || e)); }
+  });
+
+  $('importMasterBtn') && ($('importMasterBtn').onclick=()=> $('importMasterFile') && $('importMasterFile').click());
+  $('importMasterFile') && ($('importMasterFile').onchange=async (ev)=>{
+    const f = ev?.target?.files?.[0];
+    ev.target.value='';
+    if(!f) return;
+    try{
+      const txt = await f.text();
+      const obj = JSON.parse(txt);
+      applyMasterState(obj);
+      alert('MASTER importado.');
+    }catch(e){
+      alert('Importación fallida: ' + (e?.message || e));
+    }
+  });
+
+  $('validateRepair') && ($('validateRepair').onclick=()=> validateAndRepair({silent:false}));
+  $('resetMotor') && ($('resetMotor').onclick=()=> resetMotorSoft());
 
   // Backup rápido (DEV): export/import estado completo (perfil + settings + logs + foods usuario)
   const applyBackupState = (state)=>{
@@ -3353,16 +3967,8 @@ $('exportFoods').onclick=()=>{
 
       const dotEl = $('statDevDot'); if(dotEl) dotEl.className = 'dot '+dot;
 
-      const correction = Math.round((dev.real - dev.planned)/5);
-      // Interpretación: correction > 0 => vas más agresivo que el plan (más déficit) -> come MÁS.
-      //              correction < 0 => vas por detrás del plan -> come MENOS.
-      if(correction > 0){
-        msg += ` Corrección sugerida: +${correction} kcal/día durante 5 días (come ${correction} kcal más).`;
-      }else if(correction < 0){
-        msg += ` Corrección sugerida: ${correction} kcal/día durante 5 días (come ${Math.abs(correction)} kcal menos).`;
-      }else{
-        msg += ` Corrección sugerida: 0 kcal/día (sin ajuste).`;
-      }
+      const correction = Math.round((dev.planned - dev.real)/5);
+      msg += ` Corrección sugerida: ${correction>0?'+':''}${correction} kcal/día durante 5 días.`;
       $('statDevText').textContent = msg;
     }catch(e){
       console.error(e);
@@ -3472,6 +4078,7 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
+  bindDevOCR();
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
@@ -3517,6 +4124,131 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
+
+
+// ======= r50 ENHANCED OCR PARSER (Per 100g + Serving/Unit Column Support) =======
+// NOTE: App storage remains PER 100G (base 100g). Serving/Unit values are used for preview + validation only.
+// Supported labels (ES/EN):
+// - "por 100 g", "per 100 g", or standalone header "100 g"
+// - "por unidad", "por ración", "per serving" + grams (e.g. "15 g", "125 g")
+// - Dual-column tables like: "Grasas 47 g 7 g" (per 100g, per serving)
+
+function _ocrNum(x){
+  if(x==null) return null;
+  const s=String(x).replace(/,/g,'.');
+  const v=parseFloat(s);
+  return Number.isFinite(v) ? v : null;
+}
+
+function extractUnitGramsFromText(text){
+  // e.g. "por unidad (125 g)" or "por ración 125 g"
+  const m = text.match(/(?:unidad|raci[oó]n|serving)[^\d]*(\d+(?:[.,]\d+)?)\s*g/i);
+  return m ? _ocrNum(m[1]) : null;
+}
+
+function extractServingGramsHeader(text){
+  // Try to detect a dual header like "100 g ... 15 g" -> serving=15g
+  const norm = text.replace(/,/g,'.');
+  const all = [...norm.matchAll(/\b(\d+(?:\.\d+)?)\s*g\b/gi)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+  // If both 100g and another grams value exist, pick the first value !=100 as serving grams
+  if(all.length>=2){
+    const other = all.find(v=>Math.abs(v-100)>0.01);
+    if(other) return other;
+  }
+  return null;
+}
+
+function detectBaseType(text){
+  const norm = text.toLowerCase().replace(/,/g,'.');
+  const per100Phrase = /por\s*100\s*g|per\s*100\s*g/.test(norm);
+  const perUnitPhrase = /(por\s+unidad|por\s+raci[oó]n|per\s+serving)/.test(norm);
+
+  // accept standalone header "100 g" near the top (common on EU labels)
+  const headerSlice = norm.slice(0, 220);
+  const has100gHeader = /\b100\s*g\b/.test(headerSlice);
+
+  const unitGrams = extractUnitGramsFromText(text);
+  const servingGrams = extractServingGramsHeader(text) || unitGrams;
+
+  return {
+    per100g: per100Phrase || has100gHeader,
+    perUnit: perUnitPhrase,
+    unitGrams,
+    servingGrams
+  };
+}
+
+function convertUnitTo100g(macros, unitGrams){
+  const factor = 100 / unitGrams;
+  return {
+    fat: macros.fat * factor,
+    protein: macros.protein * factor,
+    carbs: macros.carbs * factor,
+    kcal: macros.kcal!=null ? macros.kcal * factor : null
+  };
+}
+
+function parseLineDualValue(normText, keywordRegex){
+  const lines = normText.split(/\r?\n/);
+  for(const ln of lines){
+    if(keywordRegex.test(ln)){
+      const nums = [...ln.matchAll(/(\d+(?:\.\d+)?)/g)].map(m=>_ocrNum(m[1])).filter(v=>v!=null);
+      if(nums.length>=1){
+        return { v1: nums[0], v2: (nums.length>=2 ? nums[1] : null), rawLine: ln };
+      }
+    }
+  }
+  return { v1:null, v2:null, rawLine:null };
+}
+
+function parseNutritionTextEnhanced(text){
+  const norm = text.replace(/,/g, '.');
+  const baseInfo = detectBaseType(text);
+
+  const fatLine = parseLineDualValue(norm, /grasas?|fat\b/i);
+  const proteinLine = parseLineDualValue(norm, /prote[ií]nas?|protein\b/i);
+  const carbLine = parseLineDualValue(norm, /hidratos|carbohidratos|carbohydrate|carbs?\b/i);
+  const kcalLine = parseLineDualValue(norm, /(kcal|energ[íi]a)/i);
+
+  let fat = fatLine.v1, protein = proteinLine.v1, carbs = carbLine.v1;
+  let kcal = kcalLine.v1;
+
+  if(fat==null) fat = _ocrNum((norm.match(/grasas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(protein==null) protein = _ocrNum((norm.match(/prote[ií]nas?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(carbs==null) carbs = _ocrNum((norm.match(/hidratos[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]) 
+                    ?? _ocrNum((norm.match(/carb(?:ohidratos)?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1])
+                    ?? _ocrNum((norm.match(/carbohydrates?[^\d]*(\d+(?:\.\d+)?)/i)||[])[1]);
+  if(kcal==null) kcal = _ocrNum((norm.match(/(\d+(?:\.\d+)?)\s*kcal/i)||[])[1]);
+
+  if(fat==null || protein==null || carbs==null) return null;
+
+  const serving = {
+    grams: baseInfo.servingGrams || null,
+    fat: fatLine.v2,
+    protein: proteinLine.v2,
+    carbs: carbLine.v2,
+    kcal: kcalLine.v2
+  };
+
+  let result = { fat, protein, carbs, kcal };
+
+  if((!baseInfo.per100g) && baseInfo.perUnit && baseInfo.unitGrams){
+    result = convertUnitTo100g(result, baseInfo.unitGrams);
+    result._convertedFromUnit = true;
+  }
+
+  if(result.kcal==null){
+    result.kcal = Math.round(result.fat*9 + (result.protein+result.carbs)*4);
+    result._kcalEstimated = true;
+  } else {
+    result.kcal = Math.round(result.kcal);
+  }
+
+  result._baseInfo = baseInfo;
+  result._serving = serving;
+  return result;
+}
+// ======= END r50 OCR ENHANCEMENT =======
 
 </script>
 </body>
