@@ -2954,6 +2954,7 @@ window.addEventListener('error', function(e){
     });
 
     refreshTagButtons();
+    window.updateDaySummaryCard?.();
     applyDevUI();
   };
 
@@ -3613,7 +3614,10 @@ $('exportFoods').onclick=()=>{
   };
 
   $('openOcrTop')?.addEventListener('click', ()=>{
+    // iOS: el selector de imagen/cámara debe abrirse en gesto directo
     openOcr();
+    const inp = $('ocrImage');
+    if(inp) inp.click();
   });
   $('closeOcrPop')?.addEventListener('click', closeOcr);
   $('pickOcrImage')?.addEventListener('click', ()=>{
@@ -3665,6 +3669,7 @@ $('exportFoods').onclick=()=>{
   });
 
   renderAll();
+  window.updateDaySummaryCard?.();
 })();
 // ===== Daily Ledger System (90 days) =====
 const LEDGER_KEY = 'mc_daily_ledger';
