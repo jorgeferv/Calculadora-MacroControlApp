@@ -375,8 +375,8 @@
           <div class="pill" id="stageChipPill" style="cursor:pointer;">Objetivo: <b id="stageChip">—</b></div>
           <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
           <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
-          <button class="iconBtn" id="openOCR" type="button" title="OCR">📷</button>
           <button class="iconBtn" id="openStatsTop" type="button" title="Estadísticas">📊</button>
+          <button class="iconBtn" id="openOCR" type="button" title="OCR">📷</button>
         </div>
 
         <div id="globalSearchPop" class="pop" aria-hidden="true">
@@ -444,39 +444,37 @@
               <div class="hint">El peso se bloquea 10 días tras actualizarlo (salvo override).</div>
             </div>
           </div>
-        </details>
+        
+</details>
+
+        <div class="hr"></div>
+
+        <!-- AJUSTES DEL DÍA (RESUMEN) -->
+        <div class="card" id="daySummaryCard" style="margin-top:12px;">
+          <div class="row" style="align-items:center;justify-content:space-between;">
+            <b>🧾 Ajustes del día</b>
+            <span class="muted" id="daySummaryLine">—</span>
+          </div>
+          <div class="kpi" style="margin-top:10px;">
+            <div class="box"><div class="num" id="sumTrain">—</div><div class="lbl">Entreno</div></div>
+            <div class="box"><div class="num" id="sumWod">—</div><div class="lbl">WOD</div></div>
+            <div class="box"><div class="num" id="sumNeat">—</div><div class="lbl">NEAT</div></div>
+            <div class="box"><div class="num" id="sumPal">—</div><div class="lbl">PAL</div></div>
+            <div class="box"><div class="num" id="sumAct">—</div><div class="lbl">Activas</div></div>
+            <div class="box"><div class="num" id="sumGoal">—</div><div class="lbl">Objetivo</div></div>
+          </div>
+        </div>
 
         <div class="hr"></div>
 
 
-        <div class="card" id="daySummaryCard" style="margin-top:12px;">
-          <div class="row" style="align-items:center;justify-content:space-between;">
-            <b>🧾 Ajustes del día</b>
-            <span class="muted" id="daySummaryHint">Previsualización (lo que has metido)</span>
-          </div>
-
-          <div class="two" style="margin-top:10px;">
-            <div class="box"><div class="num" id="sumTrain">—</div><div class="lbl">⏰ Entreno</div></div>
-            <div class="box"><div class="num" id="sumWod">—</div><div class="lbl">🏋️ WOD</div></div>
-          </div>
-          <div class="two" style="margin-top:10px;">
-            <div class="box"><div class="num" id="sumNeat">—</div><div class="lbl">🚶 NEAT</div></div>
-            <div class="box"><div class="num" id="sumPal">—</div><div class="lbl">PAL</div></div>
-          </div>
-          <div class="two" style="margin-top:10px;">
-            <div class="box"><div class="num" id="sumActivas">—</div><div class="lbl">🔥 Activas</div></div>
-            <div class="box"><div class="num" id="sumGoal">—</div><div class="lbl">🎯 Objetivo</div></div>
-          </div>
-          <div class="muted" id="sumDetail" style="margin-top:8px;">—</div>
-        </div>
-
-        <details id="daySettingsBox" style="margin-top:12px;">
-          <summary class="groupSummary">
-            <b>⚙️ Ajustes del día</b>
-            <small id="daySettingsSummary">—</small>
+        <details id="dayAdjustDetails" open>
+          <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <span>⚙️ Ajustes del día</span>
+            <span class="pill"><b id="dayAdjustSummary">—</b></span>
           </summary>
-          <div class="groupWrap">
-<!-- NEAT -->
+        <!-- NEAT -->
+
         <label>NEAT diario</label>
         <div class="two">
           <div>
@@ -525,11 +523,9 @@
           <button class="primary" id="saveDay" type="button">Guardar ajustes del día</button>
           <button class="danger" id="panicBtn" type="button" title="Aplica déficit fijo de emergencia">Pánico</button>
         </div>
-        <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).
-          </div>
+        <div class="muted" style="margin-top:8px;">Proteína objetivo = 2,5 g/kg (fase actual).</div>
         </details>
 
-</div>
       </div>
 
       <div class="card">
@@ -735,36 +731,35 @@ pan_cristal 2u"></textarea>
   </div>
 
 
-  <!-- OCR (captura + pegar texto) -->
+  <!-- OCR (captura + pegado texto) -->
   <div id="ocrModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;">
     <div class="card" style="max-width:720px;margin:40px auto 0;position:relative;">
       <button id="closeOCR" class="delBtn" type="button" style="position:absolute;top:12px;right:12px;">✕</button>
       <h2 style="margin:0 0 8px;font-size:16px;">OCR nutricional</h2>
       <div class="muted" style="margin-bottom:10px;">
-        En iPhone: haz foto a la etiqueta → usa <b>Texto en vivo</b> → copia y pega aquí. La app extrae kcal/P/C/F.
+        En iPhone: haz foto del etiquetado → usa “Texto en vivo” → copia y pega aquí.
       </div>
 
-      <label>Pega el texto de la etiqueta</label>
-      <textarea id="ocrText" placeholder="Ej: por 100 g: 155 kcal, grasas 6.8 g, hidratos 21 g, proteínas 2 g"></textarea>
+      <label>id (sin espacios)</label>
+      <input id="ocrFoodId" placeholder="ej: yogur_proteico" />
 
-      <div class="two" style="margin-top:10px;">
-        <div><label>Kcal</label><input id="ocrKcal" type="number" inputmode="numeric" placeholder="—"></div>
-        <div><label>Proteína (g)</label><input id="ocrP" type="number" inputmode="decimal" placeholder="—"></div>
-      </div>
-      <div class="two">
-        <div><label>Carbohidratos (g)</label><input id="ocrC" type="number" inputmode="decimal" placeholder="—"></div>
-        <div><label>Grasas (g)</label><input id="ocrF" type="number" inputmode="decimal" placeholder="—"></div>
-      </div>
+      <label>Nombre</label>
+      <input id="ocrFoodName" placeholder="ej: Yogur proteico" />
 
-      <div class="seg" style="margin-top:12px;">
+      <label>Texto pegado (tabla nutricional)</label>
+      <textarea id="ocrText" placeholder="Pega aquí kcal, proteínas, hidratos, grasas..."></textarea>
+
+      <div class="seg" style="margin-top:10px;">
         <button id="parseOCR" type="button">Analizar</button>
-        <button class="primary" id="fillFoodEditor" type="button">Rellenar editor de alimento</button>
+        <button class="success" id="saveOCRFood" type="button">Guardar alimento</button>
       </div>
 
-      <div class="hint">“Rellenar editor” abre Alimentos y copia valores al formulario. Guardar requiere modo DEV.</div>
+      <div class="status" id="ocrStatusBox" style="margin-top:12px;">
+        <div class="badge"><span class="dot ok"></span> Resultado</div>
+        <div class="muted" id="ocrResult" style="margin-top:6px;">—</div>
+      </div>
     </div>
   </div>
-
 
 <div class="tabs">
     <button id="tabDay" class="active" type="button">Día</button>
@@ -1378,82 +1373,7 @@ window.addEventListener('error', function(e){
     const carbs = Math.floor(carbKcal/4);
 
     return {tdee, goalKcal:round(goalKcal), p:pTarget, c:carbs, f:fat};
-
-
-  // =========================
-  // AJUSTES DEL DÍA (RESUMEN SIEMPRE VISIBLE)
-  // =========================
-  const neatLabelES = (k)=>{
-    if(k==='low') return 'Bajo';
-    if(k==='med') return 'Medio';
-    return 'Alto';
   };
-
-  function updateDaySummaryCard(){
-    try{
-      const profile = loadProfile();
-      const modeStored = loadMode();
-
-      // Leemos la UI (siempre refleja lo “metido”), con fallback al settings del día activo.
-      const { day } = loadDaySettings(activeDayKey, modeStored.modeKey);
-
-      const trainTime = ($('trainTime')?.value ?? day.trainTime ?? '').trim();
-      const wod = Number($('wod')?.value ?? day.wod ?? 0);
-      const neatLevel = ($('neatLevel')?.value ?? day.neatLevel ?? 'high');
-      const steps = String($('steps')?.value ?? day.steps ?? '').trim();
-      const cardioRaw = Number($('cardioKcal')?.value ?? day.cardioKcal ?? 0);
-
-      const pal = PAL[neatLevel] || PAL.high;
-      const cardioReal = round(cardioRaw * (1 - CARDIO_DISCOUNT));
-
-      // Construimos un day “preview” coherente para el cálculo
-      const dayPreview = {
-        ...day,
-        trainTime,
-        wod,
-        neatLevel,
-        steps,
-        cardioKcal: cardioRaw
-      };
-
-      const goal = computeGoal(profile, dayPreview, modeStored);
-      const tdee = goal.tdee;
-      const goalKcal = goal.goalKcal;
-
-      const setTxt = (id, v)=>{ const el=$(id); if(el) el.textContent = v; };
-
-      setTxt('sumTrain', trainTime ? trainTime : '—');
-      setTxt('sumWod', wod ? String(wod) : '—');
-      setTxt('sumNeat', neatLabelES(neatLevel));
-      setTxt('sumPal', pal.toFixed(2));
-
-      // Activas: mostramos bruto y real si hay dato
-      if(cardioRaw>0){
-        setTxt('sumActivas', `${cardioRaw}→${cardioReal}`);
-      } else {
-        setTxt('sumActivas', '—');
-      }
-
-      setTxt('sumGoal', String(goalKcal));
-
-      // Resumen compacto para el desplegable "Ajustes del día"
-      const ds = $('daySettingsSummary');
-      if(ds){
-        const t = trainTime ? trainTime : '—';
-        const w = wod ? String(wod) : '—';
-        const n = neatLabelES(neatLevel);
-        const a = (cardioRaw>0) ? `${cardioRaw}→${cardioReal}` : '—';
-        ds.textContent = `${t} · WOD ${w} · ${n} (PAL ${pal.toFixed(2)}) · Act ${a}`;
-      }
-
-
-      const det = [];
-      det.push(`TDEE: ${tdee} kcal`);
-      if(steps) det.push(`Pasos: ${steps}`);
-      const detEl = $('sumDetail');
-      if(detEl) detEl.textContent = det.join(' · ') || '—';
-    }catch(_){}
-  }
 
   // ======= CONTEXTO =======
   const timeContext=(trainTime)=>{
@@ -2436,6 +2356,7 @@ window.addEventListener('error', function(e){
     renderMacroBars(goal,eaten);
     renderBalanceBar(goal.goalKcal||goal.tdee||0, Number(eaten.kcal)||0);
     updateAddStatusBar(goal,eaten);
+      updateDaySummaryCard();
 
     const st=computeDayStatus(goal,eaten);
     const box=$('dayStatusBox');
@@ -2900,7 +2821,6 @@ window.addEventListener('error', function(e){
     $('trainTime').value = day.trainTime || '';
     $('wod').value = String(day.wod ?? 350);
     $('cardioKcal').value = day.cardioKcal ?? '';
-    updateDaySummaryCard();
     $('steps').value = day.steps ?? '';
     $('neatLevel').value = day.neatLevel ?? defaultNeatByMode(storedMode.modeKey);
 
@@ -3461,6 +3381,125 @@ $('exportFoods').onclick=()=>{
   function bindStatsModal(){
     const openBtn = $('openStats');
     const openBtnTop = $('openStatsTop');
+
+  // =========================
+  // AJUSTES DEL DÍA: RESUMEN (siempre visible) + desplegable
+  // =========================
+  function _labelNeat(neat){
+    return neat==='low' ? 'Bajo' : (neat==='med' ? 'Medio' : 'Alto');
+  }
+
+  function updateDaySummaryCard(){
+    try{
+      const modeStored = loadMode();
+      const profile = loadProfile();
+
+      // Valores "en vivo" desde inputs (si existen)
+      const uiTrain = $('trainTime')?.value || '';
+      const uiWod = Number($('wod')?.value || 0);
+      const uiNeat = $('neatLevel')?.value || 'high';
+      const uiCardioRaw = Number($('cardioKcal')?.value || 0);
+
+      // Valores guardados (fallback)
+      const all = loadJSON(LS.settings,{});
+      const saved = all[activeDayKey] || ensureDaySettings(activeDayKey, modeStored.modeKey);
+
+      const trainTime = uiTrain || saved.trainTime || '';
+      const wod = Number.isFinite(uiWod) ? uiWod : (Number(saved.wod)||0);
+      const neat = uiNeat || saved.neatLevel || 'high';
+      const cardioRaw = Number.isFinite(uiCardioRaw) ? uiCardioRaw : (Number(saved.cardioKcal)||0);
+
+      const pal = PAL[neat] || PAL.high;
+      const cardioReal = round((Number(cardioRaw)||0) * (1 - CARDIO_DISCOUNT));
+      const goal = computeGoal(profile, { ...saved, trainTime, wod, neatLevel:neat, cardioKcal:cardioRaw }, modeStored);
+
+      // Pintar tarjeta resumen
+      $('sumTrain').textContent = trainTime ? trainTime : '—';
+      $('sumWod').textContent = wod ? String(wod) : '—';
+      $('sumNeat').textContent = _labelNeat(neat);
+      $('sumPal').textContent = pal.toFixed(2);
+      $('sumAct').textContent = cardioRaw ? `${cardioReal}` : '—';
+      $('sumGoal').textContent = goal?.goalKcal ? `${goal.goalKcal}` : '—';
+
+      $('daySummaryLine').textContent =
+        `${trainTime?('⏱ '+trainTime):'⏱ —'} · WOD ${wod||'—'} · NEAT ${_labelNeat(neat)} (PAL ${pal.toFixed(2)}) · Act ${cardioRaw?cardioReal:'—'} · Obj ${goal?.goalKcal ?? '—'}`;
+
+      const adjLine = $('dayAdjustSummary');
+      if(adjLine){
+        adjLine.textContent = `${trainTime?trainTime:'—'} · WOD ${wod||'—'} · ${_labelNeat(neat)} · PAL ${pal.toFixed(2)}`;
+      }
+    }catch(_){}
+  }
+
+  // Listeners "en vivo"
+  ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach(id=>{
+    const el=$(id);
+    if(!el) return;
+    el.addEventListener('input', updateDaySummaryCard);
+    el.addEventListener('change', updateDaySummaryCard);
+  });
+
+  // =========================
+  // OCR MODAL
+  // =========================
+  const openOCR = ()=>{
+    const m=$('ocrModal'); if(!m) return;
+    m.style.display='block';
+    setTimeout(()=>{ $('ocrFoodId')?.focus(); }, 30);
+  };
+  const closeOCR = ()=>{
+    const m=$('ocrModal'); if(!m) return;
+    m.style.display='none';
+  };
+
+  if($('openOCR')) $('openOCR').onclick=openOCR;
+  if($('closeOCR')) $('closeOCR').onclick=closeOCR;
+
+  const parseOcrText = (txt)=>{
+    const t = String(txt||'').replace(/\s+/g,' ').trim().toLowerCase();
+    // heurísticas robustas (acepta coma decimal)
+    const num = (m)=> m ? Number(String(m[1]).replace(',','.')) : null;
+
+    const kcal = num(t.match(/(?:energ[ií]a|kcal)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
+    const p = num(t.match(/(?:prote[ií]nas?|protein)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
+    const c = num(t.match(/(?:hidratos?|carbohidratos?|carbohydrate|carbs?)\s*(?:de\s*carbono)?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
+    const f = num(t.match(/(?:grasas?|fat)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)/));
+
+    return {kcal,p,c,f};
+  };
+
+  let _ocrParsed = null;
+
+  $('parseOCR')?.addEventListener('click', ()=>{
+    const vals = parseOcrText($('ocrText')?.value || '');
+    _ocrParsed = vals;
+    $('ocrResult').textContent =
+      `kcal: ${vals.kcal ?? '—'} · P: ${vals.p ?? '—'} · C: ${vals.c ?? '—'} · F: ${vals.f ?? '—'} (por 100g)`;
+  });
+
+  $('saveOCRFood')?.addEventListener('click', ()=>{
+    const id = String($('ocrFoodId')?.value || '').trim();
+    const name = String($('ocrFoodName')?.value || '').trim();
+    const vals = _ocrParsed || parseOcrText($('ocrText')?.value || '');
+
+    if(!id || !name || !(Number.isFinite(vals.kcal)||Number.isFinite(vals.p)||Number.isFinite(vals.c)||Number.isFinite(vals.f))){
+      alert('Completa id, nombre y pega texto suficiente para extraer macros.');
+      return;
+    }
+
+    const foodObj = normalizeFood({
+      id, name, baseUnit:'100g',
+      kcal: vals.kcal||0, p: vals.p||0, c: vals.c||0, f: vals.f||0,
+      unitGrams: null,
+      tags:[]
+    });
+
+    upsertFoodFromApp(foodObj);
+    alert('Alimento guardado en tu lista (usuario).');
+    closeOCR();
+    renderAll();
+  });
+
     const modal = $('statsModal');
     const closeBtn = $('closeStats');
     const open = ()=>{ if(!modal) return; modal.style.display='block'; renderStatsModal(); };
@@ -3605,62 +3644,6 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
-
-  // Resumen en vivo: cuando cambias inputs, el resumen se actualiza sin guardar.
-  ['trainTime','wod','neatLevel','steps','cardioKcal'].forEach(id=>{
-    const el = $(id);
-    if(!el) return;
-    el.addEventListener('input', updateDaySummaryCard);
-    el.addEventListener('change', updateDaySummaryCard);
-  });
-
-  // OCR UI
-  const openOCR = ()=>{ const m=$('ocrModal'); if(m) m.style.display='block'; };
-  const closeOCR = ()=>{ const m=$('ocrModal'); if(m) m.style.display='none'; };
-
-  const parseOCRText = (txt)=>{
-    const t = String(txt||'').toLowerCase().replace(/,/g,'.');
-    // patrones flexibles
-    const kcal = (t.match(/(\d+(?:\.\d+)?)\s*kcal/)||[])[1];
-    const p = (t.match(/prote(?:i|í)nas?\s*(\d+(?:\.\d+)?)/)||[])[1] || (t.match(/protein\s*(\d+(?:\.\d+)?)/)||[])[1];
-    const c = (t.match(/hidr(?:a|á)tos?\s*(\d+(?:\.\d+)?)/)||[])[1] || (t.match(/carbo(?:hidratos?)?\s*(\d+(?:\.\d+)?)/)||[])[1];
-    const f = (t.match(/grasas?\s*(\d+(?:\.\d+)?)/)||[])[1] || (t.match(/fat\s*(\d+(?:\.\d+)?)/)||[])[1];
-    return {kcal, p, c, f};
-  };
-
-  const btnOCR = $('openOCR');
-  if(btnOCR) btnOCR.addEventListener('click', openOCR);
-  const btnCloseOCR = $('closeOCR');
-  if(btnCloseOCR) btnCloseOCR.addEventListener('click', closeOCR);
-
-  const btnParse = $('parseOCR');
-  if(btnParse) btnParse.addEventListener('click', ()=>{
-    const txt = $('ocrText')?.value || '';
-    const r = parseOCRText(txt);
-    if(r.kcal) $('ocrKcal').value = r.kcal;
-    if(r.p) $('ocrP').value = r.p;
-    if(r.c) $('ocrC').value = r.c;
-    if(r.f) $('ocrF').value = r.f;
-  });
-
-  const btnFill = $('fillFoodEditor');
-  if(btnFill) btnFill.addEventListener('click', ()=>{
-    // Abre drawer alimentos y rellena formulario (guardar requiere DEV)
-    const kcal = $('ocrKcal')?.value || '';
-    const p = $('ocrP')?.value || '';
-    const c = $('ocrC')?.value || '';
-    const f = $('ocrF')?.value || '';
-    openDrawer();
-    setTimeout(()=>{
-      if($('f_kcal')) $('f_kcal').value = kcal;
-      if($('f_p')) $('f_p').value = p;
-      if($('f_c')) $('f_c').value = c;
-      if($('f_f')) $('f_f').value = f;
-      alert('Valores OCR copiados al editor. Revisa nombre/id y guarda (DEV).');
-    }, 150);
-    closeOCR();
-  });
-
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
