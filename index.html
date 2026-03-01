@@ -161,6 +161,13 @@
     /* Overlay (pantalla completa) para decisiones críticas (NEAT dinámico, etc.) */
     .overlay{display:none;position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.55);backdrop-filter: blur(2px);
       padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+    /* Seguridad anti-bloqueo iOS: overlays NO interceptan toques si están ocultos */
+    .overlay[aria-hidden="true"]{display:none !important; pointer-events:none !important;}
+    .overlay[aria-hidden="false"]{display:flex !important; align-items:flex-end; pointer-events:auto;}
+    /* Drawer: idem */
+    #drawerBack[aria-hidden="true"]{display:none !important; pointer-events:none !important;}
+    #drawerBack[aria-hidden="false"]{display:block !important; pointer-events:auto;}
+
     .overlay[aria-hidden="false"]{display:flex;align-items:center;justify-content:center;}
     .sheet{width:min(560px, 100%);max-height:88vh;overflow:auto;-webkit-overflow-scrolling:touch;
       background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.45);
@@ -1590,6 +1597,37 @@ window.addEventListener('error', function(e){
     }catch(e){}
   };
 
+
+  // Permite abrir la propuesta sin bloquear la UI: tocar la línea de NEAT (o el chip del resumen)
+  const hookNeatAutoOpeners = ()=>{
+    try{
+      const openIfPending = ()=>{
+        const storedMode = loadMode();
+        const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
+        const decision = day?.neatAutoDecision || '';
+        // Solo si hay propuesta y no hay decisión
+        const p = _neatProposal || computeNeatProposalForDay(activeDayKey);
+        if(!p) return;
+        if(decision==='applied' || decision==='rejected') return;
+        // Rellena textos y abre overlay
+        showNeatAutoProposal(p);
+        openOverlay('neatAutoPop');
+      };
+
+      const ni = $('neatInfo');
+      if(ni && !ni._neatHooked){
+        ni._neatHooked = true;
+        ni.style.cursor = 'pointer';
+        ni.addEventListener('click', openIfPending);
+      }
+      const sn = $('sumNeat');
+      if(sn && !sn._neatHooked){
+        sn._neatHooked = true;
+        sn.style.cursor = 'pointer';
+        sn.addEventListener('click', openIfPending);
+      }
+    }catch(e){}
+  };
   const showNeatAutoProposal = (p)=>{
     _neatProposal = p;
     const dir = p.deltaKcal>=0 ? 'más' : 'menos';
@@ -1600,7 +1638,8 @@ window.addEventListener('error', function(e){
     $('neatAutoSteps') && ($('neatAutoSteps').textContent = String(p.stepsToday));
     $('neatAutoAvg') && ($('neatAutoAvg').textContent = String(p.avgSteps));
     $('neatAutoDelta') && ($('neatAutoDelta').textContent = `${sign}${p.deltaKcal} kcal`);
-    openOverlay('neatAutoPop');
+    // No abrir automáticamente (evita bloquear la app). Se abre al tocar el aviso.
+    
   };
 
   const clearNeatDecisionIfStepsChanged = ()=>{
@@ -3219,7 +3258,12 @@ window.addEventListener('error', function(e){
 
     refreshTagButtons();
     applyDevUI();
-  };
+  
+    // Refresco consistente tras re-render (y hook para abrir propuesta NEAT sin bloquear)
+    try{ window.updateDaySummaryCard && window.updateDaySummaryCard(); }catch(e){}
+    try{ updateNeatInfoLine && updateNeatInfoLine(); }catch(e){}
+    try{ hookNeatAutoOpeners && hookNeatAutoOpeners(); }catch(e){}
+};
 
   // ======= ACTIONS =======
   $('overrideWeight').onclick=()=>{
@@ -3933,6 +3977,34 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
+
+
+// === SAFETY: evitar bloqueo por overlays/drawers en iOS ===
+(function(){
+  const hardHide = ()=>{
+    try{
+      document.body.style.pointerEvents = 'auto';
+      document.querySelectorAll('.overlay').forEach(el=>{
+        el.setAttribute('aria-hidden','true');
+        el.style.display='none';
+        el.style.pointerEvents='none';
+      });
+      const db = document.getElementById('drawerBack');
+      if(db){
+        db.setAttribute('aria-hidden','true');
+        db.style.display='none';
+        db.style.pointerEvents='none';
+      }
+      // Cerrar también popovers flotantes si quedaran abiertos
+      ['globalSearchPop','ocrPop','ocrPopFull'].forEach(id=>{
+        const p=document.getElementById(id);
+        if(p){ p.style.display='none'; p.setAttribute('aria-hidden','true'); }
+      });
+    }catch(e){}
+  };
+  window.addEventListener('pageshow', hardHide);
+  window.addEventListener('load', hardHide);
+})();
 
 </script>
 </body>
