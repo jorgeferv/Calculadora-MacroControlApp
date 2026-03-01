@@ -156,10 +156,6 @@
     .pop{display:none;position:absolute;top:58px;right:18px;z-index:50;min-width:320px;max-width:520px;}
     .pop[aria-hidden="false"]{display:block;}
     .popInner{background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(8px);}
-    /* Pop a pantalla completa (OCR en iPhone) */
-    .popFull{position:fixed;inset:0;top:0;left:0;right:0;bottom:0;overflow:auto;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,.55);z-index:9999;}
-    .popFull .popInner{max-width:720px;margin:calc(10px + env(safe-area-inset-top)) auto 20px auto;}
-    .popFull img{max-height:52vh;object-fit:contain;}
     @media (max-width:520px){ .pop{left:12px;right:12px;min-width:auto;} }
 
   
@@ -391,11 +387,10 @@
             </div>
             <div class="muted" style="margin-top:6px;font-size:12px;">Enter para buscar · Esc para cerrar</div>
           </div>
-        </div>
 
         <!-- OCR (cámara/galería + pegado de texto iOS) -->
         <input id="ocrFile" type="file" accept="image/*" style="display:none" />
-        <div id="ocrPop" class="pop popFull" aria-hidden="true" style="display:none;">
+        <div id="ocrPop" class="pop" aria-hidden="true" style="display:none;">
           <div class="popInner">
             <div class="row" style="align-items:center;justify-content:space-between;">
               <b>📷 OCR</b>
@@ -414,6 +409,8 @@
             </div>
             <div class="hint" id="ocrResult" style="margin-top:8px;">—</div>
           </div>
+        </div>
+
         </div>
 
         <!-- ETAPA -->
@@ -1435,41 +1432,49 @@ window.addEventListener('error', function(e){
   const closePop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','true'); pop.style.display='none'; };
 
   const parseOcrText=(t)=>{
-    // Parser tolerante (ES/EN), admite: "Proteínas 19 g" o "19proteinas", "204 cal" o "204 kcal"
-    let norm=(t||'').toLowerCase();
-    norm = norm.replace(/\u00a0/g,' ');      // nbsp
-    norm = norm.replace(/,/g,'.');           // coma decimal
-    norm = norm.replace(/\s+/g,' ').trim(); // espacios
+    const raw = (t||'').toString();
+    const norm = raw.toLowerCase()
+      .replace(/,/g,'.')
+      .replace(/\u00a0/g,' ')
+      .replace(/[\t\r\n]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
 
-    const toNum = (s)=>{
-      const v = parseFloat(String(s).replace(',', '.'));
-      return Number.isFinite(v) ? v : null;
-    };
-
-    const grabBoth = (labelRe)=>{
-      // 1) número antes del label
-      let m = norm.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(?:g\\s*)?(?:'+labelRe+')','i'));
-      if(m && m[1]!=null) return toNum(m[1]);
-      // 2) label antes del número
-      m = norm.match(new RegExp('(?:'+labelRe+')\\s*(?:[:=])?\\s*(\\d+(?:\\.\\d+)?)','i'));
-      if(m && m[1]!=null) return toNum(m[1]);
+    const grabFrom = (regexes)=>{
+      for(const re of regexes){
+        const m = norm.match(re);
+        if(m){
+          const v = parseFloat(m[1]);
+          if(Number.isFinite(v)) return v;
+        }
+      }
       return null;
     };
 
-    // kcal: acepta kcal / cal (shorthand) y formatos "energía 204 kcal"
-    let kcal = null;
-    // preferir kcal si existe
-    let km = norm.match(/(\d+(?:\.\d+)?)\s*kcal\b/i);
-    if(km) kcal = toNum(km[1]);
-    if(kcal==null){
-      // 'cal' (muchos usuarios escriben "204 cal" queriendo decir kcal)
-      km = norm.match(/(\d+(?:\.\d+)?)\s*cal\b/i);
-      if(km) kcal = toNum(km[1]);
-    }
+    // kcal: acepta "204 kcal", "204kcal", "204 cal"
+    const kcal = grabFrom([
+      /(\d+(?:\.\d+)?)\s*kcal\b/,
+      /(\d+(?:\.\d+)?)\s*cal\b/,
+      /energ(?:e|é)tico\/?energ(?:i|í)a\s*(\d+(?:\.\d+)?)/,
+    ]);
 
-    const p = grabBoth('prote[ií]na(?:s)?|proteins?');
-    const c = grabBoth('hidratos(?: de carbono)?|carbohidratos|carbs?|hc');
-    const f = grabBoth('grasas?|l[íi]pidos?|fats?');
+    // Proteínas: "19 g proteínas" o "proteínas 19 g" o "19proteinas"
+    const p = grabFrom([
+      /(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]nas?|protein(?:s)?)/,
+      /(?:prote[ií]nas?|protein(?:s)?)\s*(?:[:\-]?\s*)?(\d+(?:\.\d+)?)/,
+    ]);
+
+    // Hidratos/Carbohidratos
+    const c = grabFrom([
+      /(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/,
+      /(?:hidratos|carbohidratos|carbs|hc)\s*(?:[:\-]?\s*)?(\d+(?:\.\d+)?)/,
+    ]);
+
+    // Grasas/Lípidos
+    const f = grabFrom([
+      /(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas?|l[ií]pidos?|fat)/,
+      /(?:grasas?|l[ií]pidos?|fat)\s*(?:[:\-]?\s*)?(\d+(?:\.\d+)?)/,
+    ]);
 
     return {kcal,p,c,f};
   };
@@ -2999,7 +3004,6 @@ window.addEventListener('error', function(e){
 
     refreshTagButtons();
     applyDevUI();
-    try{ window.updateDaySummaryCard && window.updateDaySummaryCard(); }catch(e){}
   };
 
   // ======= ACTIONS =======
@@ -3640,7 +3644,7 @@ $('exportFoods').onclick=()=>{
 
   bindDaySummaryLive();
   // OCR bindings
-  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ openPop('ocrPop'); setTimeout(()=>{ try{ $('ocrText')?.focus(); }catch(e){} }, 80); });
+  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ openPop('ocrPop'); });
   $('ocrPick') && ($('ocrPick').onclick=()=> $('ocrFile')?.click());
   $('closeOCR') && ($('closeOCR').onclick=()=> closePop('ocrPop'));
   $('ocrFile') && ($('ocrFile').onchange=(ev)=>{
@@ -3656,40 +3660,56 @@ $('exportFoods').onclick=()=>{
     r.readAsDataURL(file);
     ev.target.value='';
   });
-  $('ocrParse') && ($('ocrParse').onclick=()=>{
-    const vals=parseOcrText($('ocrText')?.value||'');
-    const parts=[];
-    if(vals.kcal!=null) parts.push(`kcal ${vals.kcal}`);
-    if(vals.p!=null) parts.push(`P ${vals.p}g`);
-    if(vals.c!=null) parts.push(`C ${vals.c}g`);
-    if(vals.f!=null) parts.push(`F ${vals.f}g`);
-
-    const ok = (vals.kcal!=null) && (vals.p!=null || vals.c!=null || vals.f!=null);
-
-    if($('ocrResult')){
-      $('ocrResult').textContent = parts.length
-        ? `Detectado (por 100g): ${parts.join(' · ')}`
-        : 'No he podido extraer valores. Pega el texto del etiquetado (kcal, grasas, hidratos, proteínas).';
-    }
-
-    if(!ok) return;
-
-    // Volcar al formulario de "Añadir / editar alimento"
+  $('ocrParse') && ($('ocrParse').onclick=async ()=>{
     try{
-      if($('f_baseUnit')) $('f_baseUnit').value = '100g';
-      if($('f_kcal') && vals.kcal!=null) $('f_kcal').value = String(vals.kcal);
-      if($('f_p')    && vals.p!=null)    $('f_p').value    = String(vals.p);
-      if($('f_c')    && vals.c!=null)    $('f_c').value    = String(vals.c);
-      if($('f_f')    && vals.f!=null)    $('f_f').value    = String(vals.f);
+      let txt = ($('ocrText')?.value || '').trim();
 
-      // Abrir pestaña Alimentos y llevar el foco al nombre
-      if(typeof setTab==='function') setTab('foods');
-      setTimeout(()=>{ try{ $('f_name')?.focus(); }catch(e){} }, 120);
+      // Si no has pegado nada, intenta leer el portapapeles (iOS puede pedir permiso)
+      if(!txt && navigator.clipboard && navigator.clipboard.readText){
+        try{
+          const clip = await navigator.clipboard.readText();
+          if(clip && clip.trim()){
+            txt = clip.trim();
+            if($('ocrText')) $('ocrText').value = txt;
+          }
+        }catch(e){
+          // silencio: iOS puede bloquear sin interacción/permiso
+        }
+      }
 
-      // feedback final
-      if($('ocrResult')) $('ocrResult').textContent = `OK: valores copiados al formulario (por 100g): ${parts.join(' · ')}`;
+      if(!txt){
+        $('ocrResult') && ($('ocrResult').textContent='Pega el texto (Texto en vivo) o escribe: kcal, grasas, hidratos, proteínas.');
+        return;
+      }
+
+      const vals = parseOcrText(txt);
+      const ok = (vals.kcal!=null) || (vals.p!=null) || (vals.c!=null) || (vals.f!=null);
+
+      if(!ok){
+        $('ocrResult') && ($('ocrResult').textContent='No he podido extraer valores. Asegúrate de pegar algo como: "204 kcal 14 g grasas 0,5 g hidratos 19 g proteínas".');
+        return;
+      }
+
+      const parts=[];
+      if(vals.kcal!=null) parts.push(`kcal ${vals.kcal}`);
+      if(vals.f!=null) parts.push(`grasas ${vals.f}g`);
+      if(vals.c!=null) parts.push(`hidratos ${vals.c}g`);
+      if(vals.p!=null) parts.push(`proteínas ${vals.p}g`);
+      $('ocrResult') && ($('ocrResult').textContent = `Detectado (por 100g): ${parts.join(' · ')}`);
+
+      // Volcar automáticamente al formulario de Añadir (si existe)
+      if($('f_kcal') && vals.kcal!=null) $('f_kcal').value = vals.kcal;
+      if($('f_f') && vals.f!=null) $('f_f').value = vals.f;
+      if($('f_c') && vals.c!=null) $('f_c').value = vals.c;
+      if($('f_p') && vals.p!=null) $('f_p').value = vals.p;
+
+      // Ir a la pestaña Añadir para que guardes rápido
+      if(typeof setTab==='function') setTab('add');
+      setTimeout(()=>{ $('f_name')?.focus(); }, 60);
+
     }catch(e){
       console.error(e);
+      $('ocrResult') && ($('ocrResult').textContent='OCR: error interno al procesar.');
     }
   });
 
