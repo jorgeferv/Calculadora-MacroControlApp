@@ -387,6 +387,7 @@
             </div>
             <div class="muted" style="margin-top:6px;font-size:12px;">Enter para buscar · Esc para cerrar</div>
           </div>
+        </div>
 
         <!-- OCR (cámara/galería + pegado de texto iOS) -->
         <input id="ocrFile" type="file" accept="image/*" style="display:none" />
@@ -409,8 +410,6 @@
             </div>
             <div class="hint" id="ocrResult" style="margin-top:8px;">—</div>
           </div>
-        </div>
-
         </div>
 
         <!-- ETAPA -->
@@ -1037,10 +1036,28 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
+      b.onclick=()=>{ persistDayDraft(); activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
     });
   };
+
+  // Guarda silenciosamente el borrador de AJUSTES DEL DÍA (para no perder cambios al cambiar de fecha)
+  const persistDayDraft = ()=>{
+    try{
+      const storedMode = loadMode();
+      const {day:cur} = loadDaySettings(activeDayKey, storedMode.modeKey);
+      const next = {
+        ...cur,
+        trainTime: $('trainTime').value || '',
+        wod: Number($('wod').value) || 0,
+        cardioKcal: $('cardioKcal').value,
+        steps: $('steps').value,
+        neatLevel: $('neatLevel').value || defaultNeatByMode(storedMode.modeKey),
+      };
+      saveDaySettings(activeDayKey, next);
+    }catch(e){}
+  };
+
 
   const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
 
@@ -2897,6 +2914,8 @@ window.addEventListener('error', function(e){
     // Pánico (estado visual)
     $('panicBtn').textContent = day.panicOn ? 'Pánico (ON)' : 'Pánico';
     $('panicBtn').style.outline = day.panicOn ? '2px solid rgba(255,77,77,.55)' : '';
+
+    window.updateDaySummaryCard();
 
     renderFoodPicker(foods);
     renderAddFoodList(foods);
