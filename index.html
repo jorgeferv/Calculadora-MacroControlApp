@@ -156,32 +156,10 @@
     .pop{display:none;position:absolute;top:58px;right:18px;z-index:50;min-width:320px;max-width:520px;}
     .pop[aria-hidden="false"]{display:block;}
     .popInner{background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(8px);}
-
-    /* OCR: popup a pantalla completa con scroll y botones accesibles */
-    .popFull{
-      position:fixed !important;
-      left:12px; right:12px;
-      top:calc(env(safe-area-inset-top) + 12px);
-      bottom:calc(env(safe-area-inset-bottom) + 12px);
-      z-index:1000;
-      max-width:none !important;
-      min-width:auto !important;
-    }
-    .popFull .popInner{
-      height:100%;
-      overflow:auto;
-      -webkit-overflow-scrolling:touch;
-      padding-bottom:96px; /* deja espacio al sticky */
-    }
-    .popFull .seg{
-      position:sticky;
-      bottom:0;
-      background:rgba(22,26,34,.98);
-      padding:10px 0 0 0;
-      backdrop-filter: blur(8px);
-    }
-    #ocrImg{max-height:46vh; object-fit:contain;}
-
+    /* Pop a pantalla completa (OCR en iPhone) */
+    .popFull{position:fixed;inset:0;top:0;left:0;right:0;bottom:0;overflow:auto;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,.55);z-index:9999;}
+    .popFull .popInner{max-width:720px;margin:calc(10px + env(safe-area-inset-top)) auto 20px auto;}
+    .popFull img{max-height:52vh;object-fit:contain;}
     @media (max-width:520px){ .pop{left:12px;right:12px;min-width:auto;} }
 
   
@@ -413,6 +391,7 @@
             </div>
             <div class="muted" style="margin-top:6px;font-size:12px;">Enter para buscar · Esc para cerrar</div>
           </div>
+        </div>
 
         <!-- OCR (cámara/galería + pegado de texto iOS) -->
         <input id="ocrFile" type="file" accept="image/*" style="display:none" />
@@ -435,8 +414,6 @@
             </div>
             <div class="hint" id="ocrResult" style="margin-top:8px;">—</div>
           </div>
-        </div>
-
         </div>
 
         <!-- ETAPA -->
@@ -1458,12 +1435,42 @@ window.addEventListener('error', function(e){
   const closePop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','true'); pop.style.display='none'; };
 
   const parseOcrText=(t)=>{
-    const norm=(t||'').toLowerCase().replace(/,/g,'.');
-    const grab=(re)=>{ const m=norm.match(re); if(!m) return null; const v=parseFloat(m[1]); return Number.isFinite(v)?v:null; };
-    const kcal=grab(/(\d+(?:\.\d+)?)\s*kcal/);
-    const p=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]na|protein)/);
-    const c=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/);
-    const f=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas|grasa|fat)/);
+    // Parser tolerante (ES/EN), admite: "Proteínas 19 g" o "19proteinas", "204 cal" o "204 kcal"
+    let norm=(t||'').toLowerCase();
+    norm = norm.replace(/\u00a0/g,' ');      // nbsp
+    norm = norm.replace(/,/g,'.');           // coma decimal
+    norm = norm.replace(/\s+/g,' ').trim(); // espacios
+
+    const toNum = (s)=>{
+      const v = parseFloat(String(s).replace(',', '.'));
+      return Number.isFinite(v) ? v : null;
+    };
+
+    const grabBoth = (labelRe)=>{
+      // 1) número antes del label
+      let m = norm.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(?:g\\s*)?(?:'+labelRe+')','i'));
+      if(m && m[1]!=null) return toNum(m[1]);
+      // 2) label antes del número
+      m = norm.match(new RegExp('(?:'+labelRe+')\\s*(?:[:=])?\\s*(\\d+(?:\\.\\d+)?)','i'));
+      if(m && m[1]!=null) return toNum(m[1]);
+      return null;
+    };
+
+    // kcal: acepta kcal / cal (shorthand) y formatos "energía 204 kcal"
+    let kcal = null;
+    // preferir kcal si existe
+    let km = norm.match(/(\d+(?:\.\d+)?)\s*kcal\b/i);
+    if(km) kcal = toNum(km[1]);
+    if(kcal==null){
+      // 'cal' (muchos usuarios escriben "204 cal" queriendo decir kcal)
+      km = norm.match(/(\d+(?:\.\d+)?)\s*cal\b/i);
+      if(km) kcal = toNum(km[1]);
+    }
+
+    const p = grabBoth('prote[ií]na(?:s)?|proteins?');
+    const c = grabBoth('hidratos(?: de carbono)?|carbohidratos|carbs?|hc');
+    const f = grabBoth('grasas?|l[íi]pidos?|fats?');
+
     return {kcal,p,c,f};
   };
 
@@ -2992,6 +2999,7 @@ window.addEventListener('error', function(e){
 
     refreshTagButtons();
     applyDevUI();
+    try{ window.updateDaySummaryCard && window.updateDaySummaryCard(); }catch(e){}
   };
 
   // ======= ACTIONS =======
@@ -3632,7 +3640,7 @@ $('exportFoods').onclick=()=>{
 
   bindDaySummaryLive();
   // OCR bindings
-  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ $('ocrFile')?.click(); });
+  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ openPop('ocrPop'); setTimeout(()=>{ try{ $('ocrText')?.focus(); }catch(e){} }, 80); });
   $('ocrPick') && ($('ocrPick').onclick=()=> $('ocrFile')?.click());
   $('closeOCR') && ($('closeOCR').onclick=()=> closePop('ocrPop'));
   $('ocrFile') && ($('ocrFile').onchange=(ev)=>{
@@ -3655,7 +3663,34 @@ $('exportFoods').onclick=()=>{
     if(vals.p!=null) parts.push(`P ${vals.p}g`);
     if(vals.c!=null) parts.push(`C ${vals.c}g`);
     if(vals.f!=null) parts.push(`F ${vals.f}g`);
-    $('ocrResult') && ($('ocrResult').textContent = parts.length?`Detectado (por 100g): ${parts.join(' · ')}`:'No he podido extraer valores.');
+
+    const ok = (vals.kcal!=null) && (vals.p!=null || vals.c!=null || vals.f!=null);
+
+    if($('ocrResult')){
+      $('ocrResult').textContent = parts.length
+        ? `Detectado (por 100g): ${parts.join(' · ')}`
+        : 'No he podido extraer valores. Pega el texto del etiquetado (kcal, grasas, hidratos, proteínas).';
+    }
+
+    if(!ok) return;
+
+    // Volcar al formulario de "Añadir / editar alimento"
+    try{
+      if($('f_baseUnit')) $('f_baseUnit').value = '100g';
+      if($('f_kcal') && vals.kcal!=null) $('f_kcal').value = String(vals.kcal);
+      if($('f_p')    && vals.p!=null)    $('f_p').value    = String(vals.p);
+      if($('f_c')    && vals.c!=null)    $('f_c').value    = String(vals.c);
+      if($('f_f')    && vals.f!=null)    $('f_f').value    = String(vals.f);
+
+      // Abrir pestaña Alimentos y llevar el foco al nombre
+      if(typeof setTab==='function') setTab('foods');
+      setTimeout(()=>{ try{ $('f_name')?.focus(); }catch(e){} }, 120);
+
+      // feedback final
+      if($('ocrResult')) $('ocrResult').textContent = `OK: valores copiados al formulario (por 100g): ${parts.join(' · ')}`;
+    }catch(e){
+      console.error(e);
+    }
   });
 
   renderAll();
