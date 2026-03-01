@@ -1055,10 +1055,60 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
+      b.onclick=()=>{
+        try{ persistDayDraft(); }catch(e){}
+        activeDayKey=d.key;
+        renderAll();
+      };
       wrap.appendChild(b);
     });
+  
+
+  // =========================
+  // Day draft autosave (para que Ajustes del día cambie al cambiar de día)
+  // =========================
+  let _dayDraftTimer = null;
+
+  const persistDayDraft = ()=>{
+    const storedMode = (typeof loadMode==='function' ? loadMode() : {modeKey:'deficit'});
+    const trainTimeEl = $('trainTime');
+    const wodEl       = $('wod');
+    const cardioEl    = $('cardioKcal');
+    const stepsEl     = $('steps');
+    const neatEl      = $('neatLevel');
+
+    // Si el panel no está montado (o está cerrado), no hacemos nada
+    if(!trainTimeEl || !wodEl || !cardioEl || !stepsEl || !neatEl) return;
+
+    const cur = (typeof loadDaySettings==='function' ? (loadDaySettings(activeDayKey, storedMode.modeKey)?.day || {}) : {});
+    const next = {
+      ...cur,
+      trainTime: trainTimeEl.value || '',
+      wod: Number(wodEl.value) || 0,
+      cardioKcal: cardioEl.value,
+      steps: stepsEl.value,
+      neatLevel: neatEl.value || (typeof defaultNeatByMode==='function' ? defaultNeatByMode(storedMode.modeKey) : 'med'),
+    };
+
+    if(typeof saveDaySettings==='function') saveDaySettings(activeDayKey, next);
   };
+
+  const schedulePersistDayDraft = ()=>{
+    clearTimeout(_dayDraftTimer);
+    _dayDraftTimer = setTimeout(()=>{ try{ persistDayDraft(); }catch(e){} }, 250);
+  };
+
+  const hookDayDraftAutosave = ()=>{
+    ['trainTime','wod','cardioKcal','steps','neatLevel'].forEach(id=>{
+      const el = $(id);
+      if(!el) return;
+      if(el.dataset && el.dataset.dayDraftHook==='1') return;
+      if(el.dataset) el.dataset.dayDraftHook='1';
+      el.addEventListener('input', schedulePersistDayDraft);
+      el.addEventListener('change', schedulePersistDayDraft);
+    });
+  };
+};
 
   const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
 
@@ -2262,6 +2312,9 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
     const set = getTagSetFromInput();
     if(set.has(t)) set.delete(t); else set.add(t);
     setTagsToInput(set);
+    try{ if(typeof updateDaySummaryCard==='function') updateDaySummaryCard(); }catch(e){}
+    try{ hookDayDraftAutosave(); }catch(e){}
+
     refreshTagButtons();
   });
 
@@ -2436,7 +2489,10 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
           $('f_f').value=f.f;
           $('f_unitGrams').value=f.unitGrams??'';
           $('f_tags').value=(f.tags||[]).join(', ');
-          refreshTagButtons();
+          try{ if(typeof updateDaySummaryCard==='function') updateDaySummaryCard(); }catch(e){}
+    try{ hookDayDraftAutosave(); }catch(e){}
+
+    refreshTagButtons();
           // NO reabrimos drawer: ya estás dentro. Solo subimos arriba.
           window.scrollTo({top:0, behavior:'smooth'});
         };
@@ -3126,6 +3182,9 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
         el.disabled = false;
       }
     });
+
+    try{ if(typeof updateDaySummaryCard==='function') updateDaySummaryCard(); }catch(e){}
+    try{ hookDayDraftAutosave(); }catch(e){}
 
     refreshTagButtons();
     applyDevUI();
