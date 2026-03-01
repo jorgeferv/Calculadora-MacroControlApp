@@ -156,11 +156,22 @@
     .pop{display:none;position:absolute;top:58px;right:18px;z-index:50;min-width:320px;max-width:520px;}
     .pop[aria-hidden="false"]{display:block;}
     .popInner{background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(8px);}
-    /* Pop a pantalla completa (OCR en iPhone) */
-    .popFull{position:fixed;inset:0;top:0;left:0;right:0;bottom:0;overflow:auto;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,.55);z-index:9999;}
-    .popFull .popInner{max-width:720px;margin:calc(10px + env(safe-area-inset-top)) auto 20px auto;}
-    .popFull img{max-height:52vh;object-fit:contain;}
     @media (max-width:520px){ .pop{left:12px;right:12px;min-width:auto;} }
+
+    /* Overlay (pantalla completa) para decisiones críticas (NEAT dinámico, etc.) */
+    .overlay{display:none;position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.55);backdrop-filter: blur(2px);
+      padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+    .overlay[aria-hidden="false"]{display:flex;align-items:center;justify-content:center;}
+    .sheet{width:min(560px, 100%);max-height:88vh;overflow:auto;-webkit-overflow-scrolling:touch;
+      background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.45);
+      padding:14px;}
+    .sheet .titleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .sheet .stickyBar{position:sticky;bottom:0;background:rgba(22,26,34,.98);padding-top:10px;margin-top:10px;
+      border-top:1px solid rgba(255,255,255,.08);}
+    .sheet .seg{display:flex;gap:8px;flex-wrap:wrap;}
+    .sheet .seg button{flex:1;min-width:140px;}
+
+
 
   
     /* Chips histórico */
@@ -391,11 +402,10 @@
             </div>
             <div class="muted" style="margin-top:6px;font-size:12px;">Enter para buscar · Esc para cerrar</div>
           </div>
-        </div>
 
         <!-- OCR (cámara/galería + pegado de texto iOS) -->
         <input id="ocrFile" type="file" accept="image/*" style="display:none" />
-        <div id="ocrPop" class="pop popFull" aria-hidden="true" style="display:none;">
+        <div id="ocrPop" class="pop" aria-hidden="true" style="display:none;">
           <div class="popInner">
             <div class="row" style="align-items:center;justify-content:space-between;">
               <b>📷 OCR</b>
@@ -415,6 +425,37 @@
             <div class="hint" id="ocrResult" style="margin-top:8px;">—</div>
           </div>
         </div>
+
+        </div>
+
+        <!-- NEAT dinámico: propuesta de corrección -->
+        <div id="neatAutoPop" class="overlay" aria-hidden="true">
+          <div class="sheet">
+            <div class="titleRow">
+              <b>🚶 NEAT dinámico</b>
+              <button class="iconBtn" id="closeNeatAuto" type="button" title="Cerrar">✕</button>
+            </div>
+            <div class="muted" id="neatAutoMsg" style="margin-top:8px;line-height:1.35;">—</div>
+            <div class="card" style="margin-top:10px;">
+              <div class="muted" style="font-size:12px;">Se aplica como corrección del objetivo del día. Límite ±250 kcal para evitar ruido.</div>
+              <div class="kpi" style="margin-top:10px;">
+                <div class="box"><div class="num" id="neatAutoSteps">—</div><div class="lbl">Pasos hoy</div></div>
+                <div class="box"><div class="num" id="neatAutoAvg">—</div><div class="lbl">Media 7d</div></div>
+                <div class="box"><div class="num" id="neatAutoDelta">—</div><div class="lbl">Corrección</div></div>
+              </div>
+            </div>
+            <div class="stickyBar">
+              <div class="seg">
+                <button class="primary" id="applyNeatAuto" type="button">Aplicar hoy</button>
+                <button id="rejectNeatAuto" type="button">Rechazar</button>
+                <button class="success" id="alwaysNeatAuto" type="button">Siempre aplicar</button>
+              </div>
+              <div class="muted" style="margin-top:8px;font-size:12px;">Consejo: si rechazas a menudo, ajusta el NEAT manual o usa “Siempre aplicar”.</div>
+            </div>
+          </div>
+        </div>
+
+
 
         <!-- ETAPA -->
         <details id="stageBox">
@@ -1040,7 +1081,7 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
+      b.onclick=()=>{ persistDayDraftSilently(); activeDayKey=d.key; renderAll(); setTimeout(()=>{ try{ maybePromptNeatAuto(); }catch(e){} }, 0); };
       wrap.appendChild(b);
     });
   };
@@ -1113,12 +1154,18 @@ window.addEventListener('error', function(e){
     try{ localStorage.setItem(BACKUP_LAST_KEY, JSON.stringify(snapshotState())); }catch(_){}
   };
 
-  const saveJSON=(k,o)=>{
+  
     localStorage.setItem(k,JSON.stringify(o));
     if(k===LS.mode || k===LS.settings || k===LS.logs || k===LS.lastDate || k===LS.profile || k===LS.foodsUser || k===LS.rulesEngine || k===DEV_HIDDEN_KEY){
       saveBackupLast();
     }
   };
+
+
+  // ======= PREFS (pequeñas preferencias UI/motor) =======
+  const loadPrefs=()=>loadJSON(LS.prefs,{ neatAutoPolicy:'ask' });
+  const savePrefs=(p)=>saveJSON(LS.prefs, p || { neatAutoPolicy:'ask' });
+
   const getLevel=(mk,lk)=>(LEVELS[mk]||[]).find(x=>x.key===lk) || (LEVELS[mk]||[])[0];
   const daysSince = (ts)=>{
     if(!ts) return 9999;
@@ -1278,13 +1325,19 @@ window.addEventListener('error', function(e){
         cardioKcal:'',
         steps:'',
         neatLevel: defaultNeatByMode(modeKey),
-        panicOn: false
+        panicOn: false,
+        neatAutoDecision: '',
+        neatAutoDeltaKcal: 0,
+        neatAutoBasisSteps: 0
       };
       saveJSON(LS.settings,all);
     } else {
       if(all[dateKey].neatLevel===undefined) all[dateKey].neatLevel = defaultNeatByMode(modeKey);
       if(all[dateKey].steps===undefined) all[dateKey].steps = '';
       if(all[dateKey].panicOn===undefined) all[dateKey].panicOn = false;
+      if(all[dateKey].neatAutoDecision===undefined) all[dateKey].neatAutoDecision = '';
+      if(all[dateKey].neatAutoDeltaKcal===undefined) all[dateKey].neatAutoDeltaKcal = 0;
+      if(all[dateKey].neatAutoBasisSteps===undefined) all[dateKey].neatAutoBasisSteps = 0;
       saveJSON(LS.settings,all);
     }
     return all[dateKey];
@@ -1302,6 +1355,28 @@ window.addEventListener('error', function(e){
     all[k]=day;
     saveJSON(LS.settings,all);
   };
+
+
+  // Guarda los ajustes del día actual sin avisos (para cambiar de día sin arrastrar valores)
+  const persistDayDraftSilently = ()=>{
+    try{
+      const storedMode = loadMode();
+      const {day:saved} = loadDaySettings(activeDayKey, storedMode.modeKey);
+
+      const ui = {
+        trainTime: $('trainTime')?.value ?? saved.trainTime ?? '',
+        wod: Number($('wod')?.value ?? saved.wod ?? 0),
+        cardioKcal: $('cardioKcal')?.value ?? saved.cardioKcal ?? '',
+        steps: $('steps')?.value ?? saved.steps ?? '',
+        neatLevel: $('neatLevel')?.value ?? saved.neatLevel ?? defaultNeatByMode(storedMode.modeKey),
+        panicOn: $('panicOn')?.checked ?? saved.panicOn ?? false,
+      };
+
+      const next = { ...saved, ...ui };
+      saveDaySettings(activeDayKey, next);
+    }catch(e){}
+  };
+
 
   const loadLogs=(dateKey)=>{
     const k=dateKey || todayKey();
@@ -1341,7 +1416,9 @@ window.addEventListener('error', function(e){
     const cardioKcal=Number(day.cardioKcal)||0;
     const cardioReal=cardioKcal*(1 - CARDIO_DISCOUNT); // 92%
 
-    return round(base + wod + cardioReal);
+        const neatCorr = (day && day.neatAutoDecision==='applied' && Number.isFinite(Number(day.neatAutoDeltaKcal))) ? Number(day.neatAutoDeltaKcal) : 0;
+
+    return round(base + wod + cardioReal + neatCorr);
   };
 
   const computeGoal=(profile, day, modeStored)=>{
@@ -1414,7 +1491,9 @@ window.addEventListener('error', function(e){
       // texto existente neatInfo
       const neatInfo = $('neatInfo');
       if(neatInfo){
-        neatInfo.textContent = `PAL ${pal.toFixed(2)} · Pasos ${day.steps||'—'} · Cardio real ${((Number(day.cardioKcal)||0)?(cardioReal+' kcal'):'—')}`;
+              const corr = (day.neatAutoDecision==='applied') ? Number(day.neatAutoDeltaKcal||0) : 0;
+        const status = day.neatAutoDecision==='applied' ? `Auto ${corr>=0?'+':''}${corr} kcal` : (day.neatAutoDecision==='rejected' ? 'Auto rechazado' : 'Auto pendiente');
+        neatInfo.textContent = `PAL ${pal.toFixed(2)} · Pasos ${day.steps||'—'} · ${status}`;
       }
     }catch(e){
       // nunca romper
@@ -1425,52 +1504,193 @@ window.addEventListener('error', function(e){
     ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach(id=>{
       const el = $(id);
       if(!el) return;
-      el.addEventListener('input', ()=>window.updateDaySummaryCard());
-      el.addEventListener('change', ()=>window.updateDaySummaryCard());
+      el.addEventListener('input', ()=>{ window.updateDaySummaryCard(); if(id==='steps') maybePromptNeatAuto(); });
+      el.addEventListener('change', ()=>{ window.updateDaySummaryCard(); if(id==='steps') maybePromptNeatAuto(); });
     });
   };
 
-  // ======= OCR =======
+  
+
+  // ======= NEAT DINÁMICO: propuesta + aplicar/rechazar =======
+  const KCAL_PER_STEP = 0.04;        // aproximación conservadora: 10.000 pasos ≈ 400 kcal
+  const NEAT_MIN_SAMPLES = 3;        // mínimo días con pasos para calcular media
+  const NEAT_DELTA_THRESHOLD = 60;   // por debajo es ruido
+  const NEAT_DELTA_CAP = 250;        // límite duro
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  const parseSteps=(v)=>{
+    const n = Number(String(v||'').replace(/[^\d]/g,''));
+    return Number.isFinite(n) && n>0 ? n : null;
+  };
+
+  const dateObjFromKey=(k)=> new Date((k||todayKey())+'T00:00:00');
+
+  const getStepsAvgBeforeKey=(refKey, maxDaysBack=21, take=7)=>{
+    const storedMode = loadMode();
+    const ref = dateObjFromKey(refKey);
+    const samples=[];
+    for(let i=1;i<=maxDaysBack && samples.length<take;i++){
+      const d=new Date(ref); d.setDate(d.getDate()-i);
+      const k=dateKeyFromDateObj(d);
+      const {day} = loadDaySettings(k, storedMode.modeKey);
+      const s=parseSteps(day?.steps);
+      if(s!=null) samples.push(s);
+    }
+    if(samples.length < NEAT_MIN_SAMPLES) return {avg:null, samples:samples.length};
+    const avg = samples.reduce((a,b)=>a+b,0)/samples.length;
+    return {avg:avg, samples:samples.length};
+  };
+
+  const computeNeatProposalForDay=(dayKey)=>{
+    const storedMode = loadMode();
+    const {day} = loadDaySettings(dayKey, storedMode.modeKey);
+    const stepsToday = parseSteps($('steps')?.value ?? day?.steps);
+    if(stepsToday==null) return null;
+
+    const {avg, samples} = getStepsAvgBeforeKey(dayKey);
+    if(avg==null) return null;
+
+    const deltaSteps = stepsToday - avg;
+    let deltaKcal = Math.round(deltaSteps * KCAL_PER_STEP);
+
+    if(Math.abs(deltaKcal) < NEAT_DELTA_THRESHOLD) return null;
+    deltaKcal = clamp(deltaKcal, -NEAT_DELTA_CAP, NEAT_DELTA_CAP);
+
+    return {
+      dayKey,
+      stepsToday,
+      avgSteps: Math.round(avg),
+      samples,
+      deltaSteps: Math.round(deltaSteps),
+      deltaKcal
+    };
+  };
+
+  const openOverlay=(id)=>{ const el=$(id); if(!el) return; el.setAttribute('aria-hidden','false'); };
+  const closeOverlay=(id)=>{ const el=$(id); if(!el) return; el.setAttribute('aria-hidden','true'); };
+
+  let _neatProposal = null;
+
+  const updateNeatInfoLine = ()=>{
+    try{
+      const storedMode = loadMode();
+      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
+
+      const corr = (day.neatAutoDecision==='applied') ? Number(day.neatAutoDeltaKcal||0) : 0;
+      const status = day.neatAutoDecision==='applied' ? `Auto aplicado ${corr>=0?'+':''}${corr} kcal`
+                    : (day.neatAutoDecision==='rejected' ? 'Auto rechazado' : 'Auto sin decidir');
+
+      const neatInfo = $('neatInfo');
+      if(neatInfo){
+        const pal = PAL[day.neatLevel] || PAL.high;
+        const stepsTxt = day.steps ? day.steps : '—';
+        neatInfo.textContent = `PAL ${pal.toFixed(2)} · Pasos ${stepsTxt} · ${status}`;
+      }
+    }catch(e){}
+  };
+
+  const showNeatAutoProposal = (p)=>{
+    _neatProposal = p;
+    const dir = p.deltaKcal>=0 ? 'más' : 'menos';
+    const sign = p.deltaKcal>=0 ? '+' : '';
+    $('neatAutoMsg') && ($('neatAutoMsg').textContent =
+      `Detecto ${Math.abs(p.deltaSteps)} pasos ${dir} que tu media reciente (${p.avgSteps}). Esto sugiere ${sign}${p.deltaKcal} kcal hoy. ¿Quieres aplicarlo al objetivo del día?`
+    );
+    $('neatAutoSteps') && ($('neatAutoSteps').textContent = String(p.stepsToday));
+    $('neatAutoAvg') && ($('neatAutoAvg').textContent = String(p.avgSteps));
+    $('neatAutoDelta') && ($('neatAutoDelta').textContent = `${sign}${p.deltaKcal} kcal`);
+    openOverlay('neatAutoPop');
+  };
+
+  const clearNeatDecisionIfStepsChanged = ()=>{
+    try{
+      const storedMode = loadMode();
+      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
+      const uiSteps = parseSteps($('steps')?.value ?? day?.steps);
+      const basis = Number(day.neatAutoBasisSteps || 0) || null;
+      if(day.neatAutoDecision && uiSteps!=null && basis!=null && uiSteps !== basis){
+        day.neatAutoDecision = '';
+        day.neatAutoDeltaKcal = 0;
+        day.neatAutoBasisSteps = uiSteps;
+        saveDaySettings(activeDayKey, day);
+      }
+    }catch(e){}
+  };
+
+  const maybePromptNeatAuto = ()=>{
+    try{
+      const prefs = loadPrefs();
+      if(prefs.neatAutoPolicy==='never') return;
+
+      clearNeatDecisionIfStepsChanged();
+
+      const storedMode = loadMode();
+      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
+
+      // si ya decidido, no molestar
+      if(day.neatAutoDecision==='applied' || day.neatAutoDecision==='rejected') return;
+
+      const p = computeNeatProposalForDay(activeDayKey);
+      if(!p) return;
+
+      // si el usuario activó "siempre aplicar", aplicamos sin popup
+      if(prefs.neatAutoPolicy==='always'){
+        day.neatAutoDecision='applied';
+        day.neatAutoDeltaKcal = p.deltaKcal;
+        day.neatAutoBasisSteps = p.stepsToday;
+        saveDaySettings(activeDayKey, day);
+        window.updateDaySummaryCard && window.updateDaySummaryCard();
+        updateNeatInfoLine();
+        renderAll && renderAll();
+        return;
+      }
+
+      showNeatAutoProposal(p);
+    }catch(e){}
+  };
+
+  const applyNeatDecision = (mode)=>{
+    try{
+      const storedMode = loadMode();
+      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
+      const p = _neatProposal || computeNeatProposalForDay(activeDayKey);
+      if(!p){
+        closeOverlay('neatAutoPop');
+        return;
+      }
+
+      if(mode==='apply'){
+        day.neatAutoDecision='applied';
+        day.neatAutoDeltaKcal = p.deltaKcal;
+        day.neatAutoBasisSteps = p.stepsToday;
+      } else if(mode==='reject'){
+        day.neatAutoDecision='rejected';
+        day.neatAutoDeltaKcal = 0;
+        day.neatAutoBasisSteps = p.stepsToday;
+      }
+      saveDaySettings(activeDayKey, day);
+
+      closeOverlay('neatAutoPop');
+      window.updateDaySummaryCard && window.updateDaySummaryCard();
+      updateNeatInfoLine();
+      renderAll && renderAll();
+    }catch(e){
+      closeOverlay('neatAutoPop');
+    }
+  };
+
+// ======= OCR =======
   const openPop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','false'); pop.style.display='block'; };
   const closePop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','true'); pop.style.display='none'; };
 
   const parseOcrText=(t)=>{
-    // Parser tolerante (ES/EN), admite: "Proteínas 19 g" o "19proteinas", "204 cal" o "204 kcal"
-    let norm=(t||'').toLowerCase();
-    norm = norm.replace(/\u00a0/g,' ');      // nbsp
-    norm = norm.replace(/,/g,'.');           // coma decimal
-    norm = norm.replace(/\s+/g,' ').trim(); // espacios
-
-    const toNum = (s)=>{
-      const v = parseFloat(String(s).replace(',', '.'));
-      return Number.isFinite(v) ? v : null;
-    };
-
-    const grabBoth = (labelRe)=>{
-      // 1) número antes del label
-      let m = norm.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(?:g\\s*)?(?:'+labelRe+')','i'));
-      if(m && m[1]!=null) return toNum(m[1]);
-      // 2) label antes del número
-      m = norm.match(new RegExp('(?:'+labelRe+')\\s*(?:[:=])?\\s*(\\d+(?:\\.\\d+)?)','i'));
-      if(m && m[1]!=null) return toNum(m[1]);
-      return null;
-    };
-
-    // kcal: acepta kcal / cal (shorthand) y formatos "energía 204 kcal"
-    let kcal = null;
-    // preferir kcal si existe
-    let km = norm.match(/(\d+(?:\.\d+)?)\s*kcal\b/i);
-    if(km) kcal = toNum(km[1]);
-    if(kcal==null){
-      // 'cal' (muchos usuarios escriben "204 cal" queriendo decir kcal)
-      km = norm.match(/(\d+(?:\.\d+)?)\s*cal\b/i);
-      if(km) kcal = toNum(km[1]);
-    }
-
-    const p = grabBoth('prote[ií]na(?:s)?|proteins?');
-    const c = grabBoth('hidratos(?: de carbono)?|carbohidratos|carbs?|hc');
-    const f = grabBoth('grasas?|l[íi]pidos?|fats?');
-
+    const norm=(t||'').toLowerCase().replace(/,/g,'.');
+    const grab=(re)=>{ const m=norm.match(re); if(!m) return null; const v=parseFloat(m[1]); return Number.isFinite(v)?v:null; };
+    const kcal=grab(/(\d+(?:\.\d+)?)\s*kcal/);
+    const p=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]na|protein)/);
+    const c=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/);
+    const f=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas|grasa|fat)/);
     return {kcal,p,c,f};
   };
 
@@ -2999,7 +3219,6 @@ window.addEventListener('error', function(e){
 
     refreshTagButtons();
     applyDevUI();
-    try{ window.updateDaySummaryCard && window.updateDaySummaryCard(); }catch(e){}
   };
 
   // ======= ACTIONS =======
@@ -3639,10 +3858,23 @@ $('exportFoods').onclick=()=>{
   }
 
   bindDaySummaryLive();
+  // Si hay pasos ya registrados, proponemos corrección NEAT al abrir
+  setTimeout(()=>{ try{ maybePromptNeatAuto(); }catch(e){} }, 0);
   // OCR bindings
-  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ openPop('ocrPop'); setTimeout(()=>{ try{ $('ocrText')?.focus(); }catch(e){} }, 80); });
+  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ $('ocrFile')?.click(); });
   $('ocrPick') && ($('ocrPick').onclick=()=> $('ocrFile')?.click());
   $('closeOCR') && ($('closeOCR').onclick=()=> closePop('ocrPop'));
+
+  // NEAT dinámico: popup aplicar/rechazar/siempre
+  $('closeNeatAuto') && ($('closeNeatAuto').onclick=()=> closeOverlay('neatAutoPop'));
+  $('applyNeatAuto') && ($('applyNeatAuto').onclick=()=> applyNeatDecision('apply'));
+  $('rejectNeatAuto') && ($('rejectNeatAuto').onclick=()=> applyNeatDecision('reject'));
+  $('alwaysNeatAuto') && ($('alwaysNeatAuto').onclick=()=>{
+    const prefs = loadPrefs(); prefs.neatAutoPolicy='always'; savePrefs(prefs);
+    applyNeatDecision('apply');
+  });
+
+
   $('ocrFile') && ($('ocrFile').onchange=(ev)=>{
     const file=ev.target.files && ev.target.files[0];
     if(!file) return;
@@ -3663,34 +3895,7 @@ $('exportFoods').onclick=()=>{
     if(vals.p!=null) parts.push(`P ${vals.p}g`);
     if(vals.c!=null) parts.push(`C ${vals.c}g`);
     if(vals.f!=null) parts.push(`F ${vals.f}g`);
-
-    const ok = (vals.kcal!=null) && (vals.p!=null || vals.c!=null || vals.f!=null);
-
-    if($('ocrResult')){
-      $('ocrResult').textContent = parts.length
-        ? `Detectado (por 100g): ${parts.join(' · ')}`
-        : 'No he podido extraer valores. Pega el texto del etiquetado (kcal, grasas, hidratos, proteínas).';
-    }
-
-    if(!ok) return;
-
-    // Volcar al formulario de "Añadir / editar alimento"
-    try{
-      if($('f_baseUnit')) $('f_baseUnit').value = '100g';
-      if($('f_kcal') && vals.kcal!=null) $('f_kcal').value = String(vals.kcal);
-      if($('f_p')    && vals.p!=null)    $('f_p').value    = String(vals.p);
-      if($('f_c')    && vals.c!=null)    $('f_c').value    = String(vals.c);
-      if($('f_f')    && vals.f!=null)    $('f_f').value    = String(vals.f);
-
-      // Abrir pestaña Alimentos y llevar el foco al nombre
-      if(typeof setTab==='function') setTab('foods');
-      setTimeout(()=>{ try{ $('f_name')?.focus(); }catch(e){} }, 120);
-
-      // feedback final
-      if($('ocrResult')) $('ocrResult').textContent = `OK: valores copiados al formulario (por 100g): ${parts.join(' · ')}`;
-    }catch(e){
-      console.error(e);
-    }
+    $('ocrResult') && ($('ocrResult').textContent = parts.length?`Detectado (por 100g): ${parts.join(' · ')}`:'No he podido extraer valores.');
   });
 
   renderAll();
