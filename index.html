@@ -158,28 +158,6 @@
     .popInner{background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(8px);}
     @media (max-width:520px){ .pop{left:12px;right:12px;min-width:auto;} }
 
-    /* Overlay (pantalla completa) para decisiones críticas (NEAT dinámico, etc.) */
-    .overlay{display:none;position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.55);backdrop-filter: blur(2px);
-      padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom));}
-    /* Seguridad anti-bloqueo iOS: overlays NO interceptan toques si están ocultos */
-    .overlay[aria-hidden="true"]{display:none !important; pointer-events:none !important;}
-    .overlay[aria-hidden="false"]{display:flex !important; align-items:flex-end; pointer-events:auto;}
-    /* Drawer: idem */
-    #drawerBack[aria-hidden="true"]{display:none !important; pointer-events:none !important;}
-    #drawerBack[aria-hidden="false"]{display:block !important; pointer-events:auto;}
-
-    .overlay[aria-hidden="false"]{display:flex;align-items:center;justify-content:center;}
-    .sheet{width:min(560px, 100%);max-height:88vh;overflow:auto;-webkit-overflow-scrolling:touch;
-      background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.45);
-      padding:14px;}
-    .sheet .titleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-    .sheet .stickyBar{position:sticky;bottom:0;background:rgba(22,26,34,.98);padding-top:10px;margin-top:10px;
-      border-top:1px solid rgba(255,255,255,.08);}
-    .sheet .seg{display:flex;gap:8px;flex-wrap:wrap;}
-    .sheet .seg button{flex:1;min-width:140px;}
-
-
-
   
     /* Chips histórico */
     .pill.good{border-color:rgba(38,208,124,.35); background:rgba(38,208,124,.08);}
@@ -435,35 +413,6 @@
 
         </div>
 
-        <!-- NEAT dinámico: propuesta de corrección -->
-        <div id="neatAutoPop" class="overlay" aria-hidden="true">
-          <div class="sheet">
-            <div class="titleRow">
-              <b>🚶 NEAT dinámico</b>
-              <button class="iconBtn" id="closeNeatAuto" type="button" title="Cerrar">✕</button>
-            </div>
-            <div class="muted" id="neatAutoMsg" style="margin-top:8px;line-height:1.35;">—</div>
-            <div class="card" style="margin-top:10px;">
-              <div class="muted" style="font-size:12px;">Se aplica como corrección del objetivo del día. Límite ±250 kcal para evitar ruido.</div>
-              <div class="kpi" style="margin-top:10px;">
-                <div class="box"><div class="num" id="neatAutoSteps">—</div><div class="lbl">Pasos hoy</div></div>
-                <div class="box"><div class="num" id="neatAutoAvg">—</div><div class="lbl">Media 7d</div></div>
-                <div class="box"><div class="num" id="neatAutoDelta">—</div><div class="lbl">Corrección</div></div>
-              </div>
-            </div>
-            <div class="stickyBar">
-              <div class="seg">
-                <button class="primary" id="applyNeatAuto" type="button">Aplicar hoy</button>
-                <button id="rejectNeatAuto" type="button">Rechazar</button>
-                <button class="success" id="alwaysNeatAuto" type="button">Siempre aplicar</button>
-              </div>
-              <div class="muted" style="margin-top:8px;font-size:12px;">Consejo: si rechazas a menudo, ajusta el NEAT manual o usa “Siempre aplicar”.</div>
-            </div>
-          </div>
-        </div>
-
-
-
         <!-- ETAPA -->
         <details id="stageBox">
           <summary style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
@@ -563,6 +512,23 @@
           </div>
         </div>
         <div class="muted" id="neatInfo" style="margin-top:6px;">—</div>
+
+        <div id="neatDecisionBanner" style="display:none;margin-top:10px;border:1px solid #2a3242;background:#0c0f14;border-radius:14px;padding:10px;">
+          <div class="row" style="justify-content:space-between;gap:10px;align-items:flex-start;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;margin-bottom:4px;">NEAT dinámico</div>
+              <div class="muted" id="neatDecisionText" style="white-space:pre-wrap;">—</div>
+            </div>
+            <button class="delBtn" type="button" id="neatDecisionClose" title="Cerrar">✕</button>
+          </div>
+          <div class="seg" style="margin-top:10px;flex-wrap:wrap;">
+            <button class="primary" type="button" id="neatApplyBtn">Aplicar hoy</button>
+            <button type="button" id="neatRejectBtn">Rechazar</button>
+            <button type="button" id="neatAlwaysBtn">Siempre aplicar</button>
+          </div>
+          <div class="muted" style="margin-top:8px;font-size:12px;">Umbral ±60 kcal · Límite ±250 kcal · Requiere ≥3 días con pasos.</div>
+        </div>
+
 
         <div class="hr"></div>
 
@@ -838,7 +804,8 @@ window.addEventListener('error', function(e){
     rulesEngine: 'mc_rules_engine',
     foodsRoot: 'mc_foods_root',
     foodsUser: 'mc_foods_user',
-    foodsLegacy: 'mc_foods_v8'
+    foodsLegacy: 'mc_foods_v8',
+    prefs: 'mc_prefs'
   };
 
   // =========================
@@ -1088,7 +1055,7 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ persistDayDraftSilently(); activeDayKey=d.key; renderAll(); setTimeout(()=>{ try{ maybePromptNeatAuto(); }catch(e){} }, 0); };
+      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
     });
   };
@@ -1161,18 +1128,12 @@ window.addEventListener('error', function(e){
     try{ localStorage.setItem(BACKUP_LAST_KEY, JSON.stringify(snapshotState())); }catch(_){}
   };
 
-  
+  const saveJSON=(k,o)=>{
     localStorage.setItem(k,JSON.stringify(o));
     if(k===LS.mode || k===LS.settings || k===LS.logs || k===LS.lastDate || k===LS.profile || k===LS.foodsUser || k===LS.rulesEngine || k===DEV_HIDDEN_KEY){
       saveBackupLast();
     }
   };
-
-
-  // ======= PREFS (pequeñas preferencias UI/motor) =======
-  const loadPrefs=()=>loadJSON(LS.prefs,{ neatAutoPolicy:'ask' });
-  const savePrefs=(p)=>saveJSON(LS.prefs, p || { neatAutoPolicy:'ask' });
-
   const getLevel=(mk,lk)=>(LEVELS[mk]||[]).find(x=>x.key===lk) || (LEVELS[mk]||[])[0];
   const daysSince = (ts)=>{
     if(!ts) return 9999;
@@ -1323,6 +1284,148 @@ window.addEventListener('error', function(e){
   // ======= DÍA =======
   const defaultNeatByMode = (modeKey)=> (modeKey==='surplus') ? 'med' : 'high';
 
+  // Preferencias (ligeras) para NEAT dinámico
+  const loadPrefs = ()=>{
+    const def = { neatAutoPolicy: 'ask' }; // ask | always | never
+    const p = loadJSON(LS.prefs, null);
+    if(!p || typeof p!=='object') { saveJSON(LS.prefs, def); return def; }
+    if(!p.neatAutoPolicy) p.neatAutoPolicy = 'ask';
+    saveJSON(LS.prefs, p);
+    return p;
+  };
+  const savePrefs = (p)=> saveJSON(LS.prefs, p);
+
+  const clamp = (x, a, b)=> Math.max(a, Math.min(b, x));
+
+  const computeNeatProposal = (dateKey, modeKey)=>{
+    // Propuesta basada en pasos vs media reciente (excluye el propio día)
+    const all = loadJSON(LS.settings, {});
+    const today = normalizeDayForKey(all, dateKey, modeKey);
+    const stepsToday = Number(today.steps)||0;
+    if(stepsToday<=0) return null;
+
+    const keys = pastKeys(8); // incluye hoy
+    const prev = keys.slice(1); // últimos 7 excluyendo hoy
+    const vals = [];
+    for(const k of prev){
+      const d = normalizeDayForKey(all, k, modeKey);
+      const s = Number(d.steps)||0;
+      if(s>0) vals.push(s);
+    }
+    if(vals.length < 3) return null;
+
+    const avg = vals.reduce((a,x)=>a+x,0)/vals.length;
+    const deltaSteps = stepsToday - avg;
+
+    const kcalPerStep = 0.04; // conservador
+    let deltaKcal = Math.round(deltaSteps * kcalPerStep);
+
+    // anti-ruido + límites
+    if(Math.abs(deltaKcal) < 60) return null;
+    deltaKcal = clamp(deltaKcal, -250, 250);
+
+    return {
+      stepsToday: Math.round(stepsToday),
+      stepsAvg: Math.round(avg),
+      deltaSteps: Math.round(deltaSteps),
+      deltaKcal
+    };
+  };
+
+  const renderNeatDecisionBanner = (proposal, dayObj)=>{
+    const box = $('neatDecisionBanner');
+    if(!box) return;
+
+    if(!proposal){
+      box.style.display = 'none';
+      return;
+    }
+
+    const prefs = loadPrefs();
+    // política global
+    if(prefs.neatAutoPolicy === 'never'){
+      box.style.display = 'none';
+      return;
+    }
+
+    // Si está en always, aplica y no molestes
+    if(prefs.neatAutoPolicy === 'always'){
+      dayObj.neatAutoDecision = 'applied';
+      dayObj.neatAutoDeltaKcal = proposal.deltaKcal;
+      dayObj.neatAutoStepsToday = proposal.stepsToday;
+      dayObj.neatAutoStepsAvg = proposal.stepsAvg;
+      saveDaySettings(activeDayKey, dayObj);
+      box.style.display = 'none';
+      return;
+    }
+
+    // Si cambiaron pasos, reset decisión
+    if(Number(dayObj.neatAutoStepsToday||0) !== proposal.stepsToday || Number(dayObj.neatAutoDeltaKcal||0) !== proposal.deltaKcal){
+      dayObj.neatAutoDecision = 'pending';
+      dayObj.neatAutoDeltaKcal = proposal.deltaKcal;
+      dayObj.neatAutoStepsToday = proposal.stepsToday;
+      dayObj.neatAutoStepsAvg = proposal.stepsAvg;
+      saveDaySettings(activeDayKey, dayObj);
+    }
+
+    // Si ya decidido, no enseñar banner
+    if(dayObj.neatAutoDecision === 'applied' || dayObj.neatAutoDecision === 'rejected'){
+      box.style.display = 'none';
+      return;
+    }
+
+    const sign = proposal.deltaKcal>0 ? '+' : '';
+    $('neatDecisionText').textContent =
+      `Pasos hoy: ${proposal.stepsToday}
+Media: ${proposal.stepsAvg}
+Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
+
+    box.style.display = 'block';
+
+    // Bind botones (idempotente)
+    $('neatDecisionClose').onclick = ()=>{ box.style.display='none'; };
+
+    $('neatApplyBtn').onclick = ()=>{
+      const all = loadJSON(LS.settings, {});
+      const d = normalizeDayForKey(all, activeDayKey, loadMode().modeKey);
+      d.neatAutoDecision = 'applied';
+      d.neatAutoDeltaKcal = proposal.deltaKcal;
+      d.neatAutoStepsToday = proposal.stepsToday;
+      d.neatAutoStepsAvg = proposal.stepsAvg;
+      saveDaySettings(activeDayKey, d);
+      box.style.display='none';
+      renderAll();
+    };
+
+    $('neatRejectBtn').onclick = ()=>{
+      const all = loadJSON(LS.settings, {});
+      const d = normalizeDayForKey(all, activeDayKey, loadMode().modeKey);
+      d.neatAutoDecision = 'rejected';
+      d.neatAutoDeltaKcal = proposal.deltaKcal;
+      d.neatAutoStepsToday = proposal.stepsToday;
+      d.neatAutoStepsAvg = proposal.stepsAvg;
+      saveDaySettings(activeDayKey, d);
+      box.style.display='none';
+      renderAll();
+    };
+
+    $('neatAlwaysBtn').onclick = ()=>{
+      const p = loadPrefs();
+      p.neatAutoPolicy = 'always';
+      savePrefs(p);
+      // aplicar ya
+      const all = loadJSON(LS.settings, {});
+      const d = normalizeDayForKey(all, activeDayKey, loadMode().modeKey);
+      d.neatAutoDecision = 'applied';
+      d.neatAutoDeltaKcal = proposal.deltaKcal;
+      d.neatAutoStepsToday = proposal.stepsToday;
+      d.neatAutoStepsAvg = proposal.stepsAvg;
+      saveDaySettings(activeDayKey, d);
+      box.style.display='none';
+      renderAll();
+    };
+  };
+
   const ensureDaySettings=(dateKey, modeKey)=>{
     const all=loadJSON(LS.settings,{});
     if(!all[dateKey]){
@@ -1332,19 +1435,13 @@ window.addEventListener('error', function(e){
         cardioKcal:'',
         steps:'',
         neatLevel: defaultNeatByMode(modeKey),
-        panicOn: false,
-        neatAutoDecision: '',
-        neatAutoDeltaKcal: 0,
-        neatAutoBasisSteps: 0
+        panicOn: false
       };
       saveJSON(LS.settings,all);
     } else {
       if(all[dateKey].neatLevel===undefined) all[dateKey].neatLevel = defaultNeatByMode(modeKey);
       if(all[dateKey].steps===undefined) all[dateKey].steps = '';
       if(all[dateKey].panicOn===undefined) all[dateKey].panicOn = false;
-      if(all[dateKey].neatAutoDecision===undefined) all[dateKey].neatAutoDecision = '';
-      if(all[dateKey].neatAutoDeltaKcal===undefined) all[dateKey].neatAutoDeltaKcal = 0;
-      if(all[dateKey].neatAutoBasisSteps===undefined) all[dateKey].neatAutoBasisSteps = 0;
       saveJSON(LS.settings,all);
     }
     return all[dateKey];
@@ -1362,28 +1459,6 @@ window.addEventListener('error', function(e){
     all[k]=day;
     saveJSON(LS.settings,all);
   };
-
-
-  // Guarda los ajustes del día actual sin avisos (para cambiar de día sin arrastrar valores)
-  const persistDayDraftSilently = ()=>{
-    try{
-      const storedMode = loadMode();
-      const {day:saved} = loadDaySettings(activeDayKey, storedMode.modeKey);
-
-      const ui = {
-        trainTime: $('trainTime')?.value ?? saved.trainTime ?? '',
-        wod: Number($('wod')?.value ?? saved.wod ?? 0),
-        cardioKcal: $('cardioKcal')?.value ?? saved.cardioKcal ?? '',
-        steps: $('steps')?.value ?? saved.steps ?? '',
-        neatLevel: $('neatLevel')?.value ?? saved.neatLevel ?? defaultNeatByMode(storedMode.modeKey),
-        panicOn: $('panicOn')?.checked ?? saved.panicOn ?? false,
-      };
-
-      const next = { ...saved, ...ui };
-      saveDaySettings(activeDayKey, next);
-    }catch(e){}
-  };
-
 
   const loadLogs=(dateKey)=>{
     const k=dateKey || todayKey();
@@ -1423,9 +1498,10 @@ window.addEventListener('error', function(e){
     const cardioKcal=Number(day.cardioKcal)||0;
     const cardioReal=cardioKcal*(1 - CARDIO_DISCOUNT); // 92%
 
-        const neatCorr = (day && day.neatAutoDecision==='applied' && Number.isFinite(Number(day.neatAutoDeltaKcal))) ? Number(day.neatAutoDeltaKcal) : 0;
+    // NEAT dinámico (corrección por pasos) — solo si el usuario lo ha aplicado
+    const neatAutoDelta = (day && day.neatAutoDecision==='applied' && Number.isFinite(Number(day.neatAutoDeltaKcal))) ? Number(day.neatAutoDeltaKcal) : 0;
 
-    return round(base + wod + cardioReal + neatCorr);
+    return round(base + wod + cardioReal + neatAutoDelta);
   };
 
   const computeGoal=(profile, day, modeStored)=>{
@@ -1498,9 +1574,7 @@ window.addEventListener('error', function(e){
       // texto existente neatInfo
       const neatInfo = $('neatInfo');
       if(neatInfo){
-              const corr = (day.neatAutoDecision==='applied') ? Number(day.neatAutoDeltaKcal||0) : 0;
-        const status = day.neatAutoDecision==='applied' ? `Auto ${corr>=0?'+':''}${corr} kcal` : (day.neatAutoDecision==='rejected' ? 'Auto rechazado' : 'Auto pendiente');
-        neatInfo.textContent = `PAL ${pal.toFixed(2)} · Pasos ${day.steps||'—'} · ${status}`;
+        neatInfo.textContent = `PAL ${pal.toFixed(2)} · Pasos ${day.steps||'—'} · Cardio real ${((Number(day.cardioKcal)||0)?(cardioReal+' kcal'):'—')}`;
       }
     }catch(e){
       // nunca romper
@@ -1511,215 +1585,12 @@ window.addEventListener('error', function(e){
     ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach(id=>{
       const el = $(id);
       if(!el) return;
-      el.addEventListener('input', ()=>{ window.updateDaySummaryCard(); if(id==='steps') maybePromptNeatAuto(); });
-      el.addEventListener('change', ()=>{ window.updateDaySummaryCard(); if(id==='steps') maybePromptNeatAuto(); });
+      el.addEventListener('input', ()=>window.updateDaySummaryCard());
+      el.addEventListener('change', ()=>window.updateDaySummaryCard());
     });
   };
 
-  
-
-  // ======= NEAT DINÁMICO: propuesta + aplicar/rechazar =======
-  const KCAL_PER_STEP = 0.04;        // aproximación conservadora: 10.000 pasos ≈ 400 kcal
-  const NEAT_MIN_SAMPLES = 3;        // mínimo días con pasos para calcular media
-  const NEAT_DELTA_THRESHOLD = 60;   // por debajo es ruido
-  const NEAT_DELTA_CAP = 250;        // límite duro
-
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-
-  const parseSteps=(v)=>{
-    const n = Number(String(v||'').replace(/[^\d]/g,''));
-    return Number.isFinite(n) && n>0 ? n : null;
-  };
-
-  const dateObjFromKey=(k)=> new Date((k||todayKey())+'T00:00:00');
-
-  const getStepsAvgBeforeKey=(refKey, maxDaysBack=21, take=7)=>{
-    const storedMode = loadMode();
-    const ref = dateObjFromKey(refKey);
-    const samples=[];
-    for(let i=1;i<=maxDaysBack && samples.length<take;i++){
-      const d=new Date(ref); d.setDate(d.getDate()-i);
-      const k=dateKeyFromDateObj(d);
-      const {day} = loadDaySettings(k, storedMode.modeKey);
-      const s=parseSteps(day?.steps);
-      if(s!=null) samples.push(s);
-    }
-    if(samples.length < NEAT_MIN_SAMPLES) return {avg:null, samples:samples.length};
-    const avg = samples.reduce((a,b)=>a+b,0)/samples.length;
-    return {avg:avg, samples:samples.length};
-  };
-
-  const computeNeatProposalForDay=(dayKey)=>{
-    const storedMode = loadMode();
-    const {day} = loadDaySettings(dayKey, storedMode.modeKey);
-    const stepsToday = parseSteps($('steps')?.value ?? day?.steps);
-    if(stepsToday==null) return null;
-
-    const {avg, samples} = getStepsAvgBeforeKey(dayKey);
-    if(avg==null) return null;
-
-    const deltaSteps = stepsToday - avg;
-    let deltaKcal = Math.round(deltaSteps * KCAL_PER_STEP);
-
-    if(Math.abs(deltaKcal) < NEAT_DELTA_THRESHOLD) return null;
-    deltaKcal = clamp(deltaKcal, -NEAT_DELTA_CAP, NEAT_DELTA_CAP);
-
-    return {
-      dayKey,
-      stepsToday,
-      avgSteps: Math.round(avg),
-      samples,
-      deltaSteps: Math.round(deltaSteps),
-      deltaKcal
-    };
-  };
-
-  const openOverlay=(id)=>{ const el=$(id); if(!el) return; el.setAttribute('aria-hidden','false'); };
-  const closeOverlay=(id)=>{ const el=$(id); if(!el) return; el.setAttribute('aria-hidden','true'); };
-
-  let _neatProposal = null;
-
-  const updateNeatInfoLine = ()=>{
-    try{
-      const storedMode = loadMode();
-      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
-
-      const corr = (day.neatAutoDecision==='applied') ? Number(day.neatAutoDeltaKcal||0) : 0;
-      const status = day.neatAutoDecision==='applied' ? `Auto aplicado ${corr>=0?'+':''}${corr} kcal`
-                    : (day.neatAutoDecision==='rejected' ? 'Auto rechazado' : 'Auto sin decidir');
-
-      const neatInfo = $('neatInfo');
-      if(neatInfo){
-        const pal = PAL[day.neatLevel] || PAL.high;
-        const stepsTxt = day.steps ? day.steps : '—';
-        neatInfo.textContent = `PAL ${pal.toFixed(2)} · Pasos ${stepsTxt} · ${status}`;
-      }
-    }catch(e){}
-  };
-
-
-  // Permite abrir la propuesta sin bloquear la UI: tocar la línea de NEAT (o el chip del resumen)
-  const hookNeatAutoOpeners = ()=>{
-    try{
-      const openIfPending = ()=>{
-        const storedMode = loadMode();
-        const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
-        const decision = day?.neatAutoDecision || '';
-        // Solo si hay propuesta y no hay decisión
-        const p = _neatProposal || computeNeatProposalForDay(activeDayKey);
-        if(!p) return;
-        if(decision==='applied' || decision==='rejected') return;
-        // Rellena textos y abre overlay
-        showNeatAutoProposal(p);
-        openOverlay('neatAutoPop');
-      };
-
-      const ni = $('neatInfo');
-      if(ni && !ni._neatHooked){
-        ni._neatHooked = true;
-        ni.style.cursor = 'pointer';
-        ni.addEventListener('click', openIfPending);
-      }
-      const sn = $('sumNeat');
-      if(sn && !sn._neatHooked){
-        sn._neatHooked = true;
-        sn.style.cursor = 'pointer';
-        sn.addEventListener('click', openIfPending);
-      }
-    }catch(e){}
-  };
-  const showNeatAutoProposal = (p)=>{
-    _neatProposal = p;
-    const dir = p.deltaKcal>=0 ? 'más' : 'menos';
-    const sign = p.deltaKcal>=0 ? '+' : '';
-    $('neatAutoMsg') && ($('neatAutoMsg').textContent =
-      `Detecto ${Math.abs(p.deltaSteps)} pasos ${dir} que tu media reciente (${p.avgSteps}). Esto sugiere ${sign}${p.deltaKcal} kcal hoy. ¿Quieres aplicarlo al objetivo del día?`
-    );
-    $('neatAutoSteps') && ($('neatAutoSteps').textContent = String(p.stepsToday));
-    $('neatAutoAvg') && ($('neatAutoAvg').textContent = String(p.avgSteps));
-    $('neatAutoDelta') && ($('neatAutoDelta').textContent = `${sign}${p.deltaKcal} kcal`);
-    // No abrir automáticamente (evita bloquear la app). Se abre al tocar el aviso.
-    
-  };
-
-  const clearNeatDecisionIfStepsChanged = ()=>{
-    try{
-      const storedMode = loadMode();
-      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
-      const uiSteps = parseSteps($('steps')?.value ?? day?.steps);
-      const basis = Number(day.neatAutoBasisSteps || 0) || null;
-      if(day.neatAutoDecision && uiSteps!=null && basis!=null && uiSteps !== basis){
-        day.neatAutoDecision = '';
-        day.neatAutoDeltaKcal = 0;
-        day.neatAutoBasisSteps = uiSteps;
-        saveDaySettings(activeDayKey, day);
-      }
-    }catch(e){}
-  };
-
-  const maybePromptNeatAuto = ()=>{
-    try{
-      const prefs = loadPrefs();
-      if(prefs.neatAutoPolicy==='never') return;
-
-      clearNeatDecisionIfStepsChanged();
-
-      const storedMode = loadMode();
-      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
-
-      // si ya decidido, no molestar
-      if(day.neatAutoDecision==='applied' || day.neatAutoDecision==='rejected') return;
-
-      const p = computeNeatProposalForDay(activeDayKey);
-      if(!p) return;
-
-      // si el usuario activó "siempre aplicar", aplicamos sin popup
-      if(prefs.neatAutoPolicy==='always'){
-        day.neatAutoDecision='applied';
-        day.neatAutoDeltaKcal = p.deltaKcal;
-        day.neatAutoBasisSteps = p.stepsToday;
-        saveDaySettings(activeDayKey, day);
-        window.updateDaySummaryCard && window.updateDaySummaryCard();
-        updateNeatInfoLine();
-        renderAll && renderAll();
-        return;
-      }
-
-      showNeatAutoProposal(p);
-    }catch(e){}
-  };
-
-  const applyNeatDecision = (mode)=>{
-    try{
-      const storedMode = loadMode();
-      const {day} = loadDaySettings(activeDayKey, storedMode.modeKey);
-      const p = _neatProposal || computeNeatProposalForDay(activeDayKey);
-      if(!p){
-        closeOverlay('neatAutoPop');
-        return;
-      }
-
-      if(mode==='apply'){
-        day.neatAutoDecision='applied';
-        day.neatAutoDeltaKcal = p.deltaKcal;
-        day.neatAutoBasisSteps = p.stepsToday;
-      } else if(mode==='reject'){
-        day.neatAutoDecision='rejected';
-        day.neatAutoDeltaKcal = 0;
-        day.neatAutoBasisSteps = p.stepsToday;
-      }
-      saveDaySettings(activeDayKey, day);
-
-      closeOverlay('neatAutoPop');
-      window.updateDaySummaryCard && window.updateDaySummaryCard();
-      updateNeatInfoLine();
-      renderAll && renderAll();
-    }catch(e){
-      closeOverlay('neatAutoPop');
-    }
-  };
-
-// ======= OCR =======
+  // ======= OCR =======
   const openPop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','false'); pop.style.display='block'; };
   const closePop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','true'); pop.style.display='none'; };
 
@@ -3258,12 +3129,7 @@ window.addEventListener('error', function(e){
 
     refreshTagButtons();
     applyDevUI();
-  
-    // Refresco consistente tras re-render (y hook para abrir propuesta NEAT sin bloquear)
-    try{ window.updateDaySummaryCard && window.updateDaySummaryCard(); }catch(e){}
-    try{ updateNeatInfoLine && updateNeatInfoLine(); }catch(e){}
-    try{ hookNeatAutoOpeners && hookNeatAutoOpeners(); }catch(e){}
-};
+  };
 
   // ======= ACTIONS =======
   $('overrideWeight').onclick=()=>{
@@ -3902,23 +3768,10 @@ $('exportFoods').onclick=()=>{
   }
 
   bindDaySummaryLive();
-  // Si hay pasos ya registrados, proponemos corrección NEAT al abrir
-  setTimeout(()=>{ try{ maybePromptNeatAuto(); }catch(e){} }, 0);
   // OCR bindings
   $('openOCRTop') && ($('openOCRTop').onclick=()=>{ $('ocrFile')?.click(); });
   $('ocrPick') && ($('ocrPick').onclick=()=> $('ocrFile')?.click());
   $('closeOCR') && ($('closeOCR').onclick=()=> closePop('ocrPop'));
-
-  // NEAT dinámico: popup aplicar/rechazar/siempre
-  $('closeNeatAuto') && ($('closeNeatAuto').onclick=()=> closeOverlay('neatAutoPop'));
-  $('applyNeatAuto') && ($('applyNeatAuto').onclick=()=> applyNeatDecision('apply'));
-  $('rejectNeatAuto') && ($('rejectNeatAuto').onclick=()=> applyNeatDecision('reject'));
-  $('alwaysNeatAuto') && ($('alwaysNeatAuto').onclick=()=>{
-    const prefs = loadPrefs(); prefs.neatAutoPolicy='always'; savePrefs(prefs);
-    applyNeatDecision('apply');
-  });
-
-
   $('ocrFile') && ($('ocrFile').onchange=(ev)=>{
     const file=ev.target.files && ev.target.files[0];
     if(!file) return;
@@ -3977,34 +3830,6 @@ function freezeDayIfNeeded(dateKey, summary){
 }
 // ===== End Ledger System =====
 
-
-
-// === SAFETY: evitar bloqueo por overlays/drawers en iOS ===
-(function(){
-  const hardHide = ()=>{
-    try{
-      document.body.style.pointerEvents = 'auto';
-      document.querySelectorAll('.overlay').forEach(el=>{
-        el.setAttribute('aria-hidden','true');
-        el.style.display='none';
-        el.style.pointerEvents='none';
-      });
-      const db = document.getElementById('drawerBack');
-      if(db){
-        db.setAttribute('aria-hidden','true');
-        db.style.display='none';
-        db.style.pointerEvents='none';
-      }
-      // Cerrar también popovers flotantes si quedaran abiertos
-      ['globalSearchPop','ocrPop','ocrPopFull'].forEach(id=>{
-        const p=document.getElementById(id);
-        if(p){ p.style.display='none'; p.setAttribute('aria-hidden','true'); }
-      });
-    }catch(e){}
-  };
-  window.addEventListener('pageshow', hardHide);
-  window.addEventListener('load', hardHide);
-})();
 
 </script>
 </body>
