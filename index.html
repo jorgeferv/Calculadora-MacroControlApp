@@ -156,6 +156,10 @@
     .pop{display:none;position:absolute;top:58px;right:18px;z-index:50;min-width:320px;max-width:520px;}
     .pop[aria-hidden="false"]{display:block;}
     .popInner{background:rgba(22,26,34,.98);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(8px);}
+    /* Pop a pantalla completa (OCR en iPhone) */
+    .popFull{position:fixed;inset:0;top:0;left:0;right:0;bottom:0;overflow:auto;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,.55);z-index:9999;}
+    .popFull .popInner{max-width:720px;margin:calc(10px + env(safe-area-inset-top)) auto 20px auto;}
+    .popFull img{max-height:52vh;object-fit:contain;}
     @media (max-width:520px){ .pop{left:12px;right:12px;min-width:auto;} }
 
   
@@ -391,7 +395,7 @@
 
         <!-- OCR (cámara/galería + pegado de texto iOS) -->
         <input id="ocrFile" type="file" accept="image/*" style="display:none" />
-        <div id="ocrPop" class="pop" aria-hidden="true" style="display:none;">
+        <div id="ocrPop" class="pop popFull" aria-hidden="true" style="display:none;">
           <div class="popInner">
             <div class="row" style="align-items:center;justify-content:space-between;">
               <b>📷 OCR</b>
@@ -1036,28 +1040,10 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{ persistDayDraft(); activeDayKey=d.key; renderAll(); };
+      b.onclick=()=>{ activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
     });
   };
-
-  // Guarda silenciosamente el borrador de AJUSTES DEL DÍA (para no perder cambios al cambiar de fecha)
-  const persistDayDraft = ()=>{
-    try{
-      const storedMode = loadMode();
-      const {day:cur} = loadDaySettings(activeDayKey, storedMode.modeKey);
-      const next = {
-        ...cur,
-        trainTime: $('trainTime').value || '',
-        wod: Number($('wod').value) || 0,
-        cardioKcal: $('cardioKcal').value,
-        steps: $('steps').value,
-        neatLevel: $('neatLevel').value || defaultNeatByMode(storedMode.modeKey),
-      };
-      saveDaySettings(activeDayKey, next);
-    }catch(e){}
-  };
-
 
   const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
 
@@ -2915,8 +2901,6 @@ window.addEventListener('error', function(e){
     $('panicBtn').textContent = day.panicOn ? 'Pánico (ON)' : 'Pánico';
     $('panicBtn').style.outline = day.panicOn ? '2px solid rgba(255,77,77,.55)' : '';
 
-    window.updateDaySummaryCard();
-
     renderFoodPicker(foods);
     renderAddFoodList(foods);
     try{ renderRecentFoods(foods); const f=foodById(foods,$('foodPick').value); if(f) applyQtyModeForFood(f);}catch(e){}
@@ -2985,6 +2969,7 @@ window.addEventListener('error', function(e){
 
     refreshTagButtons();
     applyDevUI();
+    try{ window.updateDaySummaryCard && window.updateDaySummaryCard(); }catch(e){}
   };
 
   // ======= ACTIONS =======
@@ -3625,7 +3610,7 @@ $('exportFoods').onclick=()=>{
 
   bindDaySummaryLive();
   // OCR bindings
-  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ $('ocrFile')?.click(); });
+  $('openOCRTop') && ($('openOCRTop').onclick=()=>{ openPop('ocrPop'); setTimeout(()=>{ try{ $('ocrText')?.focus(); }catch(e){} }, 80); });
   $('ocrPick') && ($('ocrPick').onclick=()=> $('ocrFile')?.click());
   $('closeOCR') && ($('closeOCR').onclick=()=> closePop('ocrPop'));
   $('ocrFile') && ($('ocrFile').onchange=(ev)=>{
