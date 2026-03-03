@@ -211,47 +211,15 @@
     .foodListScroller.hidden{display:none;}
 
 
-    /* ===== Voice quick log (POC) ===== */
-    .micFab{
-      position:fixed; right:16px; bottom:16px; z-index:12000;
-      width:56px; height:56px; border-radius:16px;
-      display:flex; align-items:center; justify-content:center;
-      background:linear-gradient(180deg,#1c2330,#131822);
-      border:1px solid var(--line);
-      box-shadow:0 12px 28px rgba(0,0,0,.45);
-      font-size:22px;
-    }
-    .micFab:active{transform:translateY(1px);}
-    .voiceBack{
-      position:fixed; inset:0; z-index:13000;
-      background:rgba(0,0,0,.55);
-      display:none;
-      padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 14px) 14px;
-    }
-    .voiceBack[aria-hidden="false"]{display:block;}
-    .voicePanel{
-      max-width:720px; margin:0 auto;
-      background:rgba(22,26,34,.98);
-      border:1px solid var(--line);
-      border-radius:16px;
-      box-shadow:0 10px 30px rgba(0,0,0,.45);
-      padding:12px;
-      max-height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px);
-      overflow:auto;
-      -webkit-overflow-scrolling:touch;
-    }
-    .voiceTop{display:flex;align-items:center;gap:10px;}
-    .voiceTop b{font-size:16px;}
-    .voiceTop .muted{font-size:12px;}
-    .voiceActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-    .voiceActions button{flex:1; min-width:140px;}
-    .voiceHint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.3;}
-    #voiceText{min-height:120px;}
-    .voiceResult{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;}
-    .voiceLine{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.08);}
-    .voiceLine:last-child{border-bottom:0;}
-
-  </style>
+  /* Voice button (fixed top-right, iOS safe-area) */
+  #voiceTopBtn{
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + 10px) !important;
+    right: 10px !important;
+    z-index: 9999 !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,.25);
+  }
+</style>
 </head>
 
 <body>
@@ -416,6 +384,7 @@
           <div class="pill" id="stageChipPill" style="cursor:pointer;">Objetivo: <b id="stageChip">—</b></div>
           <button class="iconBtn" id="openFoods" type="button" title="Alimentos">☰</button>
           <button class="iconBtn" id="toggleGlobalSearch" type="button" title="Buscar">🔎</button>
+          <button class="iconBtn" id="voiceTopBtn" type="button" title="Dictado">🎙️</button>
           <button class="iconBtn" id="openStatsTop" type="button" title="Estadísticas">📊</button>
           <button class="iconBtn" id="openOCRTop" type="button" title="OCR">📷</button>
         </div>
@@ -3709,38 +3678,238 @@ function freezeDayIfNeeded(dateKey, summary){
 // ===== End Ledger System =====
 
 
+
+// =========================
+// VOICE QUICK ADD (POC, safe UI)
+// - Adds foods to the currently active day (activeDayKey)
+// - Uses simple prompt text input; works on iOS without SpeechRecognition
+// =========================
+(function(){
+  const norm = (s)=>{
+    return String(s||'')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9\s\.\,\-\/]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  };
+
+  const wordNum = (w)=>{
+    w = norm(w);
+    const map = {
+      'medio':0.5,'media':0.5,
+      'un':1,'uno':1,'una':1,
+      'dos':2,'tres':3,'cuatro':4,'cinco':5,'seis':6,'siete':7,'ocho':8,'nueve':9,'diez':10,
+      'once':11,'doce':12,'trece':13,'catorce':14,'quince':15,'dieciseis':16,'diecisiete':17,'dieciocho':18,'diecinueve':19,'veinte':20
+    };
+    return map[w] ?? null;
+  };
+
+  const parseQty = (raw)=>{
+    raw = String(raw||'').trim();
+    // numeric like 125, 0.5, 0,5
+    const n = Number(raw.replace(',','.'));
+    if(!Number.isNaN(n)) return n;
+    const wn = wordNum(raw);
+    return wn;
+  };
+
+  const detectMeal = (sNorm)=>{
+    // returns normalized meal labels used by app
+    if(!sNorm) return null;
+    if(sNorm.includes('desayuno')) return 'desayuno';
+    if(sNorm.includes('comida')) return 'comida';
+    if(sNorm.includes('merienda')) return 'merienda';
+    if(sNorm.includes('cena')) return 'cena';
+    if(sNorm.includes('pre entreno') || sNorm.includes('pre-entreno') || sNorm==='pre') return 'pre';
+    if(sNorm.includes('post entreno') || sNorm.includes('post-entreno') || sNorm==='post') return 'post';
+    return null;
+  };
+
+  const bestFoodMatch = (foods, query)=>{
+    const q = norm(query);
+    if(!q) return null;
+
+    let best = null;
+    let bestScore = 0;
+
+    for(const f of foods){
+      const name = norm(f.name);
+      if(!name) continue;
+      if(name === q) return f;
+
+      // basic scoring
+      let score = 0;
+      if(name.includes(q)) score = q.length / name.length;
+      else if(q.includes(name)) score = name.length / q.length;
+
+      // bonus for start match
+      if(name.startsWith(q)) score += 0.15;
+
+      if(score > bestScore){
+        bestScore = score;
+        best = f;
+      }
+    }
+    // threshold to avoid bad matches
+    return bestScore >= 0.42 ? best : null;
+  };
+
+  const parseVoiceText = (raw)=>{
+    let t = String(raw||'');
+    // split " y " to commas for simpler list parsing
+    t = t.replace(/\s+y\s+/gi, ', ');
+    const parts = t.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);
+
+    const out = [];
+    let currentMeal = (typeof mealByHour==='function' ? mealByHour() : 'desayuno');
+
+    for(const p of parts){
+      const pn = norm(p);
+
+      const meal = detectMeal(pn);
+      if(meal && (pn===meal || pn.includes(meal) && pn.length<=18)){
+        currentMeal = meal;
+        continue;
+      }
+
+      // patterns:
+      // "125 gramos de arroz" / "250 ml leche" / "2 unidades lomo"
+      let m = p.match(/^(\d+(?:[.,]\d+)?)\s*(gramos|gramo|gr|g|mililitros|mililitro|ml|unidades|unidad|uds|ud|u)\s*(?:de\s+)?(.+)$/i);
+      if(!m){
+        // "dos unidades de lomo"
+        m = p.match(/^([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)\s*(gramos|gramo|gr|g|mililitros|mililitro|ml|unidades|unidad|uds|ud|u)\s*(?:de\s+)?(.+)$/i);
+      }
+      if(m){
+        const qty = parseQty(m[1]);
+        const unitRaw = norm(m[2]);
+        const name = String(m[3]||'').trim();
+        if(!qty || qty<=0 || !name) continue;
+
+        let qtyType = 'g';
+        if(unitRaw.startsWith('ml') || unitRaw.includes('mililit')) qtyType = 'ml';
+        else if(unitRaw.startsWith('u') || unitRaw.includes('unidad') || unitRaw.includes('ud')) qtyType = 'unit';
+        else qtyType = 'g';
+
+        out.push({ meal: currentMeal, name, qtyType, qty });
+        continue;
+      }
+
+      // "dos huevos" / "2 huevos" / "arroz 125"
+      let m2 = p.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/i);
+      if(!m2){
+        m2 = p.match(/^([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)\s+(.+)$/i);
+      }
+      if(m2){
+        const qty = parseQty(m2[1]);
+        const name = String(m2[2]||'').trim();
+        if(qty && qty>0 && name) out.push({ meal: currentMeal, name, qtyType: null, qty });
+        continue;
+      }
+
+      // otherwise treat as "1 unit of <name>" (only if food is unit-based later)
+      out.push({ meal: currentMeal, name: p, qtyType: null, qty: null });
+    }
+
+    return out;
+  };
+
+  const addParsedToDay = (parsed)=>{
+    const foods = loadFoodsMerged();
+    const logsObj = loadLogs(activeDayKey);
+    const logs = logsObj.items || logsObj || [];
+    const missing = [];
+    const ambiguous = [];
+
+    for(const item of parsed){
+      const f = bestFoodMatch(foods, item.name);
+      if(!f){
+        missing.push(item.name);
+        continue;
+      }
+
+      let qtyType = item.qtyType;
+      let qty = item.qty;
+
+      if(!qtyType){
+        // infer based on food base unit
+        if(f.baseUnit === '100g') qtyType = 'g';
+        else if(f.baseUnit === '100ml') qtyType = 'ml';
+        else qtyType = 'unit';
+      }
+
+      if(!qty){
+        // if no qty given, default 1 unit for unit-based foods; otherwise ambiguous
+        if(qtyType === 'unit'){
+          qty = 1;
+        } else {
+          ambiguous.push(item.name);
+          continue;
+        }
+      }
+
+      const mac = macroFor(f, qtyType, qty);
+      pushLogItem(logs,{
+        meal: item.meal,
+        foodId: f.id,
+        name: f.name,
+        qtyType, qty,
+        qtyDisplay: qtyDisplay(qtyType, qty),
+        ...mac
+      });
+    }
+
+    // persist
+    if(Array.isArray(logsObj.items)){
+      logsObj.items = logs;
+      saveLogs(activeDayKey, logsObj);
+    } else {
+      saveLogs(activeDayKey, { items: logs });
+    }
+
+    renderAll();
+
+    let msg = 'Añadido.';
+    if(missing.length) msg += '\nNo encontrados: ' + missing.slice(0,6).join(', ') + (missing.length>6?'…':'');
+    if(ambiguous.length) msg += '\nSin cantidad (revísalo): ' + ambiguous.slice(0,6).join(', ') + (ambiguous.length>6?'…':'');
+    if(missing.length || ambiguous.length) alert(msg);
+  };
+
+  const openVoicePrompt = ()=>{
+    const raw = prompt('Dicta o pega alimentos. Ejemplo:\nDesayuno: 2 huevos, 125 gramos de arroz, 2 unidades de lomo');
+    if(!raw) return;
+    try{
+      const parsed = parseVoiceText(raw);
+      addParsedToDay(parsed);
+    }catch(e){
+      console.error(e);
+      alert('No se pudo procesar el dictado.');
+    }
+  };
+
+  const hook = ()=>{
+    const btn = document.getElementById('voiceTopBtn');
+    if(!btn) return;
+    btn.addEventListener('click', (ev)=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      openVoicePrompt();
+    }, {passive:false});
+  };
+
+  // hook now and after renders (in case UI re-renders this block)
+  hook();
+  const _origRenderAll = window.renderAll;
+  if(typeof _origRenderAll === 'function' && !window.__voiceRenderHooked){
+    window.__voiceRenderHooked = true;
+    window.renderAll = function(){
+      const r = _origRenderAll.apply(this, arguments);
+      try{ hook(); }catch(e){}
+      return r;
+    };
+  }
+})();
+
 </script>
-
-  <!-- 🎙️ Voice quick log (POC) -->
-  <button id="voiceFab" class="micFab" type="button" title="Dictar comida">🎙️</button>
-
-  <div class="voiceBack" id="voiceBack" aria-hidden="true">
-    <div class="voicePanel">
-      <div class="voiceTop">
-        <b>🎙️ Dictado rápido</b>
-        <span class="muted" id="voiceStatus">Listo.</span>
-        <button type="button" class="miniBtn" id="voiceClose" style="margin-left:auto;">✕</button>
-      </div>
-
-      <div class="voiceActions">
-        <button type="button" id="voiceStart">Escuchar</button>
-        <button type="button" id="voiceStop" disabled>Parar</button>
-        <button type="button" class="primary" id="voiceProcess">Procesar y añadir</button>
-      </div>
-
-      <textarea id="voiceText" placeholder="Aquí aparecerá el texto. También puedes pegar dictado del teclado iOS.
-Ej: desayuno, dos huevos, 125 gramos de arroz, dos unidades de lomo adobado."></textarea>
-      <div class="voiceHint">
-        Bloques soportados: desayuno, comida, merienda, cena, pre-entreno, post-entreno. Si no dices bloque, se usa el bloque actual del selector (o uno estimado por hora).
-      </div>
-
-      <div class="voiceResult" id="voiceResult" style="display:none;">
-        <b>Resultado</b>
-        <div class="muted" id="voiceResultInfo" style="margin:6px 0 8px;">—</div>
-        <div id="voiceResultLines"></div>
-      </div>
-    </div>
-  </div>
-
 </body>
 </html>
