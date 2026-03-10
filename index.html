@@ -713,18 +713,13 @@
           </div>
         </div>
 
-        <details id="comboBox" open>
-          <summary>⭐ Combinaciones favoritas</summary>
-          <div class="card" style="margin-top:10px;">
-            <div class="muted" style="margin-bottom:8px;">Usa combinaciones guardadas. Se añaden al bloque seleccionado arriba.</div>
-            <div id="comboList" class="comboList"></div>
-          </div>
-        </details>
+        
 
         <!-- (Eliminado) Lista rápida bajo buscar: generaba ruido y no aportaba -->
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
-        <label>Lista (toca para seleccionar)</label>
+        <label>Lista de alimentos (toca para seleccionar)</label>
+        <div class="muted" style="margin:4px 0 8px;">Primero se muestra tu lista normal de alimentos. Las combinaciones favoritas quedan más abajo.</div>
         <div class="foodListScroller" id="addFoodScroller" style="max-height:46vh;">
           <div class="list" id="addFoodList"></div>
         </div>
@@ -747,6 +742,15 @@
         </div>
 
         <button class="primary" id="addItem" type="button">Añadir</button>
+
+        <div class="hint" style="margin-top:10px;">Las combinaciones favoritas quedan abajo para no tapar la lista normal de alimentos.</div>
+        <details id="comboBox">
+          <summary>⭐ Combinaciones favoritas</summary>
+          <div class="card" style="margin-top:10px;">
+            <div class="muted" style="margin-bottom:8px;">Usa combinaciones guardadas. Se añaden al bloque seleccionado arriba.</div>
+            <div id="comboList" class="comboList"></div>
+          </div>
+        </details>
 
         <div class="hr"></div>
 
@@ -2574,8 +2578,10 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
       list.innerHTML = '<div class="muted">Sin resultados.</div>';
       return;
     }
+    const info=document.createElement('div'); info.className='muted'; info.style.margin='0 0 8px'; info.textContent=`${filtered.length} alimento(s)`;
+    list.appendChild(info);
 
-    filtered.forEach(f=>{
+    filtered.slice(0,200).forEach(f=>{
       const d=document.createElement('div'); d.className='item';
       d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id}</small></div>
                      <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
