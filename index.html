@@ -210,15 +210,6 @@
     .unitToggle .miniBtn.active{border-color:rgba(0,255,120,.85);box-shadow:0 0 0 2px rgba(0,255,120,.12) inset;}
     .foodListScroller.hidden{display:none;}
 
-
-    .comboList{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
-    .comboItem{padding:10px;border:1px solid #232a38;border-radius:14px;background:rgba(12,15,20,.45);}
-    .comboTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-    .comboMeta{font-size:12px;color:var(--muted);margin-top:4px;}
-    .comboActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-    .comboActions button{width:auto;}
-    .miniGhost{padding:8px 10px;border-radius:10px;border:1px solid #2a3242;background:#0c0f14;color:var(--text);font-size:13px;}
-
 </style>
 </head>
 
@@ -522,23 +513,6 @@
         </div>
         <div class="muted" id="neatInfo" style="margin-top:6px;">—</div>
 
-        <div id="neatDecisionBanner" style="display:none;margin-top:10px;border:1px solid #2a3242;background:#0c0f14;border-radius:14px;padding:10px;">
-          <div class="row" style="justify-content:space-between;gap:10px;align-items:flex-start;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;margin-bottom:4px;">NEAT dinámico</div>
-              <div class="muted" id="neatDecisionText" style="white-space:pre-wrap;">—</div>
-            </div>
-            <button class="delBtn" type="button" id="neatDecisionClose" title="Cerrar">✕</button>
-          </div>
-          <div class="seg" style="margin-top:10px;flex-wrap:wrap;">
-            <button class="primary" type="button" id="neatApplyBtn">Aplicar hoy</button>
-            <button type="button" id="neatRejectBtn">Rechazar</button>
-            <button type="button" id="neatAlwaysBtn">Siempre aplicar</button>
-          </div>
-          <div class="muted" style="margin-top:8px;font-size:12px;">Umbral ±60 kcal · Límite ±250 kcal · Requiere ≥3 días con pasos.</div>
-        </div>
-
-
         <div class="hr"></div>
 
         <div class="stack">
@@ -682,6 +656,7 @@
         <div class="list" id="logList"></div>
 
         <div class="seg">
+          <button id="copyDay" type="button">📋 Copiar día</button>
           <button id="clearToday" type="button">Borrar día</button>
         </div>
       </div>
@@ -703,7 +678,10 @@
         </select>
 
         <label>Buscar</label>
-        <input id="foodSearch" placeholder="Escribe para filtrar..." />
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="foodSearch" placeholder="Escribe para filtrar..." style="flex:1;" />
+          <button id="favFilterBtn" type="button" class="miniBtn" title="Favoritos">⭐</button>
+        </div>
         <div id="addStatusBar" class="addStatusBar">
           <div class="row">
             <div class="pill"><span class="k">🔥</span><span class="v" id="addRemK">—</span></div>
@@ -713,13 +691,10 @@
           </div>
         </div>
 
-        
-
         <!-- (Eliminado) Lista rápida bajo buscar: generaba ruido y no aportaba -->
 
         <!-- Lista visible (se acabó el “select vacío” en iOS) -->
-        <label>Lista de alimentos (toca para seleccionar)</label>
-        <div class="muted" style="margin:4px 0 8px;">Primero se muestra tu lista normal de alimentos. Las combinaciones favoritas quedan más abajo.</div>
+        <label>Lista (toca para seleccionar)</label>
         <div class="foodListScroller" id="addFoodScroller" style="max-height:46vh;">
           <div class="list" id="addFoodList"></div>
         </div>
@@ -742,15 +717,6 @@
         </div>
 
         <button class="primary" id="addItem" type="button">Añadir</button>
-
-        <div class="hint" style="margin-top:10px;">Las combinaciones favoritas quedan abajo para no tapar la lista normal de alimentos.</div>
-        <details id="comboBox">
-          <summary>⭐ Combinaciones favoritas</summary>
-          <div class="card" style="margin-top:10px;">
-            <div class="muted" style="margin-bottom:8px;">Usa combinaciones guardadas. Se añaden al bloque seleccionado arriba.</div>
-            <div id="comboList" class="comboList"></div>
-          </div>
-        </details>
 
         <div class="hr"></div>
 
@@ -826,8 +792,7 @@ window.addEventListener('error', function(e){
     foodsRoot: 'mc_foods_root',
     foodsUser: 'mc_foods_user',
     foodsLegacy: 'mc_foods_v8',
-    prefs: 'mc_prefs',
-    combos: 'mc_combos'
+    combos: 'mc_food_combos_v1'
   };
 
   // =========================
@@ -854,8 +819,6 @@ window.addEventListener('error', function(e){
       if(typeof logs !== 'object' || Array.isArray(logs)) saveJSON(LS.logs, {});
       const settings = loadJSON(LS.settings, {});
       if(typeof settings !== 'object' || Array.isArray(settings)) saveJSON(LS.settings, {});
-      const combos = loadJSON(LS.combos, []);
-      if(!Array.isArray(combos)) saveJSON(LS.combos, []);
     }catch(_){}
     localStorage.setItem(LS_VERSION_KEY, String(DATA_VERSION));
   };
@@ -1079,60 +1042,10 @@ window.addEventListener('error', function(e){
       b.className='miniBtn';
       if(d.key===activeDayKey){ b.classList.add('activeDay'); }
       b.title = d.key;
-      b.onclick=()=>{
-        try{ persistDayDraft(); }catch(e){}
-        activeDayKey=d.key;
-        renderAll();
-      };
+      b.onclick=()=>{ persistDayDraft(); activeDayKey=d.key; renderAll(); };
       wrap.appendChild(b);
     });
-  
-
-  // =========================
-  // Day draft autosave (para que Ajustes del día cambie al cambiar de día)
-  // =========================
-  let _dayDraftTimer = null;
-
-  const persistDayDraft = ()=>{
-    const storedMode = (typeof loadMode==='function' ? loadMode() : {modeKey:'deficit'});
-    const trainTimeEl = $('trainTime');
-    const wodEl       = $('wod');
-    const cardioEl    = $('cardioKcal');
-    const stepsEl     = $('steps');
-    const neatEl      = $('neatLevel');
-
-    // Si el panel no está montado (o está cerrado), no hacemos nada
-    if(!trainTimeEl || !wodEl || !cardioEl || !stepsEl || !neatEl) return;
-
-    const cur = (typeof loadDaySettings==='function' ? (loadDaySettings(activeDayKey, storedMode.modeKey)?.day || {}) : {});
-    const next = {
-      ...cur,
-      trainTime: trainTimeEl.value || '',
-      wod: Number(wodEl.value) || 0,
-      cardioKcal: cardioEl.value,
-      steps: stepsEl.value,
-      neatLevel: neatEl.value || (typeof defaultNeatByMode==='function' ? defaultNeatByMode(storedMode.modeKey) : 'med'),
-    };
-
-    if(typeof saveDaySettings==='function') saveDaySettings(activeDayKey, next);
   };
-
-  const schedulePersistDayDraft = ()=>{
-    clearTimeout(_dayDraftTimer);
-    _dayDraftTimer = setTimeout(()=>{ try{ persistDayDraft(); }catch(e){} }, 250);
-  };
-
-  const hookDayDraftAutosave = ()=>{
-    ['trainTime','wod','cardioKcal','steps','neatLevel'].forEach(id=>{
-      const el = $(id);
-      if(!el) return;
-      if(el.dataset && el.dataset.dayDraftHook==='1') return;
-      if(el.dataset) el.dataset.dayDraftHook='1';
-      el.addEventListener('input', schedulePersistDayDraft);
-      el.addEventListener('change', schedulePersistDayDraft);
-    });
-  };
-};
 
   const loadJSON=(k,fb)=>{try{const r=localStorage.getItem(k); return r?JSON.parse(r):fb;}catch{return fb;}};
 
@@ -1308,6 +1221,61 @@ window.addEventListener('error', function(e){
     saveJSON(LS.foodsUser, uniqByIdPreferLast(u));
   };
 
+  const slugify = (s)=> String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,64) || 'combo';
+  const loadCombos = ()=>{
+    const arr = loadJSON(LS.combos, []);
+    return Array.isArray(arr) ? arr : [];
+  };
+  const saveCombos = (arr)=> saveJSON(LS.combos, Array.isArray(arr)?arr:[]);
+  const getComboById = (id)=> loadCombos().find(x=>x.id===id);
+  const comboDisplayName = (c)=> c?.name || 'Combinación';
+  const comboMatchesMeal = (c, meal)=> !meal || c.slotHint===meal;
+  const makeComboFromMeal = (mealKey, arr)=>{
+    const pretty = prettyMeal(mealKey);
+    const topNames = arr.slice(0,3).map(x=>String(x.it?.name||'').trim()).filter(Boolean);
+    const autoName = `${pretty} - ${topNames.join(' + ')}`;
+    const name = prompt('Nombre de la combinación favorita:', autoName);
+    if(name===null) return null;
+    const cleanName = String(name).trim() || autoName;
+    const items = arr.map(({it})=>( { foodId: it.foodId, qty: Number(it.qty)||0, unit: it.qtyType } ));
+    const totals = arr.reduce((a,{it})=>({ kcal:a.kcal+(Number(it.kcal)||0), p:a.p+(Number(it.p)||0), c:a.c+(Number(it.c)||0), f:a.f+(Number(it.f)||0) }),{kcal:0,p:0,c:0,f:0});
+    return {
+      id: `combo_${mealKey}_${slugify(cleanName)}_${Date.now()}`,
+      type:'combo',
+      name: cleanName,
+      slotHint: mealKey,
+      items,
+      macros: { kcal:round(totals.kcal), p:round(totals.p,1), c:round(totals.c,1), f:round(totals.f,1) },
+      createdAt: Date.now()
+    };
+  };
+  const saveFavoriteCombo = (mealKey, arr)=>{
+    if(!Array.isArray(arr) || !arr.length){ alert('No hay alimentos en este bloque.'); return; }
+    const combo = makeComboFromMeal(mealKey, arr);
+    if(!combo) return;
+    const combos = loadCombos();
+    combos.unshift(combo);
+    saveCombos(combos);
+    alert('Combinación favorita guardada.');
+  };
+  const applyComboToMeal = (combo, mealKey)=>{
+    const foods = loadFoodsMerged();
+    const logs = loadLogs(activeDayKey).items;
+    let added = 0;
+    (combo?.items||[]).forEach(ci=>{
+      const f = foodById(foods, ci.foodId);
+      if(!f) return;
+      const qtyType = ci.unit==='unit' ? 'unit' : (ci.unit==='ml' ? 'ml' : 'g');
+      const qty = Number(ci.qty)||0;
+      if(qty<=0) return;
+      const mac = macroFor(f, qtyType, qty);
+      pushLogItem(logs, { meal: mealKey, foodId:f.id, name:f.name, qtyType, qty, qtyDisplay: qtyDisplay(qtyType, qty), ...mac });
+      added++;
+    });
+    saveLogs(activeDayKey, logs);
+    return added;
+  };
+
   const foodById=(foods,id)=>foods.find(f=>f.id===id);
 
   const macroFor=(food,qtyType,qty)=>{
@@ -1358,148 +1326,6 @@ window.addEventListener('error', function(e){
   // ======= DÍA =======
   const defaultNeatByMode = (modeKey)=> (modeKey==='surplus') ? 'med' : 'high';
 
-  // Preferencias (ligeras) para NEAT dinámico
-  const loadPrefs = ()=>{
-    const def = { neatAutoPolicy: 'ask' }; // ask | always | never
-    const p = loadJSON(LS.prefs, null);
-    if(!p || typeof p!=='object') { saveJSON(LS.prefs, def); return def; }
-    if(!p.neatAutoPolicy) p.neatAutoPolicy = 'ask';
-    saveJSON(LS.prefs, p);
-    return p;
-  };
-  const savePrefs = (p)=> saveJSON(LS.prefs, p);
-
-  const clamp = (x, a, b)=> Math.max(a, Math.min(b, x));
-
-  const computeNeatProposal = (dateKey, modeKey)=>{
-    // Propuesta basada en pasos vs media reciente (excluye el propio día)
-    const all = loadJSON(LS.settings, {});
-    const today = normalizeDayForKey(all, dateKey, modeKey);
-    const stepsToday = Number(today.steps)||0;
-    if(stepsToday<=0) return null;
-
-    const keys = pastKeys(8); // incluye hoy
-    const prev = keys.slice(1); // últimos 7 excluyendo hoy
-    const vals = [];
-    for(const k of prev){
-      const d = normalizeDayForKey(all, k, modeKey);
-      const s = Number(d.steps)||0;
-      if(s>0) vals.push(s);
-    }
-    if(vals.length < 3) return null;
-
-    const avg = vals.reduce((a,x)=>a+x,0)/vals.length;
-    const deltaSteps = stepsToday - avg;
-
-    const kcalPerStep = 0.04; // conservador
-    let deltaKcal = Math.round(deltaSteps * kcalPerStep);
-
-    // anti-ruido + límites
-    if(Math.abs(deltaKcal) < 60) return null;
-    deltaKcal = clamp(deltaKcal, -250, 250);
-
-    return {
-      stepsToday: Math.round(stepsToday),
-      stepsAvg: Math.round(avg),
-      deltaSteps: Math.round(deltaSteps),
-      deltaKcal
-    };
-  };
-
-  const renderNeatDecisionBanner = (proposal, dayObj)=>{
-    const box = $('neatDecisionBanner');
-    if(!box) return;
-
-    if(!proposal){
-      box.style.display = 'none';
-      return;
-    }
-
-    const prefs = loadPrefs();
-    // política global
-    if(prefs.neatAutoPolicy === 'never'){
-      box.style.display = 'none';
-      return;
-    }
-
-    // Si está en always, aplica y no molestes
-    if(prefs.neatAutoPolicy === 'always'){
-      dayObj.neatAutoDecision = 'applied';
-      dayObj.neatAutoDeltaKcal = proposal.deltaKcal;
-      dayObj.neatAutoStepsToday = proposal.stepsToday;
-      dayObj.neatAutoStepsAvg = proposal.stepsAvg;
-      saveDaySettings(activeDayKey, dayObj);
-      box.style.display = 'none';
-      return;
-    }
-
-    // Si cambiaron pasos, reset decisión
-    if(Number(dayObj.neatAutoStepsToday||0) !== proposal.stepsToday || Number(dayObj.neatAutoDeltaKcal||0) !== proposal.deltaKcal){
-      dayObj.neatAutoDecision = 'pending';
-      dayObj.neatAutoDeltaKcal = proposal.deltaKcal;
-      dayObj.neatAutoStepsToday = proposal.stepsToday;
-      dayObj.neatAutoStepsAvg = proposal.stepsAvg;
-      saveDaySettings(activeDayKey, dayObj);
-    }
-
-    // Si ya decidido, no enseñar banner
-    if(dayObj.neatAutoDecision === 'applied' || dayObj.neatAutoDecision === 'rejected'){
-      box.style.display = 'none';
-      return;
-    }
-
-    const sign = proposal.deltaKcal>0 ? '+' : '';
-    $('neatDecisionText').textContent =
-      `Pasos hoy: ${proposal.stepsToday}
-Media: ${proposal.stepsAvg}
-Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
-
-    box.style.display = 'block';
-
-    // Bind botones (idempotente)
-    $('neatDecisionClose').onclick = ()=>{ box.style.display='none'; };
-
-    $('neatApplyBtn').onclick = ()=>{
-      const all = loadJSON(LS.settings, {});
-      const d = normalizeDayForKey(all, activeDayKey, loadMode().modeKey);
-      d.neatAutoDecision = 'applied';
-      d.neatAutoDeltaKcal = proposal.deltaKcal;
-      d.neatAutoStepsToday = proposal.stepsToday;
-      d.neatAutoStepsAvg = proposal.stepsAvg;
-      saveDaySettings(activeDayKey, d);
-      box.style.display='none';
-      renderAll();
-    };
-
-    $('neatRejectBtn').onclick = ()=>{
-      const all = loadJSON(LS.settings, {});
-      const d = normalizeDayForKey(all, activeDayKey, loadMode().modeKey);
-      d.neatAutoDecision = 'rejected';
-      d.neatAutoDeltaKcal = proposal.deltaKcal;
-      d.neatAutoStepsToday = proposal.stepsToday;
-      d.neatAutoStepsAvg = proposal.stepsAvg;
-      saveDaySettings(activeDayKey, d);
-      box.style.display='none';
-      renderAll();
-    };
-
-    $('neatAlwaysBtn').onclick = ()=>{
-      const p = loadPrefs();
-      p.neatAutoPolicy = 'always';
-      savePrefs(p);
-      // aplicar ya
-      const all = loadJSON(LS.settings, {});
-      const d = normalizeDayForKey(all, activeDayKey, loadMode().modeKey);
-      d.neatAutoDecision = 'applied';
-      d.neatAutoDeltaKcal = proposal.deltaKcal;
-      d.neatAutoStepsToday = proposal.stepsToday;
-      d.neatAutoStepsAvg = proposal.stepsAvg;
-      saveDaySettings(activeDayKey, d);
-      box.style.display='none';
-      renderAll();
-    };
-  };
-
   const ensureDaySettings=(dateKey, modeKey)=>{
     const all=loadJSON(LS.settings,{});
     if(!all[dateKey]){
@@ -1548,147 +1374,6 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
     saveJSON(LS.logs,logs);
   };
 
-  const loadCombos=()=>{
-    const arr = loadJSON(LS.combos, []);
-    return Array.isArray(arr) ? arr : [];
-  };
-  const saveCombos=(arr)=> saveJSON(LS.combos, Array.isArray(arr)?arr:[]);
-  const slugify=(s)=> String(s||'').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g,'')
-    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60);
-  const autoComboName=(mealKey, arr)=>{
-    const names = arr.map(x=>x.it?.name||'').filter(Boolean).slice(0,3);
-    const tail = names.join(' + ') || 'Combinación';
-    return `${prettyMeal(mealKey)} - ${tail}`;
-  };
-  const buildComboFromMeal=(mealKey, arr)=>{
-    const totals = arr.reduce((acc, x)=>({
-      kcal: acc.kcal + (Number(x.it.kcal)||0),
-      p: acc.p + (Number(x.it.p)||0),
-      c: acc.c + (Number(x.it.c)||0),
-      f: acc.f + (Number(x.it.f)||0),
-    }),{kcal:0,p:0,c:0,f:0});
-    return {
-      id:`combo_${Date.now()}`,
-      type:'combo',
-      name:autoComboName(mealKey, arr),
-      mealHint: normalizeMealLabel(mealKey),
-      createdAt: Date.now(),
-      lastUsedAt: 0,
-      useCount: 0,
-      totals:{kcal:round(totals.kcal), p:round(totals.p,1), c:round(totals.c,1), f:round(totals.f,1)},
-      items: arr.map(({it})=>( {
-        foodId: it.foodId,
-        name: it.name,
-        qtyType: it.qtyType,
-        qty: Number(it.qty)||0,
-        qtyDisplay: it.qtyDisplay,
-        kcal: Number(it.kcal)||0,
-        p: Number(it.p)||0,
-        c: Number(it.c)||0,
-        f: Number(it.f)||0
-      }))
-    };
-  };
-  const saveMealAsCombo=(mealKey, arr)=>{
-    if(!arr || !arr.length){ alert('No hay alimentos en este bloque.'); return; }
-    const combo = buildComboFromMeal(mealKey, arr);
-    const proposed = prompt('Nombre de la combinación favorita:', combo.name);
-    if(proposed===null) return;
-    combo.name = String(proposed||'').trim() || combo.name;
-    combo.id = `combo_${slugify(combo.name)}_${Date.now()}`;
-    const combos = loadCombos();
-    combos.unshift(combo);
-    saveCombos(combos);
-    alert('Combinación guardada en favoritos.');
-    renderAll();
-  };
-  const addComboToDay=(combo, targetMeal)=>{
-    if(!combo || !Array.isArray(combo.items) || !combo.items.length){ alert('Combinación vacía.'); return; }
-    const foods = loadFoodsMerged({ includeHidden:false });
-    const logs = loadLogs(activeDayKey).items;
-    let added = 0;
-    combo.items.forEach(it=>{
-      const f = foodById(foods, it.foodId);
-      let mac, name, foodId;
-      if(f){
-        mac = macroFor(f, it.qtyType, it.qty);
-        name = f.name;
-        foodId = f.id;
-      } else {
-        mac = {kcal:Number(it.kcal)||0, p:Number(it.p)||0, c:Number(it.c)||0, f:Number(it.f)||0};
-        name = it.name || 'Ítem';
-        foodId = it.foodId || slugify(name) || `combo_item_${Date.now()}`;
-      }
-      pushLogItem(logs,{
-        meal: targetMeal || $('mealSlot').value || combo.mealHint || 'comida',
-        foodId,
-        name,
-        qtyType: it.qtyType,
-        qty: Number(it.qty)||0,
-        qtyDisplay: qtyDisplay(it.qtyType, Number(it.qty)||0),
-        ...mac
-      });
-      added++;
-    });
-    saveLogs(activeDayKey, logs);
-    const combos = loadCombos();
-    const idx = combos.findIndex(x=>x.id===combo.id);
-    if(idx>=0){ combos[idx].useCount = Number(combos[idx].useCount||0)+1; combos[idx].lastUsedAt = Date.now(); saveCombos(combos); }
-    alert(`Combinación añadida (${added} items).`);
-    renderAll();
-  };
-  const renderCombosList=()=>{
-    const box = $('comboList');
-    if(!box) return;
-    const selectedMeal = normalizeMealLabel($('mealSlot')?.value || 'comida');
-    const combos = loadCombos().slice().sort((a,b)=>{
-      const am = a.mealHint===selectedMeal ? 0 : 1;
-      const bm = b.mealHint===selectedMeal ? 0 : 1;
-      if(am!==bm) return am-bm;
-      return (Number(b.lastUsedAt)||Number(b.createdAt)||0) - (Number(a.lastUsedAt)||Number(a.createdAt)||0);
-    });
-    if(!combos.length){
-      box.innerHTML = '<div class="muted">Aún no tienes combinaciones guardadas. Crea una desde el registro del día con ⭐ Favorito.</div>';
-      return;
-    }
-    box.innerHTML='';
-    combos.forEach(c=>{
-      const d = document.createElement('div');
-      d.className='comboItem';
-      const itemsTxt = (c.items||[]).map(it=>`${it.name} (${it.qtyDisplay || qtyDisplay(it.qtyType,it.qty)})`).join(' · ');
-      d.innerHTML = `
-        <div class="comboTop">
-          <div>
-            <b>${c.name}</b>
-            <div class="comboMeta">Sugerido: ${prettyMeal(c.mealHint||'comida')} · ${round(c.totals?.kcal||0)} kcal · P ${round(c.totals?.p||0,1)} · C ${round(c.totals?.c||0,1)} · F ${round(c.totals?.f||0,1)}</div>
-            <div class="comboMeta">${itemsTxt}</div>
-          </div>
-        </div>
-        <div class="comboActions">
-          <button type="button" class="miniGhost" data-act="use">Usar en ${prettyMeal(selectedMeal)}</button>
-          <button type="button" class="miniGhost" data-act="rename">Renombrar</button>
-          <button type="button" class="miniGhost" data-act="del">Eliminar</button>
-        </div>`;
-      d.querySelector('[data-act="use"]').onclick=()=> addComboToDay(c, selectedMeal);
-      d.querySelector('[data-act="rename"]').onclick=()=>{
-        const nv = prompt('Nuevo nombre:', c.name);
-        if(nv===null) return;
-        const next = String(nv||'').trim();
-        if(!next) return;
-        const arr = loadCombos();
-        const i = arr.findIndex(x=>x.id===c.id);
-        if(i>=0){ arr[i].name = next; saveCombos(arr); renderAll(); }
-      };
-      d.querySelector('[data-act="del"]').onclick=()=>{
-        if(!confirm(`¿Eliminar combinación "${c.name}"?`)) return;
-        saveCombos(loadCombos().filter(x=>x.id!==c.id));
-        renderAll();
-      };
-      box.appendChild(d);
-    });
-  };
-
   const sumMacros=(items)=>items.reduce((a,x)=>({kcal:a.kcal+x.kcal,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{kcal:0,p:0,c:0,f:0});
 
   // ======= BMR / GOAL =======
@@ -1713,10 +1398,7 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
     const cardioKcal=Number(day.cardioKcal)||0;
     const cardioReal=cardioKcal*(1 - CARDIO_DISCOUNT); // 92%
 
-    // NEAT dinámico (corrección por pasos) — solo si el usuario lo ha aplicado
-    const neatAutoDelta = (day && day.neatAutoDecision==='applied' && Number.isFinite(Number(day.neatAutoDeltaKcal))) ? Number(day.neatAutoDeltaKcal) : 0;
-
-    return round(base + wod + cardioReal + neatAutoDelta);
+    return round(base + wod + cardioReal);
   };
 
   const computeGoal=(profile, day, modeStored)=>{
@@ -1799,9 +1481,37 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
   const bindDaySummaryLive = ()=>{
     ['trainTime','wod','neatLevel','cardioKcal','steps'].forEach(id=>{
       const el = $(id);
-      if(!el) return;
+      if(!el || el.dataset.sumBound==='1') return;
+      el.dataset.sumBound='1';
       el.addEventListener('input', ()=>window.updateDaySummaryCard());
       el.addEventListener('change', ()=>window.updateDaySummaryCard());
+    });
+  };
+
+  let _dayDraftTimer = null;
+  const persistDayDraft = ()=>{
+    try{
+      const storedMode = loadMode();
+      const {day:cur} = loadDaySettings(activeDayKey, storedMode.modeKey);
+      const next = {
+        ...cur,
+        trainTime: $('trainTime')?.value || '',
+        wod: Number($('wod')?.value) || 0,
+        cardioKcal: $('cardioKcal')?.value || '',
+        steps: $('steps')?.value || '',
+        neatLevel: $('neatLevel')?.value || defaultNeatByMode(storedMode.modeKey),
+      };
+      saveDaySettings(activeDayKey, next);
+    }catch(e){}
+  };
+  const bindDayDraftAutosave = ()=>{
+    ['trainTime','wod','cardioKcal','steps','neatLevel'].forEach(id=>{
+      const el = $(id);
+      if(!el || el.dataset.draftBound==='1') return;
+      el.dataset.draftBound='1';
+      const fn = ()=>{ clearTimeout(_dayDraftTimer); _dayDraftTimer = setTimeout(()=>{ persistDayDraft(); window.updateDaySummaryCard(); }, 180); };
+      el.addEventListener('input', fn);
+      el.addEventListener('change', fn);
     });
   };
 
@@ -2477,9 +2187,6 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
     const set = getTagSetFromInput();
     if(set.has(t)) set.delete(t); else set.add(t);
     setTagsToInput(set);
-    try{ if(typeof updateDaySummaryCard==='function') updateDaySummaryCard(); }catch(e){}
-    try{ hookDayDraftAutosave(); }catch(e){}
-
     refreshTagButtons();
   });
 
@@ -2565,29 +2272,48 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
       });
   };
 
+  let showFavOnly = false;
+
   const renderAddFoodList=(foods)=>{
     const list=$('addFoodList');
     if(!list) return;
     list.innerHTML='';
     const q = ($('foodSearch')?.value || '').trim().toLowerCase();
-    const filtered = foods
+    const currentMeal = normalizeMealLabel($('mealSlot')?.value || 'comida');
+    const combos = loadCombos();
+    let filteredFoods = foods
       .filter(f => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
+    let filteredCombos = combos
+      .filter(c => comboMatchesMeal(c, currentMeal))
+      .filter(c => !q || comboDisplayName(c).toLowerCase().includes(q))
+      .sort((a,b)=> comboDisplayName(a).localeCompare(comboDisplayName(b),'es'));
 
-    if(!filtered.length){
+    if(showFavOnly){ filteredFoods = []; }
+
+    if(!filteredFoods.length && !filteredCombos.length){
       list.innerHTML = '<div class="muted">Sin resultados.</div>';
       return;
     }
-    const info=document.createElement('div'); info.className='muted'; info.style.margin='0 0 8px'; info.textContent=`${filtered.length} alimento(s)`;
-    list.appendChild(info);
 
-    filtered.slice(0,200).forEach(f=>{
+    filteredCombos.forEach(c=>{
+      const d=document.createElement('div'); d.className='item';
+      d.innerHTML = `<div><b>⭐ ${comboDisplayName(c)}</b><br><small>${prettyMeal(c.slotHint)} · ${c.items.length} items</small></div>
+                     <div class="right"><b>${c.macros?.kcal ?? '—'}</b><small> kcal</small><br><small>P ${c.macros?.p ?? '—'} · C ${c.macros?.c ?? '—'} · F ${c.macros?.f ?? '—'}</small></div>`;
+      d.onclick=()=>{
+        const added = applyComboToMeal(c, currentMeal);
+        renderAll();
+        alert(`Añadidos ${added||0} alimento(s) al bloque ${prettyMeal(currentMeal)}.`);
+      };
+      list.appendChild(d);
+    });
+
+    filteredFoods.forEach(f=>{
       const d=document.createElement('div'); d.className='item';
       d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id}</small></div>
                      <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
       d.onclick=()=>{
         $('foodPick').value = f.id;
-        // scroll a cantidad (mejor UX)
         $('qty')?.focus();
       };
       list.appendChild(d);
@@ -2656,10 +2382,7 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
           $('f_f').value=f.f;
           $('f_unitGrams').value=f.unitGrams??'';
           $('f_tags').value=(f.tags||[]).join(', ');
-          try{ if(typeof updateDaySummaryCard==='function') updateDaySummaryCard(); }catch(e){}
-    try{ hookDayDraftAutosave(); }catch(e){}
-
-    refreshTagButtons();
+          refreshTagButtons();
           // NO reabrimos drawer: ya estás dentro. Solo subimos arriba.
           window.scrollTo({top:0, behavior:'smooth'});
         };
@@ -3042,8 +2765,8 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
           <b>${prettyMeal(mealKey)}</b><br>
           <small><b>${round(tot.kcal)}</b> kcal · P ${round(tot.p,1)} · C ${round(tot.c,1)} · F ${round(tot.f,1)}</small>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="miniGhost saveComboBtn" type="button">⭐ Favorito</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="miniBtn favSaveBtn" type="button">⭐ Favorito</button>
           <button class="miniBtn addMealBtn" type="button">+ Añadir</button>
         </div>
       `;
@@ -3052,12 +2775,14 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
       sum.querySelector('.addMealBtn').onclick=(ev)=>{
         ev.preventDefault(); ev.stopPropagation();
         $('mealSlot').value = mealKey;
+        showFavOnly = false;
         setTab('add');
-        renderCombosList();
+        renderAll();
       };
-      sum.querySelector('.saveComboBtn').onclick=(ev)=>{
+      sum.querySelector('.favSaveBtn').onclick=(ev)=>{
         ev.preventDefault(); ev.stopPropagation();
-        saveMealAsCombo(mealKey, arr);
+        saveFavoriteCombo(mealKey, arr);
+        renderAll();
       };
 
       const wrap=document.createElement('div');
@@ -3294,7 +3019,6 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
 
     renderFoodPicker(foods);
     renderAddFoodList(foods);
-    renderCombosList();
     try{ renderRecentFoods(foods); const f=foodById(foods,$('foodPick').value); if(f) applyQtyModeForFood(f);}catch(e){}
     renderFoodsList(foodsForDrawer);
 
@@ -3306,6 +3030,9 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
     renderDayStatus(goal,eaten);
     try{ updateMiniSticky(goal,eaten); }catch(e){}
     renderHistoryChips(profile, storedMode);
+    bindDaySummaryLive();
+    bindDayDraftAutosave();
+    window.updateDaySummaryCard();
 
     // Guidance por desviación acumulada 7d
     const guidance = computeDeficitGuidance(profile, storedMode);
@@ -3358,9 +3085,6 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
         el.disabled = false;
       }
     });
-
-    try{ if(typeof updateDaySummaryCard==='function') updateDaySummaryCard(); }catch(e){}
-    try{ hookDayDraftAutosave(); }catch(e){}
 
     refreshTagButtons();
     applyDevUI();
@@ -3465,8 +3189,34 @@ Corrección propuesta: ${sign}${proposal.deltaKcal} kcal`;
 };
 
   $('foodSearch').addEventListener('input', ()=>renderAll());
+  $('favFilterBtn').onclick=()=>{
+    showFavOnly = !showFavOnly;
+    $('favFilterBtn').style.background = showFavOnly ? 'rgba(255,224,138,.28)' : '';
+    $('favFilterBtn').style.borderColor = showFavOnly ? 'rgba(255,224,138,.55)' : '';
+    renderAll();
+  };
+  $('mealSlot').addEventListener('change', ()=>{ renderAll(); });
+  $('copyDay').onclick=()=>{
+    const win = getRollingWindowKeys();
+    const options = win.filter(x=>x.key!==activeDayKey).map(x=>`${x.key} (${x.label})`).join('\n');
+    const ans = prompt(`Copiar el día ${activeDayKey} a:\n${options}\n\nEscribe la fecha destino (YYYY-MM-DD):`,'');
+    if(ans===null) return;
+    const target = String(ans).trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(target)){ alert('Fecha inválida. Usa YYYY-MM-DD'); return; }
+    if(target===activeDayKey){ alert('Elige un día distinto.'); return; }
+    const allowed = new Set(win.map(x=>x.key));
+    if(!allowed.has(target)){ alert('Solo puedes copiar a días de la semana visible.'); return; }
+    const srcLogs = loadLogs(activeDayKey).items || [];
+    const cloned = JSON.parse(JSON.stringify(srcLogs)).map(it=>({ ...it, ts: Date.now()+Math.floor(Math.random()*1000) }));
+    saveLogs(target, cloned);
+    const storedMode = loadMode();
+    const {day:srcDay} = loadDaySettings(activeDayKey, storedMode.modeKey);
+    saveDaySettings(target, JSON.parse(JSON.stringify(srcDay)));
+    activeDayKey = target;
+    renderAll();
+    alert(`Día copiado a ${target}.`);
+  };
   $('foodsSearch').addEventListener('input', ()=>renderAll());
-  $('mealSlot').addEventListener('change', ()=>{ try{ renderCombosList(); }catch(e){} });
   $('clearFoodsSearch').onclick=()=>{
     $('foodsSearch').value='';
     renderAll();
