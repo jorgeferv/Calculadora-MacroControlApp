@@ -2314,9 +2314,7 @@ window.addEventListener('error', function(e){
       d.innerHTML = `<div><b>${f.name}</b><br><small>${f.id}</small></div>
                      <div class="right"><small>${(f.tags||[]).slice(0,4).join(', ')}</small></div>`;
       d.onclick=()=>{
-        $('foodPick').value = f.id;
-        // scroll a cantidad (mejor UX)
-        $('qty')?.focus();
+        selectFoodInAddTab(f, true);
       };
       list.appendChild(d);
     });
@@ -3243,6 +3241,7 @@ window.addEventListener('error', function(e){
         qtyDisplay: qtyDisplay(qtyType,qty),
         ...mac
       });
+      pushRecent(f.id);
       added++;
     }
 
@@ -3592,6 +3591,27 @@ $('exportFoods').onclick=()=>{
   const saveRecent=(arr)=>localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0,8)));
   const pushRecent=(id)=>{ if(!id) return; const a=loadRecent().filter(x=>x!==id); a.unshift(id); saveRecent(a); };
 
+  const ensureFoodPickHasOption = (f)=>{
+    const sel=$('foodPick');
+    if(!sel || !f) return;
+    let opt = Array.from(sel.options||[]).find(o=>o.value===f.id);
+    if(!opt){
+      opt=document.createElement('option');
+      opt.value=f.id;
+      opt.textContent=f.name;
+      sel.appendChild(opt);
+    }
+    sel.value=f.id;
+  };
+
+  const selectFoodInAddTab = (f, keepSearch=false)=>{
+    if(!f) return;
+    ensureFoodPickHasOption(f);
+    if(!keepSearch && $('foodSearch')) $('foodSearch').value='';
+    applyQtyModeForFood(f);
+    $('qty')?.focus();
+  };
+
   const renderRecentFoods=(foods)=>{
     const box=$('recentFoods'); if(!box) return;
     const ids=loadRecent();
@@ -3601,7 +3621,7 @@ $('exportFoods').onclick=()=>{
     items.forEach(f=>{
       const b=document.createElement('button');
       b.type='button'; b.className='chip'; b.textContent=f.name;
-      b.onclick=()=>{ $('foodPick').value=f.id; applyQtyModeForFood(f); $('qty')?.focus(); };
+      b.onclick=()=>{ selectFoodInAddTab(f); };
       box.appendChild(b);
     });
   };
