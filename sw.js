@@ -1,20 +1,18 @@
-/* sw.js - MacroControlAPP (v1.7.0)
-   Estrategia: Network-First para HTML, Cache-First para estáticos.
+/* sw.js - MacroControlAPP
+   Estrategia: network-first para index, cache-first para estáticos.
 */
-const CACHE = 'mcapp-cache-v1.7.0';
+const CACHE = 'mcapp-cache-v1.6.0-r58favfix';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon-192.png'
+  './macrocontrol_foods_merged_v2_sorted.json'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE).then((cache) => {
-      return Promise.allSettled(ASSETS.map(asset => cache.add(asset)));
-    })
+    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).catch(()=>{})
   );
 });
 
@@ -27,44 +25,43 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if(event.data && event.data.type === 'SKIP_WAITING'){
     self.skipWaiting();
   }
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
+  if(req.method !== 'GET') return;
 
-  if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
+  const url = new URL(req.url);
+
+  // Solo mismo origen
+  if(url.origin !== self.location.origin) return;
+
+  // HTML: network-first (para que actualice)
+  if(req.headers.get('accept')?.includes('text/html')){
     event.respondWith((async () => {
-      try {
+      try{
         const fresh = await fetch(req);
         const cache = await caches.open(CACHE);
         cache.put(req, fresh.clone());
         return fresh;
-      } catch (err) {
+      }catch{
         const cached = await caches.match(req);
-        return cached || caches.match('./index.html') || caches.match('./');
+        return cached || caches.match('./index.html');
       }
     })());
     return;
   }
 
+  // Estáticos: cache-first
   event.respondWith((async () => {
     const cached = await caches.match(req);
-    if (cached) return cached;
-    try {
-      const fresh = await fetch(req);
-      if (fresh.status === 200) {
-        const cache = await caches.open(CACHE);
-        cache.put(req, fresh.clone());
-      }
-      return fresh;
-    } catch (err) {
-      return new Response('Offline', { status: 503 });
-    }
+    if(cached) return cached;
+    const fresh = await fetch(req);
+    const cache = await caches.open(CACHE);
+    cache.put(req, fresh.clone());
+    return fresh;
   })());
 });
