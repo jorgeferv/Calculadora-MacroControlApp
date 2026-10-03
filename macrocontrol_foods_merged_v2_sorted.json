@@ -1,491 +1,662 @@
 [
   {
-    "id": "banana",
-    "name": "Banana",
+    "id": "pollo_pechuga",
+    "name": "Pechuga de pollo fileteada",
     "baseUnit": "100g",
-    "kcal": 89,
-    "p": 1,
-    "c": 23,
-    "f": 0,
+    "kcal": 108.0,
+    "p": 22.0,
+    "c": 0.5,
+    "f": 1.8,
     "unitGrams": null,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "Bombones_delicias_Hacendado",
-    "name": "Bombones Ferrero Hacendado",
-    "baseUnit": "100g",
-    "kcal": 576,
-    "p": 8.7,
-    "c": 44,
-    "f": 42,
-    "unitGrams": 14,
-    "tags": [
-      "carb"
-    ]
-  },
-  {
-    "id": "Cereales_Corn_flakes_0% azucar",
-    "name": "Cereales Corn flakes 0% azucar",
-    "baseUnit": "100g",
-    "kcal": 373,
-    "p": 6.7,
-    "c": 82,
-    "f": 1.1,
-    "unitGrams": 30,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "freson",
-    "name": "Fresón",
-    "baseUnit": "100g",
-    "kcal": 32,
-    "p": 0.7,
-    "c": 7,
-    "f": 0,
-    "unitGrams": null,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "post_ok"
-    ]
+    "tags": ["protein", "comida_ok", "cena_ok", "post_ok"]
   },
   {
     "id": "gnocchi",
     "name": "Gnocchi Hacendado",
     "baseUnit": "100g",
-    "kcal": 174,
+    "kcal": 174.0,
     "p": 4.5,
     "c": 37.6,
     "f": 0.4,
     "unitGrams": null,
-    "tags": [
-      "carb",
-      "comida_ok",
-      "cena_ok"
-    ]
+    "tags": ["carb", "comida_ok", "cena_ok"]
   },
   {
-    "id": "Pan_Brioche_Hamburguesa_Hacendado",
-    "name": "Pan Brioche Hamburguesa Hacendado",
+    "id": "queso_batido_0",
+    "name": "Queso batido 0% MG Hacendado",
     "baseUnit": "100g",
-    "kcal": 340,
-    "p": 11,
-    "c": 46,
-    "f": 12,
-    "unitGrams": 75,
-    "tags": [
-      "carb",
-      "comida_ok",
-      "cena_ok"
-    ]
-  },
-  {
-    "id": "pan_cristal",
-    "name": "Pan cristal (1u=60g)",
-    "baseUnit": "100g",
-    "kcal": 228,
-    "p": 7.3,
-    "c": 43,
-    "f": 2.3,
-    "unitGrams": 60,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "comida_ok",
-      "cena_ok",
-      "pre_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "Pan_molde_blanco_Hacendado",
-    "name": "Pan molde blanco sin corteza",
-    "baseUnit": "unit",
-    "kcal": 66,
-    "p": 2.3,
-    "c": 12,
-    "f": 0.9,
-    "unitGrams": 28,
-    "tags": [
-      "carb",
-      "cena_ok",
-      "comida_ok",
-      "post_ok",
-      "pre_ok"
-    ]
-  },
-  {
-    "id": "Panecillos_Blancos_horno_mercadona",
-    "name": "Panecillos Blancos horno mercadona",
-    "baseUnit": "100g",
-    "kcal": 243,
-    "p": 7.4,
-    "c": 51,
-    "f": 0.9,
-    "unitGrams": 50,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok",
-      "cena_ok",
-      "comida_ok"
-    ]
-  },
-  {
-    "id": "Pizza_jueves_Ambrosini",
-    "name": "Pizza Jueves",
-    "baseUnit": "100g",
-    "kcal": 255,
-    "p": 10.9,
-    "c": 33,
-    "f": 8.3,
-    "unitGrams": 65,
-    "tags": [
-      "fat",
-      "carb",
-      "cena_ok"
-    ]
-  },
-  {
-    "id": "Tortillas_trigo_wrap_Hacendado",
-    "name": "Tortillas trigo fajitas Hacendado",
-    "baseUnit": "unit",
-    "kcal": 106,
-    "p": 3,
-    "c": 18,
-    "f": 2.1,
-    "unitGrams": 36,
-    "tags": [
-      "carb",
-      "cena_ok",
-      "comida_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "Tortitas_maíz _yogut_Hacendado",
-    "name": "Tortitas  maíz con yogur Hacendado",
-    "baseUnit": "unit",
-    "kcal": 140,
-    "p": 2.2,
-    "c": 19,
-    "f": 6,
-    "unitGrams": 30,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok"
-    ]
+    "kcal": 44.0,
+    "p": 8.0,
+    "c": 4.0,
+    "f": 0.0,
+    "unitGrams": 250.0,
+    "tags": ["protein", "desayuno_ok", "merienda_ok", "post_ok"]
   },
   {
     "id": "tortitas_maiz_choco",
     "name": "Tortitas de maíz con chocolate Hacendado",
-    "baseUnit": "unit",
-    "kcal": 155,
-    "p": 2,
-    "c": 21,
-    "f": 6.8,
+    "baseUnit": "100g",
+    "kcal": 476.9,
+    "p": 6.2,
+    "c": 64.6,
+    "f": 20.9,
     "unitGrams": 32.5,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok"
-    ]
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok"]
   },
   {
-    "id": "Tortitas_maíz_ jamón_Hacendado",
-    "name": "Tortitas maíz  sabor jamón Hacendado",
-    "baseUnit": "unit",
-    "kcal": 146,
-    "p": 2.4,
-    "c": 27,
-    "f": 3,
-    "unitGrams": 35,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok"
-    ]
+    "id": "pan_cristal",
+    "name": "Pan cristal Hacendado",
+    "baseUnit": "100g",
+    "kcal": 228.0,
+    "p": 7.3,
+    "c": 43.0,
+    "f": 2.3,
+    "unitGrams": 60.0,
+    "tags": ["carb", "desayuno_ok", "comida_ok", "cena_ok", "pre_ok", "post_ok"]
+  },
+  {
+    "id": "claras",
+    "name": "Claras líquidas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 42.0,
+    "p": 11.0,
+    "c": 0.5,
+    "f": 0.0,
+    "unitGrams": null,
+    "tags": ["protein", "desayuno_ok", "comida_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "huevo_m",
+    "name": "Huevo M (fresco)",
+    "baseUnit": "100g",
+    "kcal": 138.0,
+    "p": 12.5,
+    "c": 0.7,
+    "f": 9.5,
+    "unitGrams": 60.0,
+    "tags": ["protein", "fat", "desayuno_ok", "comida_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "banana",
+    "name": "Banana / Plátano",
+    "baseUnit": "100g",
+    "kcal": 89.0,
+    "p": 1.0,
+    "c": 23.0,
+    "f": 0.0,
+    "unitGrams": 120.0,
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
+  },
+  {
+    "id": "freson",
+    "name": "Fresón / Fresas",
+    "baseUnit": "100g",
+    "kcal": 32.0,
+    "p": 0.7,
+    "c": 7.0,
+    "f": 0.0,
+    "unitGrams": null,
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "post_ok"]
+  },
+  {
+    "id": "chocolate_85",
+    "name": "Chocolate negro 85%",
+    "baseUnit": "100g",
+    "kcal": 597.0,
+    "p": 12.0,
+    "c": 20.0,
+    "f": 49.0,
+    "unitGrams": 20.0,
+    "tags": ["fat", "merienda_ok", "cena_ok"]
   },
   {
     "id": "uva",
     "name": "Uva sin pepitas",
     "baseUnit": "100g",
-    "kcal": 69,
+    "kcal": 69.0,
     "p": 0.7,
     "c": 18.1,
     "f": 0.2,
     "unitGrams": null,
-    "tags": [
-      "carb",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok"
-    ]
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
   },
   {
-    "id": "Bacón_ahumado_La_Selva_lonchas",
-    "name": "Bacón La Selva lonchas",
+    "id": "cereales_corn_flakes_0_azucar",
+    "name": "Cereales Corn Flakes 0% azúcares Hacendado",
     "baseUnit": "100g",
-    "kcal": 353,
-    "p": 15,
-    "c": 1,
-    "f": 32,
-    "unitGrams": 20,
-    "tags": [
-      "fat",
-      "cena_ok",
-      "comida_ok"
-    ]
-  },
-  {
-    "id": "chocolate_85",
-    "name": "Chocolate 85%",
-    "baseUnit": "100g",
-    "kcal": 597,
-    "p": 12,
-    "c": 20,
-    "f": 49,
-    "unitGrams": null,
-    "tags": [
-      "fat",
-      "merienda_ok",
-      "cena_ok"
-    ]
-  },
-  {
-    "id": "Batido_Proteínas _Hacendado 0% MG",
-    "name": "Batido+Proteínas _Hacendado 0% MG",
-    "baseUnit": "unit",
-    "kcal": 141,
-    "p": 20,
-    "c": 11.9,
+    "kcal": 373.0,
+    "p": 6.7,
+    "c": 82.0,
     "f": 1.1,
-    "unitGrams": 280,
-    "tags": [
-      "protein",
-      "post_ok",
-      "merienda_ok",
-      "pre_ok",
-      "desayuno_ok"
-    ]
+    "unitGrams": 30.0,
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
   },
   {
-    "id": "claras",
-    "name": "Claras líquidas",
-    "baseUnit": "100ml",
-    "kcal": 42,
-    "p": 11,
-    "c": 0.5,
-    "f": 0,
-    "unitGrams": null,
-    "tags": [
-      "protein",
-      "desayuno_ok",
-      "comida_ok",
-      "cena_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "Filetes_lomo_de_cerdo",
-    "name": "Filetes lomo fresco de cerdo",
+    "id": "leche_proteinas_desnatada_hacendado",
+    "name": "Leche +Proteínas desnatada Hacendado",
     "baseUnit": "100g",
-    "kcal": 152,
-    "p": 18,
-    "c": 0,
-    "f": 8.9,
-    "unitGrams": 60,
-    "tags": [
-      "protein",
-      "cena_ok",
-      "comida_ok"
-    ]
-  },
-  {
-    "id": "Hamburguesa_de_pollo",
-    "name": "Hamburguesa de pollo Hacenado",
-    "baseUnit": "100g",
-    "kcal": 123,
-    "p": 16,
-    "c": 1.6,
-    "f": 5.8,
-    "unitGrams": 90,
-    "tags": [
-      "protein",
-      "comida_ok",
-      "cena_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "huevo_M",
-    "name": "Huevo M (1u≈60g)",
-    "baseUnit": "100g",
-    "kcal": 138,
-    "p": 12.5,
-    "c": 0.7,
-    "f": 9.5,
-    "unitGrams": 60,
-    "tags": [
-      "protein",
-      "fat",
-      "desayuno_ok",
-      "comida_ok",
-      "cena_ok",
-      "post_ok"
-    ]
-  },
-  {
-    "id": "Leche_+_Proteinas_desnatada _Hacendado",
-    "name": "Leche+Proteinas desnatada Hacendado",
-    "baseUnit": "100ml",
-    "kcal": 44,
-    "p": 6,
+    "kcal": 44.0,
+    "p": 6.0,
     "c": 4.6,
     "f": 0.2,
-    "unitGrams": 250,
-    "tags": [
-      "protein",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok"
-    ]
+    "unitGrams": 250.0,
+    "tags": ["protein", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
   },
   {
-    "id": "Lomo_embuchado_Hacendado_lonchas",
-    "name": "Lomo embuchado Hacendado",
+    "id": "panecillos_blancos_horno_mercadona",
+    "name": "Panecillos blancos de horno Mercadona",
     "baseUnit": "100g",
-    "kcal": 199,
-    "p": 38,
+    "kcal": 243.0,
+    "p": 7.4,
+    "c": 51.0,
+    "f": 0.9,
+    "unitGrams": 50.0,
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok", "cena_ok", "comida_ok"]
+  },
+  {
+    "id": "pechuga_92_pavo_hacendado_lonchas",
+    "name": "Pechuga 92% pavo lonchas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 89.0,
+    "p": 19.5,
+    "c": 1.0,
+    "f": 1.3,
+    "unitGrams": 25.0,
+    "tags": ["protein", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok", "cena_ok", "comida_ok"]
+  },
+  {
+    "id": "preparado_picada_vacuno",
+    "name": "Picada de vacuno 99% carne",
+    "baseUnit": "100g",
+    "kcal": 204.0,
+    "p": 19.0,
+    "c": 0.5,
+    "f": 14.0,
+    "unitGrams": 200.0,
+    "tags": ["protein", "comida_ok", "cena_ok"]
+  },
+  {
+    "id": "hamburguesa_de_pollo",
+    "name": "Hamburguesa de pollo Hacendado",
+    "baseUnit": "100g",
+    "kcal": 123.0,
+    "p": 16.0,
+    "c": 1.6,
+    "f": 5.8,
+    "unitGrams": 90.0,
+    "tags": ["protein", "comida_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "queso_lonchas_light_de_vaca_hacendado",
+    "name": "Queso lonchas light de vaca Hacendado",
+    "baseUnit": "100g",
+    "kcal": 267.0,
+    "p": 27.0,
+    "c": 1.6,
+    "f": 17.0,
+    "unitGrams": 25.0,
+    "tags": ["protein", "comida_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "pan_brioche_hamburguesa_hacendado",
+    "name": "Pan Brioche Hamburguesa Hacendado",
+    "baseUnit": "100g",
+    "kcal": 340.0,
+    "p": 11.0,
+    "c": 46.0,
+    "f": 12.0,
+    "unitGrams": 75.0,
+    "tags": ["carb", "comida_ok", "cena_ok"]
+  },
+  {
+    "id": "filetes_lomo_de_cerdo",
+    "name": "Filetes lomo fresco de cerdo",
+    "baseUnit": "100g",
+    "kcal": 152.0,
+    "p": 18.0,
+    "c": 0.0,
+    "f": 8.9,
+    "unitGrams": 60.0,
+    "tags": ["protein", "cena_ok", "comida_ok"]
+  },
+  {
+    "id": "lomo_embuchado_hacendado_lonchas",
+    "name": "Lomo embuchado lonchas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 199.0,
+    "p": 38.0,
     "c": 0.5,
     "f": 1.9,
     "unitGrams": 37.5,
-    "tags": [
-      "protein",
-      "cena_ok",
-      "comida_ok",
-      "merienda_ok",
-      "post_ok"
-    ]
+    "tags": ["protein", "cena_ok", "comida_ok", "merienda_ok", "post_ok"]
   },
   {
-    "id": "Pechuga_92%_pavo_hacendado_lonchas",
-    "name": "Pechuga 92% pavo hacendado lonchas",
+    "id": "tortitas_maiz_jamon_hacendado",
+    "name": "Tortitas de maíz sabor jamón Hacendado",
     "baseUnit": "100g",
-    "kcal": 89,
-    "p": 19.5,
-    "c": 1,
-    "f": 1.3,
-    "unitGrams": 25,
-    "tags": [
-      "protein",
-      "desayuno_ok",
-      "merienda_ok",
-      "pre_ok",
-      "post_ok",
-      "cena_ok",
-      "comida_ok"
-    ]
+    "kcal": 417.1,
+    "p": 6.9,
+    "c": 77.1,
+    "f": 8.6,
+    "unitGrams": 35.0,
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
   },
   {
-    "id": "pollo_pechuga",
-    "name": "Pechuga pollo filete",
+    "id": "tortitas_maiz_yogut_hacendado",
+    "name": "Tortitas de maíz con yogur Hacendado",
     "baseUnit": "100g",
-    "kcal": 108,
-    "p": 22,
-    "c": 0.5,
-    "f": 1.8,
-    "unitGrams": null,
-    "tags": [
-      "protein",
-      "comida_ok",
-      "cena_ok",
-      "post_ok"
-    ]
+    "kcal": 466.7,
+    "p": 7.3,
+    "c": 63.3,
+    "f": 20.0,
+    "unitGrams": 30.0,
+    "tags": ["carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
   },
   {
-    "id": "Preparado_picada_vacuno",
-    "name": "Picada Vacuno 99% carne",
+    "id": "tortillas_trigo_wrap_hacendado",
+    "name": "Tortillas de trigo para fajitas Hacendado",
     "baseUnit": "100g",
-    "kcal": 204,
-    "p": 19,
-    "c": 0.5,
-    "f": 14,
-    "unitGrams": 200,
-    "tags": [
-      "protein",
-      "comida_ok",
-      "cena_ok"
-    ]
+    "kcal": 294.4,
+    "p": 8.3,
+    "c": 50.0,
+    "f": 5.8,
+    "unitGrams": 36.0,
+    "tags": ["carb", "cena_ok", "comida_ok", "post_ok"]
   },
   {
-    "id": "queso_batido_0",
-    "name": "Queso batido 0% Materia grasa Hacendado",
+    "id": "pan_molde_blanco_hacendado",
+    "name": "Pan de molde blanco sin corteza Hacendado",
     "baseUnit": "100g",
-    "kcal": 44,
-    "p": 8,
-    "c": 4,
-    "f": 0,
-    "unitGrams": null,
-    "tags": [
-      "protein",
-      "desayuno_ok",
-      "merienda_ok",
-      "post_ok"
-    ]
+    "kcal": 235.7,
+    "p": 8.2,
+    "c": 42.9,
+    "f": 3.2,
+    "unitGrams": 28.0,
+    "tags": ["carb", "cena_ok", "comida_ok", "post_ok", "pre_ok"]
   },
   {
-    "id": "Queso_lonchas_light_de_vaca_hacendado",
-    "name": "Queso lonchas light de vaca Hacendado",
+    "id": "bombones_delicias_hacendado",
+    "name": "Bombones Delicias Hacendado",
     "baseUnit": "100g",
-    "kcal": 267,
-    "p": 27,
-    "c": 1.6,
-    "f": 17,
-    "unitGrams": 25,
-    "tags": [
-      "protein",
-      "comida_ok",
-      "cena_ok",
-      "post_ok"
-    ]
+    "kcal": 576.0,
+    "p": 8.7,
+    "c": 44.0,
+    "f": 42.0,
+    "unitGrams": 14.0,
+    "tags": ["carb", "fat"]
   },
   {
-    "id": "San_Jacobos_cerdo_Hacendado",
-    "name": "San Jacobos cerdo Hacendado",
+    "id": "san_jacobos_cerdo_hacendado",
+    "name": "San Jacobos de cerdo Hacendado",
     "baseUnit": "100g",
-    "kcal": 179,
+    "kcal": 179.0,
     "p": 9.1,
     "c": 21.4,
     "f": 6.2,
-    "unitGrams": 100,
-    "tags": [
-      "protein",
-      "cena_ok",
-      "comida_ok"
-    ]
+    "unitGrams": 100.0,
+    "tags": ["protein", "cena_ok", "comida_ok"]
+  },
+  {
+    "id": "batido_proteinas_hacendado_0_mg",
+    "name": "Batido +Proteínas 0% MG Hacendado",
+    "baseUnit": "100g",
+    "kcal": 50.4,
+    "p": 7.1,
+    "c": 4.3,
+    "f": 0.4,
+    "unitGrams": 280.0,
+    "tags": ["protein", "post_ok", "merienda_ok", "pre_ok", "desayuno_ok"]
+  },
+  {
+    "id": "bacon_ahumado_la_selva_lonchas",
+    "name": "Bacon ahumado La Selva lonchas",
+    "baseUnit": "100g",
+    "kcal": 353.0,
+    "p": 15.0,
+    "c": 1.0,
+    "f": 32.0,
+    "unitGrams": 20.0,
+    "tags": ["fat", "cena_ok", "comida_ok"]
+  },
+  {
+    "id": "pizza_jueves_ambrosini",
+    "name": "Pizza Jueves Ambrosini",
+    "baseUnit": "100g",
+    "kcal": 255.0,
+    "p": 10.9,
+    "c": 33.0,
+    "f": 8.3,
+    "unitGrams": 65.0,
+    "tags": ["fat", "carb", "cena_ok"]
+  },
+  {
+    "id": "patatas_cocidas_hacendado",
+    "name": "Patatas cocidas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 53.0,
+    "p": 1.2,
+    "c": 11.0,
+    "f": 0.0,
+    "unitGrams": null,
+    "tags": ["carb", "cena_ok", "comida_ok"]
+  },
+  {
+    "id": "arroz_microondas_hacendado",
+    "name": "Arroz para microondas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 126.0,
+    "p": 2.7,
+    "c": 28.0,
+    "f": 0.3,
+    "unitGrams": 167.0,
+    "tags": ["carb", "cena_ok", "comida_ok", "post_ok"]
+  },
+  {
+    "id": "garbanzo_cocido_pedrosillano_hacendado",
+    "name": "Garbanzo Pedrosillano Hacendado",
+    "baseUnit": "100g",
+    "kcal": 90.0,
+    "p": 5.5,
+    "c": 9.5,
+    "f": 2.2,
+    "unitGrams": 167.0,
+    "tags": ["carb", "cena_ok", "comida_ok", "protein"]
+  },
+  {
+    "id": "alas_pollo_adobadas",
+    "name": "Alitas de pollo adobadas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 143.0,
+    "p": 16.5,
+    "c": 0.5,
+    "f": 9.0,
+    "unitGrams": null,
+    "tags": ["cena_ok", "comida_ok", "protein", "fat"]
+  },
+  {
+    "id": "manzana_roja_acidulce",
+    "name": "Manzana Roja Acidulce",
+    "baseUnit": "100g",
+    "kcal": 52.0,
+    "p": 0.0,
+    "c": 13.0,
+    "f": 0.0,
+    "unitGrams": 145.0,
+    "tags": ["cena_ok", "comida_ok", "carb", "desayuno_ok", "merienda_ok", "pre_ok", "post_ok"]
+  },
+  {
+    "id": "aguacate_haas",
+    "name": "Aguacate Hass",
+    "baseUnit": "100g",
+    "kcal": 170.0,
+    "p": 2.0,
+    "c": 8.5,
+    "f": 15.0,
+    "unitGrams": 150.0,
+    "tags": ["cena_ok", "comida_ok", "post_ok", "fat", "desayuno_ok", "merienda_ok"]
+  },
+  {
+    "id": "batido_chocolate_proteinas_hacendado",
+    "name": "Batido chocolate +Proteínas Hacendado (30g P)",
+    "baseUnit": "100g",
+    "kcal": 48.0,
+    "p": 9.1,
+    "c": 2.2,
+    "f": 0.3,
+    "unitGrams": 330.0,
+    "tags": ["post_ok", "merienda_ok", "protein"]
+  },
+  {
+    "id": "crema_cacahuete_hacendado",
+    "name": "Crema de cacahuete 100% Hacendado",
+    "baseUnit": "100g",
+    "kcal": 608.0,
+    "p": 30.0,
+    "c": 12.0,
+    "f": 47.0,
+    "unitGrams": 15.0,
+    "tags": ["post_ok", "merienda_ok", "fat", "desayuno_ok"]
+  },
+  {
+    "id": "batido_proteinas_stratacciella",
+    "name": "Batido +Proteínas Stracciatella Hacendado",
+    "baseUnit": "100g",
+    "kcal": 52.0,
+    "p": 7.3,
+    "c": 4.1,
+    "f": 0.7,
+    "unitGrams": 280.0,
+    "tags": ["protein", "merienda_ok", "post_ok"]
+  },
+  {
+    "id": "batido_vainilla_proteinas_hacendado_30g",
+    "name": "Batido vainilla +Proteínas Hacendado (30g P)",
+    "baseUnit": "100g",
+    "kcal": 46.0,
+    "p": 9.1,
+    "c": 2.0,
+    "f": 0.2,
+    "unitGrams": 330.0,
+    "tags": ["protein", "desayuno_ok", "merienda_ok", "post_ok", "pre_ok"]
+  },
+  {
+    "id": "bebida_fresa_proteinas_hacendado_20g",
+    "name": "Bebida láctea fresa +Proteínas Hacendado (20g P)",
+    "baseUnit": "100g",
+    "kcal": 50.0,
+    "p": 7.2,
+    "c": 4.2,
+    "f": 0.4,
+    "unitGrams": 280.0,
+    "tags": ["protein", "desayuno_ok", "merienda_ok", "post_ok", "pre_ok"]
+  },
+  {
+    "id": "postre_natural_proteinas_hacendado_0mg_10g",
+    "name": "Postre natural +Proteínas Hacendado 0% MG",
+    "baseUnit": "100g",
+    "kcal": 52.0,
+    "p": 10.0,
+    "c": 3.1,
+    "f": 0.5,
+    "unitGrams": 500.0,
+    "tags": ["protein", "desayuno_ok", "merienda_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "postre_coco_proteinas_hacendado_0mg_10g",
+    "name": "Postre coco +Proteínas Hacendado 0% MG",
+    "baseUnit": "100g",
+    "kcal": 61.0,
+    "p": 8.3,
+    "c": 5.7,
+    "f": 0.5,
+    "unitGrams": 120.0,
+    "tags": ["protein", "merienda_ok", "desayuno_ok", "post_ok"]
+  },
+  {
+    "id": "cacahuete_en_polvo_desgrasado_proteinas_hacendado",
+    "name": "Cacahuete en polvo desgrasado +Proteínas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 416.0,
+    "p": 46.7,
+    "c": 21.0,
+    "f": 13.2,
+    "unitGrams": 15.0,
+    "tags": ["protein", "fat", "desayuno_ok", "merienda_ok"]
+  },
+  {
+    "id": "natillas_vainilla_proteinas_hacendado_120g",
+    "name": "Natillas vainilla +Proteínas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 76.7,
+    "p": 10.0,
+    "c": 5.8,
+    "f": 1.5,
+    "unitGrams": 120.0,
+    "tags": ["protein", "merienda_ok", "post_ok", "desayuno_ok"]
+  },
+  {
+    "id": "pudding_caramelo_proteinas_hacendado_120g",
+    "name": "Pudding caramelo +Proteínas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 76.7,
+    "p": 10.0,
+    "c": 5.8,
+    "f": 1.5,
+    "unitGrams": 120.0,
+    "tags": ["protein", "merienda_ok", "post_ok", "desayuno_ok"]
+  },
+  {
+    "id": "pudding_cafe_proteinas_hacendado_120g",
+    "name": "Pudding café +Proteínas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 77.5,
+    "p": 10.0,
+    "c": 6.0,
+    "f": 1.5,
+    "unitGrams": 120.0,
+    "tags": ["protein", "merienda_ok", "post_ok", "desayuno_ok"]
+  },
+  {
+    "id": "mousse_vainilla_proteinas_hacendado_200g",
+    "name": "Mousse vainilla +Proteínas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 76.0,
+    "p": 10.0,
+    "c": 5.0,
+    "f": 1.8,
+    "unitGrams": 200.0,
+    "tags": ["protein", "merienda_ok", "post_ok", "desayuno_ok"]
+  },
+  {
+    "id": "mousse_chocolate_proteinas_hacendado_200g",
+    "name": "Mousse chocolate +Proteínas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 76.0,
+    "p": 10.0,
+    "c": 5.0,
+    "f": 1.6,
+    "unitGrams": 200.0,
+    "tags": ["protein", "merienda_ok", "post_ok", "desayuno_ok"]
+  },
+  {
+    "id": "proteinas_chocolate_hacendado_120g",
+    "name": "Postre +Proteínas chocolate Hacendado",
+    "baseUnit": "100g",
+    "kcal": 80.8,
+    "p": 8.3,
+    "c": 8.3,
+    "f": 1.1,
+    "unitGrams": 120.0,
+    "tags": ["protein", "merienda_ok", "post_ok", "desayuno_ok"]
+  },
+  {
+    "id": "tortilla_integral_trigo_hacendado_36g",
+    "name": "Tortilla integral de trigo Hacendado",
+    "baseUnit": "100g",
+    "kcal": 269.4,
+    "p": 9.2,
+    "c": 41.7,
+    "f": 5.8,
+    "unitGrams": 36.0,
+    "tags": ["carb", "desayuno_ok", "pre_ok", "comida_ok", "merienda_ok"]
+  },
+  {
+    "id": "atun_claro_al_natural_hacendado_lata56g",
+    "name": "Atún claro al natural Hacendado",
+    "baseUnit": "100g",
+    "kcal": 89.3,
+    "p": 19.6,
+    "c": 0.7,
+    "f": 0.5,
+    "unitGrams": 56.0,
+    "tags": ["protein", "comida_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "garbanzos_cocidos_hacendado_bote400g",
+    "name": "Garbanzos cocidos Hacendado",
+    "baseUnit": "100g",
+    "kcal": 90.0,
+    "p": 5.5,
+    "c": 9.5,
+    "f": 2.2,
+    "unitGrams": 400.0,
+    "tags": ["carb", "protein", "comida_ok", "cena_ok"]
+  },
+  {
+    "id": "salteado_verduras_hacendado_bolsa600g",
+    "name": "Salteado de verduras Hacendado",
+    "baseUnit": "100g",
+    "kcal": 31.0,
+    "p": 1.2,
+    "c": 6.6,
+    "f": 0.2,
+    "unitGrams": 600.0,
+    "tags": ["carb", "comida_ok", "cena_ok"]
+  },
+  {
+    "id": "pechuga_fileteada_pollo_hacendado_bandeja200g",
+    "name": "Pechuga fileteada de pollo Hacendado (Bandeja 200g)",
+    "baseUnit": "100g",
+    "kcal": 110.0,
+    "p": 22.0,
+    "c": 0.0,
+    "f": 2.1,
+    "unitGrams": 200.0,
+    "tags": ["protein", "comida_ok", "cena_ok", "post_ok"]
+  },
+  {
+    "id": "pavo_92_envase_200g",
+    "name": "Pechuga de pavo 92% Hacendado (Envase 200g)",
+    "baseUnit": "100g",
+    "kcal": 110.0,
+    "p": 19.5,
+    "c": 1.0,
+    "f": 1.0,
+    "unitGrams": 200.0,
+    "tags": ["protein", "post_ok"]
+  },
+  {
+    "id": "jamon_cocido_extra_envase_200g",
+    "name": "Jamón cocido extra Hacendado (Envase 200g)",
+    "baseUnit": "100g",
+    "kcal": 120.0,
+    "p": 18.0,
+    "c": 2.0,
+    "f": 4.0,
+    "unitGrams": 200.0,
+    "tags": ["protein"]
+  },
+  {
+    "id": "pechuga_pollo_asada_lonchas_150g",
+    "name": "Pechuga de pollo asada en lonchas Hacendado",
+    "baseUnit": "100g",
+    "kcal": 110.0,
+    "p": 22.0,
+    "c": 0.7,
+    "f": 2.0,
+    "unitGrams": 150.0,
+    "tags": ["protein", "post_ok"]
+  },
+  {
+    "id": "jamon_serrano",
+    "name": "Jamón serrano Hacendado",
+    "baseUnit": "100g",
+    "kcal": 276.0,
+    "p": 33.0,
+    "c": 0.5,
+    "f": 16.0,
+    "unitGrams": 100.0,
+    "tags": ["protein", "cena_ok", "merienda_ok", "comida_ok", "post_ok"]
+  },
+  {
+    "id": "Migas_Coliflor_Hacendado",
+    "name": "Migas de coliflor Hacendado",
+    "baseUnit": "100g",
+    "kcal": 20.0,
+    "p": 1.3,
+    "c": 2.5,
+    "f": 0.0,
+    "unitGrams": null,
+    "tags": ["carb", "comida_ok", "cena_ok"]
   }
 ]
