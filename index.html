@@ -1534,18 +1534,95 @@ window.addEventListener('error', function(e){
     });
   };
 
-  // ======= OCR =======
-  const openPop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','false'); pop.style.display='block'; };
-  const closePop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','true'); pop.style.display='none'; };
+  // ======= OCR FUNCIONAL Y COMPLETO =======
+  const openPop = (id) => {
+    const pop = $(id);
+    if (!pop) return;
+    pop.setAttribute('aria-hidden', 'false');
+    pop.style.display = 'block';
+  };
 
-  const parseOcrText=(t)=>{
-    const norm=(t||'').toLowerCase().replace(/,/g,'.');
-    const grab=(re)=>{ const m=norm.match(re); if(!m) return null; const v=parseFloat(m[1]); return Number.isFinite(v)?v:null; };
-    const kcal=grab(/(\d+(?:\.\d+)?)\s*kcal/);
-    const p=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]na|protein)/);
-    const c=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/);
-    const f=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas|grasa|fat)/);
-    return {kcal,p,c,f};
+  const closePop = (id) => {
+    const pop = $(id);
+    if (!pop) return;
+    pop.setAttribute('aria-hidden', 'true');
+    pop.style.display = 'none';
+  };
+
+  const parseOcrText = (t) => {
+    const norm = (t || '').toLowerCase().replace(/,/g, '.');
+    const grab = (re) => {
+      const m = norm.match(re);
+      if (!m) return null;
+      const v = parseFloat(m[1]);
+      return Number.isFinite(v) ? v : null;
+    };
+
+    const kcal = grab(/(\d+(?:\.\d+)?)\s*(?:kcal|calor[ií]as)/);
+    const p = grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]nas?|protein)/);
+    const c = grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/);
+    const f = grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas?|fat)/);
+
+    return { kcal, p, c, f };
+  };
+
+  const initOCRModule = () => {
+    const openBtn = $('openOCRTop');
+    const closeBtn = $('closeOCR');
+    const fileInput = $('ocrFile');
+    const pickBtn = $('ocrPick');
+    const parseBtn = $('ocrParse');
+    const imgWrap = $('ocrImgWrap');
+    const imgEl = $('ocrImg');
+    const textEl = $('ocrText');
+    const resultEl = $('ocrResult');
+
+    if (!openBtn) return;
+
+    openBtn.onclick = () => openPop('ocrPop');
+    if (closeBtn) closeBtn.onclick = () => closePop('ocrPop');
+
+    if (pickBtn && fileInput) {
+      pickBtn.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          if (imgEl) imgEl.src = evt.target.result;
+          if (imgWrap) imgWrap.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+
+    if (parseBtn && textEl) {
+      parseBtn.onclick = () => {
+        const txt = textEl.value;
+        const parsed = parseOcrText(txt);
+        
+        if (!parsed.kcal && !parsed.p && !parsed.c && !parsed.f) {
+          if (resultEl) resultEl.textContent = '❌ No se detectaron valores. Revisa el texto pegado.';
+          return;
+        }
+
+        if (resultEl) {
+          resultEl.textContent = `✅ Extraído: ${parsed.kcal ?? 0} kcal | P: ${parsed.p ?? 0}g | C: ${parsed.c ?? 0}g | F: ${parsed.f ?? 0}g`;
+        }
+
+        // Rellenar campos en el formulario de Alimentos (Drawer) o Añadir
+        if ($('f_kcal'))$('f_kcal').value = parsed.kcal ?? '';
+        if ($('f_p'))$('f_p').value = parsed.p ?? '';
+        if ($('f_c'))$('f_c').value = parsed.c ?? '';
+        if ($('f_f'))$('f_f').value = parsed.f ?? '';
+
+        // Si el drawer de alimentos está cerrado, abrirlo automáticamente
+        const drawer = $('drawerBack');
+        if (drawer) drawer.style.display = 'block';
+        
+        closePop('ocrPop');
+      };
+    }
   };
 
 
@@ -3871,6 +3948,7 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
+  initOCRModule();
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
