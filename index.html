@@ -4,35 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>MacroControlAPP</title>
-  <meta name="theme-color" content="#111111" />const parseOcrText = (t) => {
-    if (!t) return { kcal: null, p: null, c: null, f: null };
-    
-    const norm = t.toLowerCase().replace(/,/g, '.');
-    const lines = norm.split('\n');
-
-    const extractValue = (patterns) => {
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        for (let j = 0; j < patterns.length; j++) {
-          if (patterns[j].test(line)) {
-            const match = line.match(/\d+(?:\.\d+)?/);
-            if (match) {
-              const val = parseFloat(match[0]);
-              if (Number.isFinite(val)) return val;
-            }
-          }
-        }
-      }
-      return null;
-    };
-
-    const kcal = extractValue([/kcal/, /calor/]);
-    const p = extractValue([/prote[ií]n/, /prot/]);
-    const c = extractValue([/carbohidrat/, /hidrat/, /carbs/, /hc\b/]);
-    const f = extractValue([/grasa/, /fat/]);
-
-    return { kcal: kcal, p: p, c: c, f: f };
-  };
+  <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -1562,108 +1534,18 @@ window.addEventListener('error', function(e){
     });
   };
 
-  // ======= OCR FUNCIONAL Y COMPLETO =======
-  const openPop = (id) => {
-    const pop = $(id);
-    if (!pop) return;
-    pop.setAttribute('aria-hidden', 'false');
-    pop.style.display = 'block';
-  };
+  // ======= OCR =======
+  const openPop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','false'); pop.style.display='block'; };
+  const closePop=(id)=>{ const pop=$(id); if(!pop) return; pop.setAttribute('aria-hidden','true'); pop.style.display='none'; };
 
-  const closePop = (id) => {
-    const pop = $(id);
-    if (!pop) return;
-    pop.setAttribute('aria-hidden', 'true');
-    pop.style.display = 'none';
-  };
-
-  const parseOcrText = (t) => {
-    const norm = (t || '').toLowerCase().replace(/,/g, '.');
-    const grab = (re) => {
-      const m = norm.match(re);
-      if (!m) return null;
-      const v = parseFloat(m[1]);
-      return Number.isFinite(v) ? v : null;
-    };
-
-    const kcal = grab(/(\d+(?:\.\d+)?)\s*(?:kcal|calor[ií]as)/);
-    const p = grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]nas?|protein)/);
-    const c = grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/);
-    const f = grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas?|fat)/);
-
-    return { kcal, p, c, f };
-  };
-
-  const initOCRModule = () => {
-    const openBtn = $('openOCRTop');
-    const closeBtn = $('closeOCR');
-    const fileInput = $('ocrFile');
-    const pickBtn = $('ocrPick');
-    const parseBtn = $('ocrParse');
-    const imgWrap = $('ocrImgWrap');
-    const imgEl = $('ocrImg');
-    const textEl = $('ocrText');
-    const resultEl = $('ocrResult');
-
-    if (!openBtn) return;
-
-    openBtn.onclick = () => openPop('ocrPop');
-    if (closeBtn) closeBtn.onclick = () => closePop('ocrPop');
-
-    if (pickBtn && fileInput) {
-      pickBtn.onclick = () => fileInput.click();
-      fileInput.onchange = (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          if (imgEl) imgEl.src = evt.target.result;
-          if (imgWrap) imgWrap.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      };
-    }
-
-    if (parseBtn && textEl) {
-      parseBtn.onclick = () => {
-        const txt = textEl.value;
-        const parseOcrText = (t) => {
-    if (!t) return { kcal: null, p: null, c: null, f: null };
-    
-    const norm = t.toLowerCase().replace(/,/g, '.');
-    const lines = norm.split('\n');
-
-    const extractValue = (patterns) => {
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        for (let j = 0; j < patterns.length; j++) {
-          if (patterns[j].test(line)) {
-            const match = line.match(/\d+(?:\.\d+)?/);
-            if (match) {
-              const val = parseFloat(match[0]);
-              if (Number.isFinite(val)) return val;
-            }
-          }
-        }
-      }
-      return null;
-    };
-
-    const kcal = extractValue([/kcal/, /calor/]);
-    const p = extractValue([/prote[ií]n/, /prot/]);
-    const c = extractValue([/carbohidrat/, /hidrat/, /carbs/, /hc\b/]);
-    const f = extractValue([/grasa/, /fat/]);
-
-    return { kcal: kcal, p: p, c: c, f: f };
-  };
-
-    // Expresiones flexibles por cada macronutriente
-    const kcal = extractValue([/kcal/, /calor/]);
-    const p = extractValue([/prote[ií]n/, /prot/]);
-    const c = extractValue([/carbohidrat/, /hidrat/, /carbs/, /hc\b/]);
-    const f = extractValue([/grasa/, /fat/]);
-
-    return { kcal, p, c, f };
+  const parseOcrText=(t)=>{
+    const norm=(t||'').toLowerCase().replace(/,/g,'.');
+    const grab=(re)=>{ const m=norm.match(re); if(!m) return null; const v=parseFloat(m[1]); return Number.isFinite(v)?v:null; };
+    const kcal=grab(/(\d+(?:\.\d+)?)\s*kcal/);
+    const p=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:prote[ií]na|protein)/);
+    const c=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:hidratos|carbohidratos|carbs|hc)/);
+    const f=grab(/(\d+(?:\.\d+)?)\s*(?:g\s*)?(?:grasas|grasa|fat)/);
+    return {kcal,p,c,f};
   };
 
 
@@ -3989,7 +3871,6 @@ $('exportFoods').onclick=()=>{
   ensureFoodsStores();
   rolloverIfNeeded();
   bindDevLongPress();
-  initOCRModule();
   applyDevUI();
 
   // Panel plegable Macros OK (recordar estado)
