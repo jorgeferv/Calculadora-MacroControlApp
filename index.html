@@ -4,7 +4,35 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>MacroControlAPP</title>
-  <meta name="theme-color" content="#111111" />
+  <meta name="theme-color" content="#111111" />const parseOcrText = (t) => {
+    if (!t) return { kcal: null, p: null, c: null, f: null };
+    
+    const norm = t.toLowerCase().replace(/,/g, '.');
+    const lines = norm.split('\n');
+
+    const extractValue = (patterns) => {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        for (let j = 0; j < patterns.length; j++) {
+          if (patterns[j].test(line)) {
+            const match = line.match(/\d+(?:\.\d+)?/);
+            if (match) {
+              const val = parseFloat(match[0]);
+              if (Number.isFinite(val)) return val;
+            }
+          }
+        }
+      }
+      return null;
+    };
+
+    const kcal = extractValue([/kcal/, /calor/]);
+    const p = extractValue([/prote[ií]n/, /prot/]);
+    const c = extractValue([/carbohidrat/, /hidrat/, /carbs/, /hc\b/]);
+    const f = extractValue([/grasa/, /fat/]);
+
+    return { kcal: kcal, p: p, c: c, f: f };
+  };
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -1602,16 +1630,14 @@ window.addEventListener('error', function(e){
         const parseOcrText = (t) => {
     if (!t) return { kcal: null, p: null, c: null, f: null };
     
-    // Normalizar texto: minúsculas, comas a puntos y limpiar caracteres extraños
     const norm = t.toLowerCase().replace(/,/g, '.');
-    
-    // Función auxiliar para buscar números cerca de palabras clave en cualquier formato de línea
+    const lines = norm.split('\n');
+
     const extractValue = (patterns) => {
-      const lines = norm.split('\n');
-      for (const line of lines) {
-        for (const pattern of patterns) {
-          if (pattern.test(line)) {
-            // Extraer el primer número (entero o decimal) de esa línea
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        for (let j = 0; j < patterns.length; j++) {
+          if (patterns[j].test(line)) {
             const match = line.match(/\d+(?:\.\d+)?/);
             if (match) {
               const val = parseFloat(match[0]);
@@ -1622,6 +1648,14 @@ window.addEventListener('error', function(e){
       }
       return null;
     };
+
+    const kcal = extractValue([/kcal/, /calor/]);
+    const p = extractValue([/prote[ií]n/, /prot/]);
+    const c = extractValue([/carbohidrat/, /hidrat/, /carbs/, /hc\b/]);
+    const f = extractValue([/grasa/, /fat/]);
+
+    return { kcal: kcal, p: p, c: c, f: f };
+  };
 
     // Expresiones flexibles por cada macronutriente
     const kcal = extractValue([/kcal/, /calor/]);
