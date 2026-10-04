@@ -1599,30 +1599,37 @@ window.addEventListener('error', function(e){
     if (parseBtn && textEl) {
       parseBtn.onclick = () => {
         const txt = textEl.value;
-        const parsed = parseOcrText(txt);
-        
-        if (!parsed.kcal && !parsed.p && !parsed.c && !parsed.f) {
-          if (resultEl) resultEl.textContent = '❌ No se detectaron valores. Revisa el texto pegado.';
-          return;
+        const parseOcrText = (t) => {
+    if (!t) return { kcal: null, p: null, c: null, f: null };
+    
+    // Normalizar texto: minúsculas, comas a puntos y limpiar caracteres extraños
+    const norm = t.toLowerCase().replace(/,/g, '.');
+    
+    // Función auxiliar para buscar números cerca de palabras clave en cualquier formato de línea
+    const extractValue = (patterns) => {
+      const lines = norm.split('\n');
+      for (const line of lines) {
+        for (const pattern of patterns) {
+          if (pattern.test(line)) {
+            // Extraer el primer número (entero o decimal) de esa línea
+            const match = line.match(/\d+(?:\.\d+)?/);
+            if (match) {
+              const val = parseFloat(match[0]);
+              if (Number.isFinite(val)) return val;
+            }
+          }
         }
+      }
+      return null;
+    };
 
-        if (resultEl) {
-          resultEl.textContent = `✅ Extraído: ${parsed.kcal ?? 0} kcal | P: ${parsed.p ?? 0}g | C: ${parsed.c ?? 0}g | F: ${parsed.f ?? 0}g`;
-        }
+    // Expresiones flexibles por cada macronutriente
+    const kcal = extractValue([/kcal/, /calor/]);
+    const p = extractValue([/prote[ií]n/, /prot/]);
+    const c = extractValue([/carbohidrat/, /hidrat/, /carbs/, /hc\b/]);
+    const f = extractValue([/grasa/, /fat/]);
 
-        // Rellenar campos en el formulario de Alimentos (Drawer) o Añadir
-        if ($('f_kcal'))$('f_kcal').value = parsed.kcal ?? '';
-        if ($('f_p'))$('f_p').value = parsed.p ?? '';
-        if ($('f_c'))$('f_c').value = parsed.c ?? '';
-        if ($('f_f'))$('f_f').value = parsed.f ?? '';
-
-        // Si el drawer de alimentos está cerrado, abrirlo automáticamente
-        const drawer = $('drawerBack');
-        if (drawer) drawer.style.display = 'block';
-        
-        closePop('ocrPop');
-      };
-    }
+    return { kcal, p, c, f };
   };
 
 
